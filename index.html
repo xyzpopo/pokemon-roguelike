@@ -468,6 +468,88 @@ const LEGEND_BY_GEN={
 };
 const GEN_RANGES={1:[1,151],2:[152,251],3:[252,386],4:[387,493],5:[494,649],6:[650,721],7:[722,809],8:[810,905],9:[906,1025]};
 
+// 세대별 진화 단계 ID 목록 (0=미진화, 1=1차진화, 2=2차진화, 3=3차진화)
+// 각 배열: [미진화ID목록, 1차진화ID목록, 2차진화ID목록, 3차진화ID목록]
+const GEN_EVO_STAGES={
+  1:[
+    [1,4,7,10,13,16,19,21,23,27,29,32,35,37,39,41,43,46,48,50,52,54,56,58,60,63,66,69,72,74,77,79,81,84,86,88,90,92,95,96,98,100,102,104,108,109,111,114,116,118,120,122,123,124,125,126,127,128,129,131,132,133,137,138,140,142,143,147],
+    [2,5,8,11,14,17,20,22,24,28,30,33,36,38,40,42,44,47,49,51,53,55,57,59,61,64,67,70,73,75,78,80,82,85,87,89,91,93,97,99,101,103,105,110,112,115,117,119,121,134,135,136,139,141,148],
+    [3,6,9,12,15,18,25,31,34,45,65,68,71,76,83,94,106,107,113,149,150],
+    [150,151],
+  ],
+  2:[
+    [152,155,158,161,163,165,167,170,172,173,174,175,177,179,183,187,191,193,194,198,200,202,203,204,206,207,209,211,213,214,215,216,218,220,222,223,225,226,227,228,231,234,235,236,238,239,240,241,246],
+    [153,156,159,162,164,166,168,169,171,176,178,180,184,188,192,195,199,201,205,208,210,212,217,219,221,224,229,232,237,247],
+    [154,157,160,181,185,186,189,190,196,197,248,249,250],
+    [249,250,251],
+  ],
+  3:[
+    [252,255,258,261,263,265,270,273,276,278,280,283,285,287,290,293,296,298,299,300,302,303,304,307,309,311,312,313,314,315,316,318,320,322,325,327,328,331,333,335,336,337,338,339,341,343,345,347,349,351,352,353,355,357,358,360,361,363,366,369,370,371,374,374,377,378,379,380,381,384],
+    [253,256,259,262,264,266,271,274,277,279,281,284,286,288,291,294,297,301,305,308,310,317,319,323,326,329,332,334,340,342,344,346,348,350,354,356,362,364,367,372,375],
+    [254,257,260,267,268,269,272,275,282,289,292,295,306,372,373,376],
+    [377,378,379,380,381,382,383,384,385,386],
+  ],
+  4:[
+    [387,390,393,396,399,401,403,406,408,410,412,415,418,420,422,425,427,431,433,434,436,438,439,440,441,442,443,446,447,449,451,453,456,458,459,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493],
+    [388,391,394,397,400,402,404,407,409,411,413,419,421,423,426,428,432,435,437,444,448,450,452,454,457,460],
+    [389,392,395,398,405,414,416,424,429,430,445],
+    [483,484,485,486,487,491,492,493],
+  ],
+  5:[
+    [494,495,498,501,504,506,509,511,513,515,517,519,522,524,527,529,532,535,538,539,540,543,546,548,550,551,554,556,557,559,561,562,564,566,568,570,572,574,577,580,582,585,587,588,590,592,595,597,599,602,605,607,610,613,616,618,619,621,622,624,626,627,629,631,632,633,636,638,639,640,641,642,643,644,645,646,647,648,649],
+    [496,499,502,505,507,510,512,514,516,518,520,523,525,528,530,533,536,541,544,547,549,552,555,558,560,563,565,567,569,571,573,575,578,581,583,589,591,593,596,598,600,603,606,608,611,614,617,620,623,625,628,630,634,637],
+    [497,500,503,508,521,526,531,534,537,542,545,553,576,579,584,594,601,604,609,612,615,635],
+    [638,639,640,641,642,643,644,645,646,647,648,649],
+  ],
+  6:[
+    [650,653,656,659,661,664,667,669,672,674,676,677,679,682,684,686,688,690,692,694,696,698,700,701,702,703,704,707,708,710,712,714,716,717,718,719,720,721],
+    [651,654,657,660,662,665,668,670,673,675,678,680,683,685,687,689,691,693,695,697,699,705,709,711,713,715],
+    [652,655,658,663,666,671,681,706],
+    [716,717,718,719,720,721],
+  ],
+  7:[
+    [722,725,728,731,734,736,739,742,744,746,747,749,751,753,755,757,759,761,764,765,766,767,769,771,772,774,775,776,777,778,779,780,781,782,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,801,802,803,804,805,806,807,808,809],
+    [723,726,729,732,735,737,740,743,745,748,750,752,754,756,758,762,770,783],
+    [724,727,730,733,738,741,763,784],
+    [785,786,787,788,789,790,791,792,800,801,802],
+  ],
+  8:[
+    [810,813,816,819,821,824,827,829,831,833,835,837,840,843,845,846,848,850,852,854,856,859,862,863,864,865,866,867,868,869,870,871,872,874,875,876,877,878,880,882,884,885,886,887,888,889,890,891,892,893,894,895,896,897,898,899,900,901,902,903,904,905],
+    [811,814,817,820,822,825,828,830,832,834,836,838,841,844,849,851,853,855,857,860,873,879,881,883,886],
+    [812,815,818,823,826,839,842,847,858,861],
+    [888,889,890,891,892,893,894,895,896,897,898],
+  ],
+  9:[
+    [906,909,912,915,918,921,924,926,928,930,932,934,936,938,940,942,944,946,948,950,952,954,956,958,960,962,964,966,968,970,972,974,976,978,979,980,981,982,983,984,985,986,987,988,989,990,991,992,993,994,995,996,997,998,999,1000,1001,1002,1003,1004,1005,1006],
+    [907,910,913,916,919,922,925,927,929,931,933,935,937,939,941,943,945,947,949,951,953,955,957,959,961,963,965,967,969,971,973,975,977],
+    [908,911,914,917,920,923],
+    [1007,1008,1009,1010,1011,1012,1013,1014,1015,1016,1017,1018,1019,1020,1021,1022,1023,1024,1025],
+  ],
+};
+
+// 스테이지(1~20)에 따른 진화 단계 결정
+// 1~5: 미진화(0), 6~10: 1차(1), 11~15: 2차(2), 16~20: 3차(3)
+function getEvoStage(stage){
+  if(stage<=5) return 0;
+  if(stage<=10) return 1;
+  if(stage<=15) return 2;
+  return 3;
+}
+
+// 해당 진화 단계 포켓몬 ID 랜덤 선택
+function pickEnemyId(gen, evoStage){
+  const evoData=GEN_EVO_STAGES[gen];
+  if(!evoData) return GEN_RANGES[gen][0]+Math.floor(Math.random()*(GEN_RANGES[gen][1]-GEN_RANGES[gen][0]+1));
+  // 해당 단계 목록
+  let pool=evoData[evoStage]||[];
+  // 목록이 비어있으면 상위/하위 단계 fallback
+  if(pool.length===0){
+    for(let fb=evoStage-1;fb>=0;fb--){if(evoData[fb]&&evoData[fb].length>0){pool=evoData[fb];break;}}
+  }
+  if(pool.length===0) pool=evoData[0]||[];
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
 // 스테이지 테마 (배경 그라디언트 색상)
 const STAGE_THEMES=[
   {sky:['#0d1b2a','#1a3a5c'],ground:['#1a3a1a','#0d1a0d'],name:'숲'},       // 1-2
@@ -630,47 +712,119 @@ function resizeCanvas(){
 }
 
 // ── 플랫폼 레이아웃 생성 ──────────────────────────────────────
+// 스테이지마다 다른 시드로 재현 가능한 랜덤 레이아웃 생성
+function seededRand(seed){
+  let s=seed;
+  return ()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
+}
+
 function genPlatforms(stage){
   const plats=[];
   const W=mapWidth, H=floorY;
-  // 세 가지 패턴을 스테이지에 따라 순환
-  const pattern=stage%3;
 
   if(stage===0){
-    // 로비: 느긋한 플랫폼 배치
-    plats.push({x:200,y:H-160,w:120,h:16});
-    plats.push({x:420,y:H-240,w:140,h:16});
-    plats.push({x:650,y:H-180,w:110,h:16});
-    plats.push({x:880,y:H-280,w:130,h:16});
-    plats.push({x:1100,y:H-200,w:150,h:16});
-    plats.push({x:1350,y:H-300,w:120,h:16});
-    plats.push({x:1600,y:H-160,w:140,h:16});
-    plats.push({x:1850,y:H-250,w:110,h:16});
-  } else if(pattern===0){
-    // 계단형
-    for(let i=0;i<6;i++){
-      plats.push({x:300+i*350,y:H-160-i*50,w:120+Math.random()*60|0,h:16});
-    }
-    plats.push({x:600,y:H-320,w:100,h:16});
-    plats.push({x:1200,y:H-360,w:110,h:16});
-  } else if(pattern===1){
-    // 지그재그
-    for(let i=0;i<7;i++){
-      const side=i%2===0?1:-1;
-      plats.push({x:300+i*320+(side>0?0:80),y:H-180-i*30,w:100+Math.random()*80|0,h:16});
-    }
-    plats.push({x:W/2-60,y:H-380,w:120,h:16});
-  } else {
-    // 군집형
-    plats.push({x:250,y:H-170,w:140,h:16});
-    plats.push({x:380,y:H-270,w:100,h:16});
-    plats.push({x:680,y:H-200,w:130,h:16});
-    plats.push({x:830,y:H-310,w:90,h:16});
-    plats.push({x:1100,y:H-190,w:120,h:16});
-    plats.push({x:1280,y:H-330,w:110,h:16});
-    plats.push({x:1550,y:H-240,w:140,h:16});
-    plats.push({x:1750,y:H-360,w:100,h:16});
+    // 로비: 느긋하고 넓은 배치
+    const lobby=[
+      {x:200,y:H-150,w:130,h:16},{x:440,y:H-230,w:140,h:16},
+      {x:680,y:H-170,w:110,h:16},{x:900,y:H-270,w:130,h:16},
+      {x:1130,y:H-190,w:150,h:16},{x:1380,y:H-290,w:120,h:16},
+      {x:1620,y:H-155,w:140,h:16},{x:1870,y:H-240,w:110,h:16},
+    ];
+    for(const p of lobby) plats.push(p);
+    return plats;
   }
+
+  // 스테이지별 시드 & 패턴 (7가지 패턴 순환)
+  const rnd=seededRand(stage*73856+12345);
+  const pattern=((stage-1)%7);
+  const difficulty=Math.min(stage/20,1); // 0~1
+
+  const ri=(min,max)=>min+Math.floor(rnd()*(max-min+1));
+  const rf=(min,max)=>min+rnd()*(max-min);
+
+  if(pattern===0){
+    // 계단형 (오른쪽으로 점점 높아짐)
+    const cnt=5+ri(0,2);
+    const xStep=Math.floor((W-500)/cnt);
+    for(let i=0;i<cnt;i++){
+      plats.push({x:280+i*xStep+ri(-30,30),y:H-140-i*(40+ri(0,30)),w:ri(100,150),h:16});
+    }
+    // 중간 보너스 플랫폼
+    plats.push({x:ri(500,900),y:H-350-ri(0,50),w:ri(80,120),h:16});
+  } else if(pattern===1){
+    // 지그재그 (좌우 교차)
+    const cnt=6+ri(0,2);
+    const xStep=Math.floor((W-400)/cnt);
+    for(let i=0;i<cnt;i++){
+      const offset=i%2===0?0:ri(60,100);
+      plats.push({x:250+i*xStep+offset,y:H-160-i*ri(20,35),w:ri(90,140),h:16});
+    }
+    plats.push({x:W/2-60+ri(-80,80),y:H-ri(330,400),w:ri(100,130),h:16});
+  } else if(pattern===2){
+    // 군집형 (3~4개 묶음)
+    const clusters=[[250,300],[650,750],[1050,1150],[1450,1550]];
+    for(const [cx,cy_unused] of clusters){
+      const baseY=H-ri(160,220);
+      plats.push({x:cx,y:baseY,w:ri(110,150),h:16});
+      plats.push({x:cx+ri(100,170),y:baseY-ri(80,130),w:ri(80,110),h:16});
+    }
+    plats.push({x:W/2-50,y:H-ri(300,380),w:ri(90,120),h:16});
+  } else if(pattern===3){
+    // 수직 탑 형태 (중앙에 높이 쌓인 플랫폼)
+    const cx=W/2;
+    for(let i=0;i<5;i++){
+      const xOff=ri(-180,180);
+      plats.push({x:cx+xOff,y:H-150-i*ri(70,100),w:ri(100,160),h:16});
+    }
+    // 좌우 접근용
+    plats.push({x:ri(180,300),y:H-ri(140,200),w:ri(110,150),h:16});
+    plats.push({x:W-ri(300,420),y:H-ri(140,200),w:ri(110,150),h:16});
+  } else if(pattern===4){
+    // 파도형 (sin 커브 기반 높이)
+    const cnt=7+ri(0,2);
+    const xStep=Math.floor((W-350)/cnt);
+    for(let i=0;i<cnt;i++){
+      const wave=Math.sin(i*0.9)*80;
+      plats.push({x:200+i*xStep+ri(-20,20),y:H-200+wave-ri(0,30),w:ri(90,140),h:16});
+    }
+    plats.push({x:W/2+ri(-100,100),y:H-ri(360,420),w:ri(80,110),h:16});
+  } else if(pattern===5){
+    // 피라미드형 (가운데 최고점)
+    const peak=W/2;
+    for(let i=0;i<3;i++){
+      const yBase=H-150-i*100;
+      const spread=550-i*160;
+      plats.push({x:peak-spread/2-ri(0,40),y:yBase+ri(-20,20),w:ri(100,140),h:16});
+      plats.push({x:peak+spread/2-ri(60,80)+ri(0,40),y:yBase+ri(-20,20),w:ri(100,140),h:16});
+    }
+    // 꼭대기
+    plats.push({x:peak-ri(50,70),y:H-460-ri(0,40),w:ri(100,140),h:16});
+    // 양 끝 진입용
+    plats.push({x:ri(180,280),y:H-ri(140,180),w:ri(110,150),h:16});
+    plats.push({x:W-ri(300,400),y:H-ri(140,180),w:ri(110,150),h:16});
+  } else {
+    // 산개형 (완전 랜덤, 이동 가능 보장)
+    const cnt=8+ri(0,3);
+    let prevX=200, prevY=H-160;
+    for(let i=0;i<cnt;i++){
+      const w=ri(90,150);
+      const dx=ri(200,350);
+      const dy=ri(-120,100);
+      const nx=prevX+dx;
+      const ny=Math.max(H-420,Math.min(H-140,prevY+dy));
+      if(nx+w>W-200) break;
+      plats.push({x:nx,y:ny,w,h:16});
+      prevX=nx; prevY=ny;
+    }
+  }
+
+  // 어려운 스테이지: 발판 일부 좁히기
+  if(difficulty>0.6){
+    for(const p of plats){
+      if(rnd()<0.3) p.w=Math.max(60,p.w-30);
+    }
+  }
+
   return plats;
 }
 
@@ -678,7 +832,8 @@ function genPlatforms(stage){
 function genDoors(stage){
   const H=floorY;
   const entrance={x:40,y:H-130,w:80,h:130,type:'entrance',label:'입구'};
-  const exit={x:mapWidth-130,y:H-130,w:80,h:130,type:'exit',label:'출구'};
+  // 출구: 스테이지 길이에 따라 맵 끝 고정
+  const exit={x:mapWidth-130,y:H-130,w:80,h:130,type:'exit',label:'출구',locked:stage>0};
   return [entrance,exit];
 }
 
@@ -694,8 +849,8 @@ function initStageMap(stage){
   // 플레이어 배치: 입구 오른쪽
   const ph=playerData.hp, pmh=playerData.maxHp;
   player={
-    x:doors[0].x+doors[0].w+20,y:floorY-52,
-    w:52,h:52,vx:0,vy:0,onGround:false,facing:1,
+    x:doors[0].x+doors[0].w+20,y:floorY-80,
+    w:80,h:80,vx:0,vy:0,onGround:false,facing:1,
     img:Object.assign(new Image(),{src:playerData.sprite}),
     atkCooldown:[0,0],invincible:0,
     hp:ph,maxHp:pmh,
@@ -710,19 +865,24 @@ function initStageMap(stage){
     if(isBoss){
       const boss=stage===10?bosses.mid:bosses.final;
       const bHp=calcHP(boss.baseStats.hp*2,playerData.level);
-      enemies.push(makeEnemy(boss,mapWidth-320,floorY-80,bHp,true));
+      enemies.push(makeEnemy(boss,mapWidth-320,floorY-120,bHp,true));
       document.getElementById('hudBossName').textContent=boss.name;
       document.getElementById('hudBoss').classList.add('visible');
       updateBossHud(enemies[0]);
     } else {
       document.getElementById('hudBoss').classList.remove('visible');
       const cnt=3+Math.floor(Math.random()*3);
-      const [mn,mx]=GEN_RANGES[gameGen];
+      const evoStage=getEvoStage(stage);
+      // 진화 단계 레이블
+      const evoLabels=['미진화','1차 진화','2차 진화','3차 진화'];
       for(let i=0;i<cnt;i++){
-        const id=mn+Math.floor(Math.random()*(mx-mn+1));
+        const id=pickEnemyId(gameGen, evoStage);
         const ex=400+i*340+Math.random()*100;
-        const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),baseStats:{hp:50+Math.random()*50,atk:40+Math.random()*40,def:30,spe:40}};
-        enemies.push(makeEnemy(rp,ex,floorY-52,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.5)),false));
+        // 진화 단계에 따라 스탯 스케일
+        const evoScale=1+evoStage*0.35; // 미진화1.0, 1차1.35, 2차1.7, 3차2.05
+        const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
+          baseStats:{hp:(50+Math.random()*40)*evoScale,atk:(40+Math.random()*35)*evoScale,def:30*evoScale,spe:40}};
+        enemies.push(makeEnemy(rp,ex,floorY-80,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.5)),false));
       }
     }
     stageEnemyCount=enemies.length;
@@ -734,7 +894,7 @@ function rndType(){const t=Object.keys(TYPE_COLORS);return t[Math.floor(Math.ran
 function makeEnemy(pk,x,y,hp,isBoss){
   const img=new Image(); img.src=pk.sprite||spriteUrl(pk.id);
   const floatH = 0;
-  return {x,y:y,w:isBoss?84:52,h:isBoss?84:52,vx:0,vy:0,onGround:false,facing:-1,
+  return {x,y:y,w:isBoss?120:80,h:isBoss?120:80,vx:0,vy:0,onGround:false,facing:-1,
     img,types:pk.types||['노말'],hp,maxHp:hp,isBoss,name:pk.name,
     baseAtk:pk.baseStats?.atk||50,atkCooldown:0,aiTimer:0,jumpTimer:0,animTick:0};
 }
@@ -765,8 +925,9 @@ function launchStage(stage){
   initStageMap(stage);
   updateHUD();
   const isBoss=stage===10||stage===20;
+  const evoLabels=['미진화체','1차 진화체','2차 진화체','3차 진화체'];
   if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
-  else setHint(`STAGE ${stage} — ${getTheme(stage).name} · 적을 모두 쓰러뜨리세요!`);
+  else setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!`);
   setTimeout(()=>setHint(''),3000);
   gameRunning=true; lastTime=0;
   if(animFrame) cancelAnimationFrame(animFrame);
@@ -1036,8 +1197,11 @@ function checkDoors(){
     if(door.type==='entrance'&&gamePhase==='lobby'){
       // 입구로 들어가면 1스테이지 시작
       transitionToStage(1);
-    } else if(door.type==='exit'&&gamePhase==='clear'){
+    } else if(door.type==='exit'&&gamePhase==='clear'&&!door.locked){
       stageClearTransition();
+    } else if(door.type==='exit'&&door.locked&&gamePhase==='fight'){
+      setHint('⚠️ 적을 모두 쓰러뜨려야 출구가 열립니다!');
+      setTimeout(()=>setHint(''),2000);
     }
   }
 }
@@ -1092,8 +1256,13 @@ function checkWin(){
   if(gamePhase!=='fight') return;
   if(enemies.length===0&&stageEnemyCount>0){
     gamePhase='clear';
+    // 출구 잠금 해제
+    const exitDoor=doors.find(d=>d.type==='exit');
+    if(exitDoor) exitDoor.locked=false;
     spawnPtcl(player.x+player.w/2,player.y,'#ffcb05',20,'burst');
-    setHint('✨ 클리어! 출구로 이동하세요!');
+    setHint('✨ 클리어! 출구로 이동하세요! →');
+    // 출구 방향 화살표 힌트 (3초 후 사라짐)
+    setTimeout(()=>setHint(''),5000);
   }
 }
 
@@ -1130,12 +1299,15 @@ function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const theme=getTheme(currentStage);
 
-  // 하늘 — 밝고 맑은 하늘
+  // 하늘 — 테마별 색상
   const skyG=ctx.createLinearGradient(0,0,0,floorY);
-  skyG.addColorStop(0,'#4fc3f7');
-  skyG.addColorStop(0.45,'#81d4fa');
-  skyG.addColorStop(0.85,'#b3e5fc');
-  skyG.addColorStop(1,'#e1f5fe');
+  if(currentStage===0){
+    skyG.addColorStop(0,'#1a3a2a'); skyG.addColorStop(0.5,'#2a5a3a'); skyG.addColorStop(1,'#3a6a4a');
+  } else {
+    const [s0,s1]=theme.sky;
+    skyG.addColorStop(0,s0); skyG.addColorStop(0.55,s1);
+    skyG.addColorStop(1,adjustColor(s1,20));
+  }
   ctx.fillStyle=skyG; ctx.fillRect(0,0,canvas.width,canvas.height);
 
   // 배경 구름/장식
@@ -1143,38 +1315,11 @@ function render(){
 
   ctx.save(); ctx.translate(-camera.x,0);
 
-  // 바닥 — 흙층
-  const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.height);
-  dirtG.addColorStop(0,'#6b4226'); dirtG.addColorStop(.4,'#8b5a2b'); dirtG.addColorStop(1,'#3d2210');
-  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,canvas.height-floorY);
-
-  // 바닥 — 풀 윗면 (두꺼운 잔디 레이어)
-  const grassG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
-  grassG.addColorStop(0,'#5aad2a'); grassG.addColorStop(.5,'#3d8a18'); grassG.addColorStop(1,'#2d6b10');
-  ctx.fillStyle=grassG; ctx.fillRect(0,floorY-4,mapWidth,26);
-
-  // 풀 날 (불규칙한 삼각형들)
-  ctx.fillStyle='#6ec832';
-  const seed=42;
-  for(let gx=0;gx<mapWidth;gx+=9){
-    const h=4+((gx*37+seed)%7);
-    ctx.beginPath();
-    ctx.moveTo(gx,floorY-4);
-    ctx.lineTo(gx+4,floorY-4-h);
-    ctx.lineTo(gx+8,floorY-4);
-    ctx.fill();
-  }
-
-  // 바닥 돌 무늬
-  ctx.fillStyle='rgba(0,0,0,.12)';
-  for(let rx=20;rx<mapWidth;rx+=120+((rx*13)%60)){
-    ctx.beginPath();
-    ctx.ellipse(rx,floorY+10,18+((rx*7)%14),6,0,0,Math.PI*2);
-    ctx.fill();
-  }
+  // 바닥 — 테마별
+  renderFloor(theme);
 
   // 배경 나무/꽃 (바닥 뒤 레이어)
-  renderWorldBgDecos();
+  renderWorldBgDecos(theme);
 
   // 플랫폼
   for(const p of platforms) renderPlatform(p,theme);
@@ -1205,21 +1350,106 @@ function render(){
   if(currentStage===0) renderLobbyOverlay();
 }
 
+// 밝기 조정 헬퍼
+function adjustColor(hex,amt){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const clamp=v=>Math.max(0,Math.min(255,v+amt));
+  return `#${clamp(r).toString(16).padStart(2,'0')}${clamp(g).toString(16).padStart(2,'0')}${clamp(b).toString(16).padStart(2,'0')}`;
+}
+
+// 테마별 바닥 렌더
+function renderFloor(theme){
+  const FLOOR_THEMES={
+    '로비': {dirt:['#3a6a1a','#2a4a10'],grass:'#5aad2a',grassLight:'#6ec832',flowers:true},
+    '숲':   {dirt:['#3a5a1a','#2a4010'],grass:'#4a8a18',grassLight:'#5aaa22',flowers:true},
+    '동굴': {dirt:['#2a2a2a','#1a1a1a'],grass:'#3a3a3a',grassLight:'#4a4a4a',flowers:false,rock:true},
+    '해저': {dirt:['#0a2a3a','#051a28'],grass:'#0d4a5a',grassLight:'#1a6a7a',flowers:false,water:true},
+    '사막': {dirt:['#5a3a10','#3a2508'],grass:'#8a5a20',grassLight:'#a06a28',flowers:false,sand:true},
+    '유적': {dirt:['#3a3a2a','#2a2a1a'],grass:'#5a5a3a',grassLight:'#6a6a4a',flowers:false,stone:true},
+    '화산': {dirt:['#3a0a0a','#1a0505'],grass:'#5a1a0a',grassLight:'#7a2a10',flowers:false,lava:true},
+    '설산': {dirt:['#2a3a4a','#1a2a3a'],grass:'#8ab0d0',grassLight:'#aad0f0',flowers:false,snow:true},
+    '유령숲':{dirt:['#1a0a2a','#0d0515'],grass:'#3a1a5a',grassLight:'#4a2a6a',flowers:false,ghost:true},
+    '우주': {dirt:['#050510','#020208'],grass:'#1a1a3a',grassLight:'#2a2a4a',flowers:false,space:true},
+    '최후의 성':{dirt:['#2a0505','#150303'],grass:'#4a0a0a',grassLight:'#6a1010',flowers:false,evil:true},
+  };
+  const ft=FLOOR_THEMES[theme.name]||FLOOR_THEMES['숲'];
+
+  // 흙층
+  const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.height);
+  dirtG.addColorStop(0,ft.dirt[0]); dirtG.addColorStop(1,ft.dirt[1]);
+  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,canvas.height-floorY);
+
+  // 표면층
+  const surfG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
+  surfG.addColorStop(0,ft.grass); surfG.addColorStop(1,ft.dirt[0]);
+  ctx.fillStyle=surfG; ctx.fillRect(0,floorY-4,mapWidth,26);
+
+  // 표면 디테일
+  if(ft.snow){
+    // 눈 질감
+    ctx.fillStyle='rgba(220,240,255,0.6)';
+    for(let gx=0;gx<mapWidth;gx+=12){
+      const h=3+((gx*29)%6);
+      ctx.beginPath(); ctx.moveTo(gx,floorY-4); ctx.lineTo(gx+5,floorY-4-h); ctx.lineTo(gx+11,floorY-4); ctx.fill();
+    }
+  } else if(ft.lava){
+    // 용암 균열
+    const t=Date.now()/500;
+    ctx.strokeStyle=`rgba(255,${80+40*Math.sin(t)},0,0.7)`; ctx.lineWidth=2;
+    for(let cx=50;cx<mapWidth;cx+=200+((cx*11)%100)){
+      ctx.beginPath(); ctx.moveTo(cx,floorY-4);
+      ctx.bezierCurveTo(cx+30,floorY+8,cx+50,floorY+5,cx+90,floorY-4); ctx.stroke();
+    }
+  } else if(ft.water){
+    // 물결
+    const t=Date.now()/800;
+    ctx.strokeStyle='rgba(100,200,255,0.4)'; ctx.lineWidth=2;
+    for(let wx=0;wx<mapWidth;wx+=80){
+      ctx.beginPath();
+      ctx.moveTo(wx,floorY-2);
+      ctx.quadraticCurveTo(wx+20,floorY-8+3*Math.sin(t+wx/80),wx+40,floorY-2);
+      ctx.stroke();
+    }
+  } else if(ft.rock||ft.stone){
+    // 바위 표면 무늬
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    for(let rx=20;rx<mapWidth;rx+=90+((rx*17)%40)){
+      ctx.fillRect(rx,floorY-2,40+((rx*7)%30),3);
+    }
+  } else if(ft.flowers){
+    // 풀 날
+    ctx.fillStyle=ft.grassLight;
+    for(let gx=0;gx<mapWidth;gx+=9){
+      const h=4+((gx*37+42)%7);
+      ctx.beginPath(); ctx.moveTo(gx,floorY-4); ctx.lineTo(gx+4,floorY-4-h); ctx.lineTo(gx+8,floorY-4); ctx.fill();
+    }
+  }
+
+  // 바닥 무늬
+  ctx.fillStyle='rgba(0,0,0,.1)';
+  for(let rx=20;rx<mapWidth;rx+=120+((rx*13)%60)){
+    ctx.beginPath(); ctx.ellipse(rx,floorY+10,18+((rx*7)%14),6,0,0,Math.PI*2); ctx.fill();
+  }
+}
+
 function renderBgDecos(theme){
   const t=Date.now()/1000;
   ctx.save();
-  // 배경 별 (어두운 스테이지)
-  if(currentStage===0||currentStage>=17){
-    for(let i=0;i<35;i++){
+  // 어두운 테마: 별
+  const darkThemes=['동굴','유적','고스트','유령숲','우주','최후의 성'];
+  const isDark=darkThemes.includes(theme.name)||currentStage===0||currentStage>=15;
+  if(isDark){
+    for(let i=0;i<50;i++){
       const sx=((i*137+50)%1000)/1000*canvas.width;
-      const sy=((i*89+20)%1000)/1000*(canvas.height*.6);
-      ctx.fillStyle=`rgba(255,255,255,${.1+.25*Math.sin(t+i)})`;
-      ctx.fillRect(sx,sy,1.5,1.5);
+      const sy=((i*89+20)%1000)/1000*(canvas.height*.7);
+      ctx.fillStyle=`rgba(255,255,255,${.1+.3*Math.sin(t+i)})`;
+      ctx.fillRect(sx,sy,1.5+(i%3===0?1:0),1.5+(i%3===0?1:0));
     }
   }
-  // 구름 (고정 위치, 시차 스크롤 효과)
-  if(currentStage<=12||currentStage===0){
-    ctx.globalAlpha=.7;
+  // 밝은 테마: 구름
+  const brightThemes=['숲','로비','설산'];
+  if(brightThemes.includes(theme.name)||currentStage<=4){
+    ctx.globalAlpha=.65;
     const clouds=[
       {x:canvas.width*.1,y:canvas.height*.12,s:1.0},
       {x:canvas.width*.38,y:canvas.height*.08,s:0.75},
@@ -1229,15 +1459,35 @@ function renderBgDecos(theme){
     for(const cl of clouds){
       const ox=((t*12)%canvas.width);
       const cx=(cl.x-ox*0.04+canvas.width)%canvas.width;
-      drawCloud(cx,cl.y,cl.s);
+      // 설산은 흰 구름, 어두운 테마는 회색 구름
+      const cloudColor=theme.name==='설산'?'rgba(200,220,255,.9)':'rgba(255,255,255,.82)';
+      drawCloud(cx,cl.y,cl.s,cloudColor);
     }
     ctx.globalAlpha=1;
+  }
+  // 화산: 불씨 파티클 효과 (배경)
+  if(theme.name==='화산'){
+    for(let i=0;i<8;i++){
+      const fx=((i*271+t*30)%canvas.width);
+      const fy=canvas.height*.4+Math.sin(t*2+i)*(canvas.height*.2);
+      ctx.fillStyle=`rgba(255,${80+i*10},0,${.1+.1*Math.sin(t+i)})`;
+      ctx.beginPath(); ctx.arc(fx,fy,2+i%3,0,Math.PI*2); ctx.fill();
+    }
+  }
+  // 해저: 기포
+  if(theme.name==='해저'){
+    for(let i=0;i<10;i++){
+      const bx=((i*193+t*15)%canvas.width);
+      const by=canvas.height-((t*25+i*50)%(canvas.height));
+      ctx.fillStyle=`rgba(100,200,255,${.1+.08*Math.sin(t+i)})`;
+      ctx.beginPath(); ctx.arc(bx,by,2+i%4,0,Math.PI*2); ctx.fill();
+    }
   }
   ctx.restore();
 }
 
-function drawCloud(cx,cy,scale){
-  ctx.fillStyle='rgba(255,255,255,.82)';
+function drawCloud(cx,cy,scale,color='rgba(255,255,255,.82)'){
+  ctx.fillStyle=color;
   const r=22*scale;
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(cx+r*.8,cy+r*.2,r*.7,0,Math.PI*2); ctx.fill();
@@ -1246,73 +1496,213 @@ function drawCloud(cx,cy,scale){
 }
 
 // 월드 배경 (카메라 이동 후 좌표계에서 그리는 원거리 오브젝트)
-function renderWorldBgDecos(){
+function renderWorldBgDecos(theme){
   const t=Date.now()/1000;
-  // 배경 나무들
-  const treePositions=[80,280,520,760,1020,1300,1580,1860,2100];
-  for(const tx of treePositions){
-    drawTree(tx, floorY-4);
-  }
-  // 배경 꽃밭
-  for(let fx=60;fx<mapWidth;fx+=38+((fx*11)%30)){
-    const fy=floorY-6;
-    const fc=((fx*17)%3)===0?'#fff176':((fx*17)%3)===1?'#ff8fb1':'#aed6f1';
-    ctx.fillStyle=fc; ctx.globalAlpha=.8;
-    ctx.beginPath(); ctx.arc(fx,fy,3,0,Math.PI*2); ctx.fill();
+  const tn=theme?theme.name:'숲';
+
+  if(tn==='숲'||tn==='로비'){
+    // 나무
+    const treePositions=[80,280,520,760,1020,1300,1580,1860,2100];
+    for(const tx of treePositions) drawTree(tx, floorY-4, '#2e8b1a','#3aad22');
+    // 꽃밭
+    for(let fx=60;fx<mapWidth;fx+=38+((fx*11)%30)){
+      const fc=((fx*17)%3)===0?'#fff176':((fx*17)%3)===1?'#ff8fb1':'#aed6f1';
+      ctx.fillStyle=fc; ctx.globalAlpha=.8;
+      ctx.beginPath(); ctx.arc(fx,floorY-6,3,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  } else if(tn==='동굴'){
+    // 종유석
+    ctx.fillStyle='#4a3a2a';
+    for(let sx=100;sx<mapWidth;sx+=150+((sx*13)%80)){
+      const h=30+((sx*7)%40);
+      ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx-8,h); ctx.lineTo(sx+8,h); ctx.closePath(); ctx.fill();
+    }
+    // 석순
+    ctx.fillStyle='#5a4a3a';
+    for(let sx=180;sx<mapWidth;sx+=120+((sx*11)%70)){
+      const h=15+((sx*9)%25);
+      ctx.beginPath(); ctx.moveTo(sx,floorY); ctx.lineTo(sx-5,floorY-h); ctx.lineTo(sx+5,floorY-h); ctx.closePath(); ctx.fill();
+    }
+  } else if(tn==='화산'){
+    // 용암 웅덩이
+    const lavaT=t*0.5;
+    ctx.fillStyle='rgba(255,60,0,0.15)';
+    for(let lx=100;lx<mapWidth;lx+=300+((lx*7)%100)){
+      ctx.beginPath(); ctx.ellipse(lx,floorY-2,60,8,0,0,Math.PI*2); ctx.fill();
+    }
+    // 화산 바위
+    ctx.fillStyle='#2a0a0a';
+    for(let rx=200;rx<mapWidth;rx+=400+((rx*13)%150)){
+      ctx.beginPath(); ctx.arc(rx,floorY-20,25,0,Math.PI*2); ctx.fill();
+    }
+  } else if(tn==='설산'){
+    // 눈 쌓인 소나무
+    const treePositions=[100,320,600,900,1200,1500,1800];
+    for(const tx of treePositions) drawTree(tx,floorY-4,'#2a4a2a','#1a3a1a');
+    // 눈 쌓임
+    ctx.fillStyle='rgba(220,240,255,0.5)';
+    for(let tx of treePositions){
+      ctx.beginPath(); ctx.arc(tx,floorY-95,20,0,Math.PI*2); ctx.fill();
+    }
+  } else if(tn==='해저'){
+    // 산호초
+    for(let cx=150;cx<mapWidth;cx+=200+((cx*11)%80)){
+      ctx.fillStyle=((cx*7)%2===0)?'#ff6b9d':'#ff9f40';
+      ctx.globalAlpha=0.6;
+      ctx.beginPath(); ctx.arc(cx,floorY-8,12,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx-10,floorY-18,8,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx+10,floorY-16,9,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    // 해초
+    ctx.strokeStyle='rgba(0,200,100,0.4)'; ctx.lineWidth=3;
+    for(let sx=80;sx<mapWidth;sx+=120+((sx*13)%60)){
+      const waveAmp=8*Math.sin(t*1.5+sx/100);
+      ctx.beginPath();
+      ctx.moveTo(sx,floorY);
+      ctx.quadraticCurveTo(sx+waveAmp,floorY-25,sx+waveAmp*0.5,floorY-50);
+      ctx.stroke();
+    }
+  } else if(tn==='유령숲'){
+    // 앙상한 나무
+    const treePositions=[80,260,500,740,980,1260,1540,1800];
+    for(const tx of treePositions) drawDeadTree(tx, floorY-4);
+  } else if(tn==='우주'){
+    // 행성/별 (배경)
+    ctx.globalAlpha=0.2;
+    ctx.fillStyle='#8040ff';
+    ctx.beginPath(); ctx.arc(400,floorY-180,40,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#0088ff';
+    ctx.beginPath(); ctx.arc(1200,floorY-120,30,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ff4444';
+    ctx.beginPath(); ctx.arc(800,floorY-200,20,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
+  } else if(tn==='사막'){
+    // 선인장
+    for(let cx=200;cx<mapWidth;cx+=300+((cx*11)%120)){
+      ctx.fillStyle='#3a6a1a';
+      ctx.fillRect(cx-4,floorY-60,8,60);  // 몸통
+      ctx.fillRect(cx-18,floorY-45,14,8); // 왼팔
+      ctx.fillRect(cx+4,floorY-38,14,8);  // 오른팔
+    }
+  } else if(tn==='유적'){
+    // 부서진 돌기둥
+    for(let px=200;px<mapWidth;px+=380+((px*13)%100)){
+      ctx.fillStyle='#5a5a4a';
+      ctx.fillRect(px-10,floorY-70,20,70);
+      ctx.fillStyle='#4a4a3a';
+      for(let by2=floorY-68;by2<floorY;by2+=18){
+        ctx.strokeStyle='#3a3a2a'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(px-10,by2); ctx.lineTo(px+10,by2); ctx.stroke();
+      }
+    }
+  } else if(tn==='최후의 성'){
+    // 어두운 뾰족 첨탑
+    for(let px=250;px<mapWidth;px+=450+((px*13)%100)){
+      ctx.fillStyle='#1a0505';
+      ctx.beginPath();
+      ctx.moveTo(px,floorY-100);
+      ctx.lineTo(px-15,floorY);
+      ctx.lineTo(px+15,floorY);
+      ctx.closePath(); ctx.fill();
+      // 빨간 창문
+      ctx.fillStyle='rgba(200,30,0,0.5)';
+      ctx.beginPath(); ctx.arc(px,floorY-55,5,0,Math.PI*2); ctx.fill();
+    }
   }
 }
 
-function drawTree(x,groundY){
-  // 줄기
+function drawTree(x,groundY,leafColor='#2e8b1a',leafColor2='#3aad22'){
   ctx.fillStyle='#6b3a1f';
   ctx.fillRect(x-5,groundY-55,10,55);
-  // 나뭇잎 (3단 원)
-  ctx.fillStyle='#2e8b1a';
+  ctx.fillStyle=leafColor;
   ctx.beginPath(); ctx.arc(x,groundY-70,26,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#3aad22';
+  ctx.fillStyle=leafColor2;
   ctx.beginPath(); ctx.arc(x-8,groundY-85,20,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(x+8,groundY-82,22,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#4dc42e';
   ctx.beginPath(); ctx.arc(x,groundY-95,18,0,Math.PI*2); ctx.fill();
 }
 
+function drawDeadTree(x,groundY){
+  ctx.strokeStyle='#3a2a4a'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(x,groundY); ctx.lineTo(x,groundY-80); ctx.stroke();
+  ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(x,groundY-50); ctx.lineTo(x-30,groundY-70); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,groundY-60); ctx.lineTo(x+25,groundY-80); ctx.stroke();
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x-30,groundY-70); ctx.lineTo(x-45,groundY-80); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,groundY-80); ctx.lineTo(x-10,groundY-95); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,groundY-80); ctx.lineTo(x+10,groundY-92); ctx.stroke();
+}
+
 function renderPlatform(p,theme){
-  // 흙 몸통
+  const tn=theme?theme.name:'숲';
+  // 테마별 플랫폼 팔레트
+  const PAL={
+    '로비': {top:'#5aad2a',topL:'#6ec832',body:'#7a4f28',bodyD:'#5a3010',flower:true},
+    '숲':   {top:'#4a9a20',topL:'#5aba28',body:'#6a4020',bodyD:'#4a2810',flower:true},
+    '동굴': {top:'#5a5040',topL:'#6a6050',body:'#4a4030',bodyD:'#3a3020',flower:false,rock:true},
+    '해저': {top:'#0a6a7a',topL:'#1a8a9a',body:'#0a3a4a',bodyD:'#052830',flower:false},
+    '사막': {top:'#8a7020',topL:'#aa9030',body:'#6a5010',bodyD:'#4a3808',flower:false},
+    '유적': {top:'#6a6040',topL:'#7a7050',body:'#5a5030',bodyD:'#3a3820',flower:false},
+    '화산': {top:'#5a1a0a',topL:'#7a2a10',body:'#3a0a05',bodyD:'#200503',flower:false,lava:true},
+    '설산': {top:'#8ab0d8',topL:'#aad0f8',body:'#4a6888',bodyD:'#2a4858',flower:false,snow:true},
+    '유령숲':{top:'#3a1a5a',topL:'#4a2a6a',body:'#2a0a3a',bodyD:'#180525',flower:false},
+    '우주': {top:'#2a2a5a',topL:'#3a3a6a',body:'#1a1a3a',bodyD:'#0d0d20',flower:false},
+    '최후의 성':{top:'#4a0808',topL:'#6a1010',body:'#2a0505',bodyD:'#150303',flower:false},
+  };
+  const pal=PAL[tn]||PAL['숲'];
+
+  // 몸통
   const dg=ctx.createLinearGradient(0,p.y+8,0,p.y+p.h);
-  dg.addColorStop(0,'#7a4f28'); dg.addColorStop(1,'#5a3010');
+  dg.addColorStop(0,pal.body); dg.addColorStop(1,pal.bodyD);
   ctx.fillStyle=dg;
   ctx.beginPath(); ctx.roundRect(p.x,p.y+8,p.w,p.h-8,4); ctx.fill();
 
-  // 흙 무늬 (작은 돌)
+  // 무늬
   ctx.fillStyle='rgba(0,0,0,.15)';
   for(let rx=p.x+12;rx<p.x+p.w-10;rx+=24+((rx*7)%12)){
     ctx.beginPath(); ctx.ellipse(rx,p.y+p.h-6,6,3,0,0,Math.PI*2); ctx.fill();
   }
 
-  // 잔디 윗면
+  // 윗면
   const gg=ctx.createLinearGradient(0,p.y,0,p.y+12);
-  gg.addColorStop(0,'#5aad2a'); gg.addColorStop(1,'#3d8a18');
+  gg.addColorStop(0,pal.topL); gg.addColorStop(1,pal.top);
   ctx.fillStyle=gg;
   ctx.beginPath(); ctx.roundRect(p.x,p.y,p.w,12,[4,4,0,0]); ctx.fill();
 
-  // 풀 날
-  ctx.fillStyle='#72d435';
-  for(let gx=p.x+4;gx<p.x+p.w-4;gx+=8){
-    const h=3+((gx*31)%5);
-    ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+3,p.y-h); ctx.lineTo(gx+6,p.y); ctx.fill();
-  }
-
-  // 꽃 (랜덤하게 몇 개)
-  if(((p.x*3+p.y)%5)===0){
-    const fx=p.x+p.w*0.25;
-    ctx.fillStyle='#fff176'; ctx.beginPath(); ctx.arc(fx,p.y-6,3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#ffcc02'; ctx.beginPath(); ctx.arc(fx,p.y-6,1.5,0,Math.PI*2); ctx.fill();
-  }
-  if(((p.x*7+p.y)%4)===0){
-    const fx=p.x+p.w*0.7;
-    ctx.fillStyle='#ff8fb1'; ctx.beginPath(); ctx.arc(fx,p.y-5,2.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(fx,p.y-5,1,0,Math.PI*2); ctx.fill();
+  if(pal.snow){
+    // 눈 쌓임
+    ctx.fillStyle='rgba(220,240,255,0.7)';
+    for(let gx=p.x+4;gx<p.x+p.w-4;gx+=10){
+      const h=3+((gx*19)%5);
+      ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+4,p.y-h); ctx.lineTo(gx+9,p.y); ctx.fill();
+    }
+  } else if(pal.lava){
+    // 용암 균열
+    const t=Date.now()/600;
+    ctx.strokeStyle=`rgba(255,${100+50*Math.sin(t+p.x/100)},0,0.5)`; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(p.x+p.w*.2,p.y+6); ctx.lineTo(p.x+p.w*.5,p.y+10); ctx.lineTo(p.x+p.w*.8,p.y+6); ctx.stroke();
+  } else if(pal.flower){
+    // 풀 날
+    ctx.fillStyle=pal.topL;
+    for(let gx=p.x+4;gx<p.x+p.w-4;gx+=8){
+      const h=3+((gx*31)%5);
+      ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+3,p.y-h); ctx.lineTo(gx+6,p.y); ctx.fill();
+    }
+    // 꽃
+    if(((p.x*3+p.y)%5)===0){
+      const fx=p.x+p.w*0.25;
+      ctx.fillStyle='#fff176'; ctx.beginPath(); ctx.arc(fx,p.y-6,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ffcc02'; ctx.beginPath(); ctx.arc(fx,p.y-6,1.5,0,Math.PI*2); ctx.fill();
+    }
+    if(((p.x*7+p.y)%4)===0){
+      const fx=p.x+p.w*0.7;
+      ctx.fillStyle='#ff8fb1'; ctx.beginPath(); ctx.arc(fx,p.y-5,2.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(fx,p.y-5,1,0,Math.PI*2); ctx.fill();
+    }
   }
 }
 
@@ -1325,23 +1715,18 @@ function renderDoor(d){
     const w=d.w, h=d.h, bx=d.x, by=d.y;
     const archR=w/2;
 
-    // 땅에 박힌 기초 (어두운 돌)
     ctx.fillStyle='#5a4a3a';
     ctx.fillRect(bx-6, by+h*0.7, w+12, h*0.3+4);
 
-    // 기둥 왼쪽
     drawStonePillar(bx-8, by+archR, 18, h-archR);
-    // 기둥 오른쪽
     drawStonePillar(bx+w-10, by+archR, 18, h-archR);
 
-    // 아치 내부 (어두운 통로 느낌)
     ctx.fillStyle='#1a0f08';
     ctx.beginPath();
     ctx.arc(cx, by+archR, archR-2, Math.PI, 0);
     ctx.rect(bx+2, by+archR, w-4, h-archR-2);
     ctx.fill();
 
-    // 아치 돌 블록들
     const archStones=14;
     for(let i=0;i<=archStones;i++){
       const angle=Math.PI-(Math.PI*i/archStones);
@@ -1351,27 +1736,20 @@ function renderDoor(d){
       const angle2=Math.PI-(Math.PI*(i+1)/archStones);
       const bx1=cx+Math.cos(angle2)*r1, by1=by+archR+Math.sin(angle2)*r1;
       const bx2=cx+Math.cos(angle2)*r2, by2=by+archR+Math.sin(angle2)*r2;
-      // 돌 하나
-      const stoneColor=i%2===0?'#8a7060':'#7a6050';
-      ctx.fillStyle=stoneColor;
+      ctx.fillStyle=i%2===0?'#8a7060':'#7a6050';
       ctx.beginPath();
-      ctx.moveTo(ax1,ay1); ctx.lineTo(ax2,ay2);
-      ctx.lineTo(bx2,by2); ctx.lineTo(bx1,by1);
+      ctx.moveTo(ax1,ay1); ctx.lineTo(ax2,ay2); ctx.lineTo(bx2,by2); ctx.lineTo(bx1,by1);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle='#4a3828'; ctx.lineWidth=1;
-      ctx.stroke();
+      ctx.strokeStyle='#4a3828'; ctx.lineWidth=1; ctx.stroke();
     }
 
-    // 아치 꼭대기 장식 돌
     ctx.fillStyle='#9a8070';
     ctx.beginPath(); ctx.arc(cx, by+archR-archR-10, 12, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle='#5a4030'; ctx.lineWidth=1.5; ctx.stroke();
-    // 꼭대기 십자 문양
     ctx.strokeStyle='#c8a878'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(cx,by+archR-archR-18); ctx.lineTo(cx,by+archR-archR-2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx-7,by+archR-archR-10); ctx.lineTo(cx+7,by+archR-archR-10); ctx.stroke();
 
-    // 아치 안쪽 글로우 (들어갈 수 있다는 느낌)
     const glowA=0.3+0.2*Math.sin(t*2);
     const glowG=ctx.createRadialGradient(cx,by+h*0.6,0,cx,by+h*0.6,archR*0.8);
     glowG.addColorStop(0,`rgba(100,200,255,${glowA})`);
@@ -1382,7 +1760,6 @@ function renderDoor(d){
     ctx.rect(bx+2,by+archR,w-4,h-archR-2);
     ctx.fill();
 
-    // 입구 텍스트
     ctx.save();
     ctx.globalAlpha=0.7+0.2*Math.sin(t*1.5);
     ctx.fillStyle='#ffe082';
@@ -1392,62 +1769,98 @@ function renderDoor(d){
     ctx.restore();
 
   } else {
-    // ── 출구: 황금 아치 ────────────────────────────────────────
+    // ── 출구 ────────────────────────────────────────────────────
     const w=d.w, h=d.h, bx=d.x, by=d.y;
     const archR=w/2;
+    const isLocked=d.locked;
 
     // 기초
-    ctx.fillStyle='#4a3a18';
+    ctx.fillStyle=isLocked?'#2a2a2a':'#4a3a18';
     ctx.fillRect(bx-4, by+h*0.75, w+8, h*0.25+4);
 
-    // 출구 내부
-    ctx.fillStyle='#0d1a0d';
+    // 내부
+    ctx.fillStyle=isLocked?'#0a0a0a':'#0d1a0d';
     ctx.beginPath();
     ctx.arc(cx, by+archR, archR-2, Math.PI, 0);
     ctx.rect(bx+2, by+archR, w-4, h-archR-2);
     ctx.fill();
 
-    // 기둥
-    drawGoldPillar(bx-6, by+archR, 16, h-archR);
-    drawGoldPillar(bx+w-10, by+archR, 16, h-archR);
+    if(isLocked){
+      // 잠긴 출구: 회색 기둥 + 자물쇠
+      drawStonePillar(bx-6, by+archR, 16, h-archR);
+      drawStonePillar(bx+w-10, by+archR, 16, h-archR);
 
-    // 황금 아치
-    ctx.strokeStyle='#ffcb05'; ctx.lineWidth=5;
-    ctx.shadowColor='rgba(255,203,5,.6)'; ctx.shadowBlur=10;
-    ctx.beginPath(); ctx.arc(cx, by+archR, archR+4, Math.PI, 0); ctx.stroke();
-    ctx.shadowBlur=0;
-    ctx.strokeStyle='#ffa000'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(cx, by+archR, archR+8, Math.PI, 0); ctx.stroke();
+      // 회색 아치
+      ctx.strokeStyle='rgba(100,100,100,0.6)'; ctx.lineWidth=4;
+      ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.arc(cx, by+archR, archR+4, Math.PI, 0); ctx.stroke();
 
-    // 출구 글로우
-    const glowA=0.25+0.2*Math.sin(t*2.5);
-    const glowG=ctx.createRadialGradient(cx,by+h*0.55,0,cx,by+h*0.55,archR);
-    glowG.addColorStop(0,`rgba(255,220,50,${glowA})`);
-    glowG.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=glowG;
-    ctx.beginPath();
-    ctx.arc(cx,by+archR,archR-2,Math.PI,0);
-    ctx.rect(bx+2,by+archR,w-4,h-archR-2);
-    ctx.fill();
+      // 철창
+      ctx.strokeStyle='rgba(80,80,80,0.8)'; ctx.lineWidth=3;
+      const barCount=4;
+      for(let bi=0;bi<=barCount;bi++){
+        const bxPos=bx+4+bi*(w-8)/barCount;
+        ctx.beginPath(); ctx.moveTo(bxPos,by+archR); ctx.lineTo(bxPos,by+h-4); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(bx+4,by+archR+(h-archR)*0.4); ctx.lineTo(bx+w-4,by+archR+(h-archR)*0.4); ctx.stroke();
 
-    // 별 반짝임
-    for(let i=0;i<4;i++){
-      const sa=t*3+i*Math.PI/2;
-      const sx=cx+Math.cos(sa)*archR*0.5;
-      const sy=by+archR*0.6+Math.sin(sa)*archR*0.3;
-      const ss=1+Math.sin(t*4+i)*1;
-      ctx.fillStyle=`rgba(255,230,100,${0.4+0.4*Math.sin(t*3+i)})`;
-      ctx.beginPath(); ctx.arc(sx,sy,ss,0,Math.PI*2); ctx.fill();
+      // 자물쇠 아이콘
+      const lx=cx, ly=by+archR-10;
+      ctx.fillStyle='rgba(150,120,50,0.9)';
+      ctx.beginPath(); ctx.roundRect(lx-10,ly,20,15,3); ctx.fill();
+      ctx.strokeStyle='rgba(150,120,50,0.9)'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(lx,ly,8,Math.PI,0); ctx.stroke();
+
+      // 잠김 텍스트
+      ctx.save();
+      ctx.globalAlpha=0.5+0.2*Math.sin(t*1.5);
+      ctx.fillStyle='#aaaaaa';
+      ctx.font="bold 10px 'Galmuri11',monospace";
+      ctx.textAlign='center';
+      ctx.fillText('🔒 잠김',cx,by+h*0.88);
+      ctx.restore();
+
+    } else {
+      // 열린 출구: 황금 아치
+      drawGoldPillar(bx-6, by+archR, 16, h-archR);
+      drawGoldPillar(bx+w-10, by+archR, 16, h-archR);
+
+      ctx.strokeStyle='#ffcb05'; ctx.lineWidth=5;
+      ctx.shadowColor='rgba(255,203,5,.6)'; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(cx, by+archR, archR+4, Math.PI, 0); ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle='#ffa000'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx, by+archR, archR+8, Math.PI, 0); ctx.stroke();
+
+      const glowA=0.25+0.2*Math.sin(t*2.5);
+      const glowG=ctx.createRadialGradient(cx,by+h*0.55,0,cx,by+h*0.55,archR);
+      glowG.addColorStop(0,`rgba(255,220,50,${glowA})`);
+      glowG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glowG;
+      ctx.beginPath();
+      ctx.arc(cx,by+archR,archR-2,Math.PI,0);
+      ctx.rect(bx+2,by+archR,w-4,h-archR-2);
+      ctx.fill();
+
+      // 별 반짝임
+      for(let i=0;i<4;i++){
+        const sa=t*3+i*Math.PI/2;
+        const sx=cx+Math.cos(sa)*archR*0.5;
+        const sy=by+archR*0.6+Math.sin(sa)*archR*0.3;
+        const ss=1+Math.sin(t*4+i)*1;
+        ctx.fillStyle=`rgba(255,230,100,${0.4+0.4*Math.sin(t*3+i)})`;
+        ctx.beginPath(); ctx.arc(sx,sy,ss,0,Math.PI*2); ctx.fill();
+      }
+
+      ctx.save();
+      ctx.globalAlpha=0.7+0.25*Math.sin(t*2);
+      ctx.fillStyle='#ffcb05';
+      ctx.shadowColor='rgba(255,200,0,.8)'; ctx.shadowBlur=6;
+      ctx.font="bold 11px 'Galmuri11',monospace";
+      ctx.textAlign='center';
+      ctx.fillText('출구 →',cx,by+h*0.72);
+      ctx.restore();
     }
-
-    ctx.save();
-    ctx.globalAlpha=0.7+0.25*Math.sin(t*2);
-    ctx.fillStyle='#ffcb05';
-    ctx.shadowColor='rgba(255,200,0,.8)'; ctx.shadowBlur=6;
-    ctx.font="bold 11px 'Galmuri11',monospace";
-    ctx.textAlign='center';
-    ctx.fillText('출구',cx,by+h*0.72);
-    ctx.restore();
   }
 }
 
@@ -1495,6 +1908,22 @@ function renderPlayer(){
   else{ctx.fillStyle='#ffcb05';ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);}
   ctx.restore();
 
+  // 플레이어 HP바 — 이미지 바로 위 고정
+  const barW=player.w+16;
+  const barX=player.x-8;
+  const barY=player.y-22;
+  const hpRatio=player.hp/player.maxHp;
+  const hpColor=hpRatio>0.5?'#2ed573':hpRatio>0.25?'#ffa502':'#ff4757';
+
+  ctx.fillStyle='rgba(0,0,0,.7)';
+  ctx.beginPath(); ctx.roundRect(barX,barY,barW,8,4); ctx.fill();
+  if(hpRatio>0){
+    ctx.fillStyle=hpColor;
+    ctx.beginPath(); ctx.roundRect(barX,barY,barW*hpRatio,8,4); ctx.fill();
+  }
+  ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(barX,barY,barW,8,4); ctx.stroke();
+
   // 땅에 서있을때 그림자
   ctx.save();
   ctx.globalAlpha=.25;
@@ -1508,24 +1937,46 @@ function renderEnemy(e){
   ctx.translate(e.x+e.w/2,e.y+e.h/2);
   if(e.facing<0) ctx.scale(-1,1);
   if(e.isBoss){ctx.shadowColor='#ff4757';ctx.shadowBlur=22;}
-  // 모든 적 위아래 부유 애니
+  // 위아래 부유 애니 (이미지에만 적용)
   const bobY=Math.sin(e.animTick*2.2+(e.x*0.01))*5+(e.isBoss?Math.sin(e.animTick*1.3)*3:0);
   if(e.img.complete&&e.img.naturalWidth>0)
     ctx.drawImage(e.img,-e.w/2,-e.h/2+bobY,e.w,e.h);
-  else{ctx.fillStyle=e.isBoss?'#ff4757':'#aaa';ctx.fillRect(-e.w/2,-e.h/2,e.w,e.h);}
+  else{ctx.fillStyle=e.isBoss?'#ff4757':'#aaa';ctx.fillRect(-e.w/2,-e.h/2+bobY,e.w,e.h);}
   ctx.restore();
 
-  // HP바
-  const bw=e.w+8,bx=e.x-4,by=e.y-12+bobY;
-  ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(bx,by,bw,6);
-  ctx.fillStyle=e.isBoss?'#ff4757':'#2ed573'; ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),6);
-  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=.5; ctx.strokeRect(bx,by,bw,6);
-  if(e.isBoss){
-    ctx.fillStyle='#ff4757'; ctx.font="11px 'Galmuri11',monospace"; ctx.textAlign='center';
-    ctx.fillText(e.name,e.x+e.w/2,e.y-16+bobY);
+  // HP바 — 이미지 위 고정 위치 (bobY 미적용)
+  const barW=e.w+12;
+  const barX=e.x-6;
+  const barY=e.y-20;  // 이미지 상단에서 고정
+  const barH=e.isBoss?9:7;
+  const hpRatio=e.hp/e.maxHp;
+
+  // 배경
+  ctx.fillStyle='rgba(0,0,0,.65)';
+  ctx.beginPath(); ctx.roundRect(barX,barY,barW,barH,3); ctx.fill();
+
+  // HP 색상 (비율에 따라)
+  const hpColor=hpRatio>0.5?'#2ed573':hpRatio>0.25?'#ffa502':'#ff4757';
+  ctx.fillStyle=e.isBoss?'#ff4757':hpColor;
+  if(hpRatio>0){
+    ctx.beginPath(); ctx.roundRect(barX,barY,barW*hpRatio,barH,3); ctx.fill();
   }
 
-  // 바닥 그림자 (부유 높이에 따라 크기 변화)
+  // 테두리
+  ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(barX,barY,barW,barH,3); ctx.stroke();
+
+  // 보스: 이름 텍스트
+  if(e.isBoss){
+    ctx.fillStyle='#ff6b7a';
+    ctx.font="bold 12px 'Galmuri11',monospace";
+    ctx.textAlign='center';
+    ctx.shadowColor='rgba(0,0,0,.8)'; ctx.shadowBlur=4;
+    ctx.fillText(e.name, e.x+e.w/2, barY-5);
+    ctx.shadowBlur=0;
+  }
+
+  // 바닥 그림자
   const shadowDist=floorY-(e.y+e.h);
   const shadowScale=Math.max(0.3, 1-shadowDist/200);
   ctx.save(); ctx.globalAlpha=.2*shadowScale; ctx.fillStyle='#000';

@@ -115,65 +115,76 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 /* ── MOBILE CONTROLS ── */
 #controls{
-  position:fixed;bottom:0;left:0;right:0;
+  position:fixed;bottom:0;left:0;right:0;height:160px;
   pointer-events:none;z-index:20;
   display:none;
-  padding:0 0 env(safe-area-inset-bottom,0) 0;
 }
-.ctrl-dpad{
-  position:absolute;bottom:16px;left:16px;
-  display:grid;grid-template-columns:52px 52px 52px;
-  grid-template-rows:52px 52px;
-  gap:4px;
+/* 조이스틱 */
+#joystickZone{
+  position:absolute;bottom:18px;left:18px;
+  width:110px;height:110px;
   pointer-events:all;
 }
-/* 방향키: 왼쪽, 빈칸, 오른쪽, 점프 */
+#joystickBase{
+  position:absolute;inset:0;
+  border-radius:50%;
+  background:rgba(20,20,40,.55);
+  border:2px solid rgba(255,255,255,.18);
+  box-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+#joystickKnob{
+  position:absolute;
+  width:44px;height:44px;
+  border-radius:50%;
+  background:rgba(255,255,255,.28);
+  border:2px solid rgba(255,255,255,.5);
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  transition:box-shadow .1s;
+  box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+/* 오른쪽 버튼 패널 */
 .ctrl-right-panel{
-  position:absolute;bottom:16px;right:16px;
-  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  position:absolute;bottom:18px;right:18px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:10px;
   pointer-events:all;
 }
-.ctrl-atk-row{display:flex;gap:8px;}
+.ctrl-atk-row{display:flex;gap:10px;align-items:center;}
 .ctrl-btn{
-  width:52px;height:52px;border-radius:50%;
-  background:rgba(20,20,40,.65);
-  border:2px solid rgba(255,255,255,.22);
+  border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:1.05rem;line-height:1;
+  font-size:.7rem;font-weight:bold;line-height:1.1;
+  text-align:center;
   pointer-events:all;cursor:pointer;
   user-select:none;-webkit-user-select:none;
   touch-action:none;
-  transition:background .08s,transform .08s;
-  color:rgba(255,255,255,.85);
-  box-shadow:0 2px 8px rgba(0,0,0,.4);
+  transition:transform .08s,background .08s;
+  box-shadow:0 3px 10px rgba(0,0,0,.5);
   -webkit-tap-highlight-color:transparent;
 }
 .ctrl-btn.jump{
-  width:60px;height:60px;font-size:1.2rem;
-  background:rgba(30,30,80,.7);
-  border-color:rgba(130,130,255,.45);
+  width:64px;height:64px;font-size:1.3rem;
+  background:rgba(40,40,100,.75);
+  border:2.5px solid rgba(150,150,255,.55);
+  color:rgba(200,200,255,.9);
 }
 .ctrl-btn.atk1{
-  width:58px;height:58px;font-size:.72rem;font-weight:bold;
-  background:rgba(80,20,10,.7);
-  border-color:rgba(255,100,50,.55);
-  color:#ff8060;
+  width:60px;height:60px;
+  background:rgba(100,30,10,.75);
+  border:2.5px solid rgba(255,120,60,.6);
+  color:#ff9070;
 }
 .ctrl-btn.atk2{
-  width:58px;height:58px;font-size:.72rem;font-weight:bold;
-  background:rgba(20,20,80,.7);
-  border-color:rgba(100,100,255,.55);
-  color:#8080ff;
+  width:60px;height:60px;
+  background:rgba(20,30,100,.75);
+  border:2.5px solid rgba(100,130,255,.6);
+  color:#90a8ff;
 }
-.ctrl-btn.pressed,
-.ctrl-btn:active{
-  background:rgba(255,255,255,.25)!important;
-  transform:scale(.9);
+.ctrl-btn.pressed,.ctrl-btn:active{
+  transform:scale(.86);
+  background:rgba(255,255,255,.3)!important;
 }
-.ctrl-btn.dir-left{grid-column:1;grid-row:1;}
-.ctrl-btn.dir-jump{grid-column:2;grid-row:1;}
-.ctrl-btn.dir-right{grid-column:3;grid-row:1;}
-/* 빈칸 아래 행은 없음 — dpad 2행은 비움 */
 
 /* ── TOAST ── */
 #toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.45rem 1rem;font-size:.68rem;color:var(--text);z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
@@ -302,17 +313,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 <!-- MOBILE CONTROLS -->
 <div id="controls">
-  <!-- 왼쪽: 방향키 -->
-  <div class="ctrl-dpad">
-    <div class="ctrl-btn dir-left" id="btnLeft">◀</div>
-    <div class="ctrl-btn dir-jump jump" id="btnJump">▲</div>
-    <div class="ctrl-btn dir-right" id="btnRight">▶</div>
+  <!-- 왼쪽: 조이스틱 -->
+  <div id="joystickZone">
+    <div id="joystickBase"></div>
+    <div id="joystickKnob"></div>
   </div>
-  <!-- 오른쪽: 공격 -->
+  <!-- 오른쪽: 점프 + 공격 -->
   <div class="ctrl-right-panel">
     <div class="ctrl-atk-row">
-      <div class="ctrl-btn atk2" id="btnAtk2" style="display:none">X<br><span style="font-size:.5rem;opacity:.7" id="atk2Label"></span></div>
-      <div class="ctrl-btn atk1" id="btnAtk1">Z<br><span style="font-size:.5rem;opacity:.7" id="atk1Label"></span></div>
+      <div class="ctrl-btn atk2" id="btnAtk2" style="display:none"><span id="atk2Label">X</span></div>
+      <div class="ctrl-btn atk1" id="btnAtk1"><span id="atk1Label">Z</span></div>
+      <div class="ctrl-btn jump" id="btnJump">▲</div>
     </div>
   </div>
 </div>
@@ -722,7 +733,8 @@ function rndType(){const t=Object.keys(TYPE_COLORS);return t[Math.floor(Math.ran
 
 function makeEnemy(pk,x,y,hp,isBoss){
   const img=new Image(); img.src=pk.sprite||spriteUrl(pk.id);
-  return {x,y,w:isBoss?84:52,h:isBoss?84:52,vx:0,vy:0,onGround:false,facing:-1,
+  const floatH = 0;
+  return {x,y:y,w:isBoss?84:52,h:isBoss?84:52,vx:0,vy:0,onGround:false,facing:-1,
     img,types:pk.types||['노말'],hp,maxHp:hp,isBoss,name:pk.name,
     baseAtk:pk.baseStats?.atk||50,atkCooldown:0,aiTimer:0,jumpTimer:0,animTick:0};
 }
@@ -762,7 +774,12 @@ function launchStage(stage){
 }
 
 // ── 컨트롤 셋업 ───────────────────────────────────────────────
+// 조이스틱 상태
+let _jsActive=false, _jsTouchId=null, _jsOrigin={x:0,y:0}, _jsVec={x:0,y:0};
+const JS_RADIUS=45, JS_DEAD=0.18;
+
 function setupControls(){
+  // 키보드
   document.onkeydown=e=>{
     if(e.key==='ArrowLeft') keys.left=true;
     if(e.key==='ArrowRight') keys.right=true;
@@ -778,18 +795,56 @@ function setupControls(){
     if(e.key==='z'||e.key==='Z') keys.atk1=false;
     if(e.key==='x'||e.key==='X') keys.atk2=false;
   };
-  setupMobileBtn('btnLeft','left');
-  setupMobileBtn('btnRight','right');
+
+  // 조이스틱
+  const zone=document.getElementById('joystickZone');
+  const knob=document.getElementById('joystickKnob');
+  function jsStart(e){
+    e.preventDefault();
+    const t=e.touches?e.touches[0]:e;
+    _jsActive=true; _jsTouchId=e.touches?t.identifier:null;
+    const r=zone.getBoundingClientRect();
+    _jsOrigin={x:r.left+r.width/2, y:r.top+r.height/2};
+    jsMove(e);
+  }
+  function jsMove(e){
+    if(!_jsActive) return; e.preventDefault();
+    const t=e.touches?Array.from(e.touches).find(tt=>tt.identifier===_jsTouchId)||e.touches[0]:e;
+    const dx=t.clientX-_jsOrigin.x, dy=t.clientY-_jsOrigin.y;
+    const dist=Math.min(Math.hypot(dx,dy),JS_RADIUS);
+    const angle=Math.atan2(dy,dx);
+    const nx=Math.cos(angle)*dist, ny=Math.sin(angle)*dist;
+    _jsVec={x:nx/JS_RADIUS, y:ny/JS_RADIUS};
+    knob.style.transform=`translate(calc(-50% + ${nx}px),calc(-50% + ${ny}px))`;
+    keys.left=_jsVec.x<-JS_DEAD;
+    keys.right=_jsVec.x>JS_DEAD;
+  }
+  function jsEnd(e){
+    e.preventDefault();
+    _jsActive=false; _jsVec={x:0,y:0};
+    keys.left=false; keys.right=false;
+    knob.style.transform='translate(-50%,-50%)';
+  }
+  zone.addEventListener('touchstart',jsStart,{passive:false});
+  zone.addEventListener('touchmove',jsMove,{passive:false});
+  zone.addEventListener('touchend',jsEnd,{passive:false});
+  zone.addEventListener('touchcancel',jsEnd,{passive:false});
+  zone.addEventListener('mousedown',jsStart);
+  window.addEventListener('mousemove',e=>{if(_jsActive)jsMove(e);});
+  window.addEventListener('mouseup',e=>{if(_jsActive)jsEnd(e);});
+
+  // 점프/공격 버튼
   setupMobileBtn('btnJump','jump');
   setupMobileBtn('btnAtk1','atk1');
   setupMobileBtn('btnAtk2','atk2');
-  // 공격 버튼 레이블
+
+  // 타입 레이블
   const t1=playerData.types[0]||'노말';
   const t2=playerData.types[1];
-  document.getElementById('atk1Label').textContent=TYPE_EMOJIS[t1]||t1;
+  document.getElementById('atk1Label').textContent=(TYPE_EMOJIS[t1]||t1)+' Z';
   if(t2){
     document.getElementById('btnAtk2').style.display='flex';
-    document.getElementById('atk2Label').textContent=TYPE_EMOJIS[t2]||t2;
+    document.getElementById('atk2Label').textContent=(TYPE_EMOJIS[t2]||t2)+' X';
   } else {
     document.getElementById('btnAtk2').style.display='none';
   }
@@ -891,7 +946,7 @@ function updateEnemies(dt){
   for(const e of enemies){
     e.vy=Math.min(e.vy+GRAVITY*dt,900); e.x+=e.vx*dt; e.y+=e.vy*dt; e.animTick+=dt;
     e.onGround=false;
-    if(e.y+e.h>=floorY){e.y=floorY-e.h;e.vy=0;e.onGround=true;}
+    if(e.y+e.h>=floorY){e.y=floorY-e.h; e.vy=0; e.onGround=true;}
     for(const p of platforms){
       if(e.x+e.w>p.x&&e.x<p.x+p.w){
         if(e.y+e.h>p.y&&e.y+e.h<p.y+p.h+16&&e.vy>=0){e.y=p.y-e.h;e.vy=0;e.onGround=true;}
@@ -977,15 +1032,21 @@ function dmgEnemy(e,d,type){
 function checkDoors(){
   if(!player) return;
   for(const door of doors){
+    if(door.type==='entrance'){
+      // 입구는 통과 불가 — 벽처럼 막기
+      if(overlap(player,door)){
+        // 플레이어가 입구 오른쪽 벽에 닿으면 밀어냄
+        player.x=door.x+door.w+1;
+        player.vx=Math.max(0,player.vx);
+      }
+      continue;
+    }
     if(overlap(player,door)){
       if(door.type==='exit'&&gamePhase==='lobby'){
-        // 로비 출구 → 1스테이지
         transitionToStage(1);
       } else if(door.type==='exit'&&gamePhase==='clear'){
-        // 스테이지 클리어 후 출구 → 레벨업 & 다음 스테이지 안내
         stageClearTransition();
       }
-      // 입구는 방향 전환 (되돌아가지 않음)
     }
   }
 }
@@ -1088,14 +1149,38 @@ function render(){
 
   ctx.save(); ctx.translate(-camera.x,0);
 
-  // 바닥
-  const gndG=ctx.createLinearGradient(0,floorY,0,canvas.height);
-  gndG.addColorStop(0,theme.ground[0]); gndG.addColorStop(1,theme.ground[1]);
-  ctx.fillStyle=gndG; ctx.fillRect(0,floorY,mapWidth,canvas.height-floorY);
+  // 바닥 — 흙층
+  const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.height);
+  dirtG.addColorStop(0,'#6b4226'); dirtG.addColorStop(.4,'#8b5a2b'); dirtG.addColorStop(1,'#3d2210');
+  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,canvas.height-floorY);
 
-  // 바닥선
-  ctx.strokeStyle='rgba(255,203,5,.25)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(0,floorY); ctx.lineTo(mapWidth,floorY); ctx.stroke();
+  // 바닥 — 풀 윗면 (두꺼운 잔디 레이어)
+  const grassG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
+  grassG.addColorStop(0,'#5aad2a'); grassG.addColorStop(.5,'#3d8a18'); grassG.addColorStop(1,'#2d6b10');
+  ctx.fillStyle=grassG; ctx.fillRect(0,floorY-4,mapWidth,26);
+
+  // 풀 날 (불규칙한 삼각형들)
+  ctx.fillStyle='#6ec832';
+  const seed=42;
+  for(let gx=0;gx<mapWidth;gx+=9){
+    const h=4+((gx*37+seed)%7);
+    ctx.beginPath();
+    ctx.moveTo(gx,floorY-4);
+    ctx.lineTo(gx+4,floorY-4-h);
+    ctx.lineTo(gx+8,floorY-4);
+    ctx.fill();
+  }
+
+  // 바닥 돌 무늬
+  ctx.fillStyle='rgba(0,0,0,.12)';
+  for(let rx=20;rx<mapWidth;rx+=120+((rx*13)%60)){
+    ctx.beginPath();
+    ctx.ellipse(rx,floorY+10,18+((rx*7)%14),6,0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // 배경 나무/꽃 (바닥 뒤 레이어)
+  renderWorldBgDecos();
 
   // 플랫폼
   for(const p of platforms) renderPlatform(p,theme);
@@ -1129,50 +1214,112 @@ function render(){
 function renderBgDecos(theme){
   const t=Date.now()/1000;
   ctx.save();
-  for(let i=0;i<40;i++){
-    const sx=((i*137+50)%1000)/1000*canvas.width;
-    const sy=((i*89+20)%1000)/1000*(canvas.height*.65);
-    const a=.15+.3*Math.sin(t+i);
-    ctx.fillStyle=`rgba(255,255,255,${a})`;
-    ctx.fillRect(sx,sy,1.5,1.5);
-  }
-  // 테마별 장식
-  if(currentStage>=5&&currentStage<=8){
-    // 물방울/구름
-    for(let i=0;i<6;i++){
-      const cx=((i*200+t*20)%(canvas.width+100))-50;
-      ctx.globalAlpha=.06; ctx.fillStyle='#4fc3f7';
-      ctx.beginPath(); ctx.ellipse(cx,canvas.height*.3+i*20,60,25,0,0,Math.PI*2); ctx.fill();
+  // 배경 별 (어두운 스테이지)
+  if(currentStage===0||currentStage>=17){
+    for(let i=0;i<35;i++){
+      const sx=((i*137+50)%1000)/1000*canvas.width;
+      const sy=((i*89+20)%1000)/1000*(canvas.height*.6);
+      ctx.fillStyle=`rgba(255,255,255,${.1+.25*Math.sin(t+i)})`;
+      ctx.fillRect(sx,sy,1.5,1.5);
     }
   }
-  if(currentStage>=11&&currentStage<=12){
-    // 불꽃 흔들림
-    for(let i=0;i<5;i++){
-      const fx=canvas.width*.1+i*canvas.width*.2;
-      const fy=canvas.height*.7+Math.sin(t*2+i)*8;
-      ctx.globalAlpha=.08; ctx.fillStyle='#ff6b35';
-      ctx.beginPath(); ctx.ellipse(fx,fy,30,15,0,0,Math.PI*2); ctx.fill();
+  // 구름 (고정 위치, 시차 스크롤 효과)
+  if(currentStage<=12||currentStage===0){
+    ctx.globalAlpha=.7;
+    const clouds=[
+      {x:canvas.width*.1,y:canvas.height*.12,s:1.0},
+      {x:canvas.width*.38,y:canvas.height*.08,s:0.75},
+      {x:canvas.width*.65,y:canvas.height*.14,s:1.2},
+      {x:canvas.width*.82,y:canvas.height*.06,s:0.6},
+    ];
+    for(const cl of clouds){
+      const ox=((t*12)%canvas.width);
+      const cx=(cl.x-ox*0.04+canvas.width)%canvas.width;
+      drawCloud(cx,cl.y,cl.s);
     }
+    ctx.globalAlpha=1;
   }
-  ctx.globalAlpha=1;
   ctx.restore();
 }
 
+function drawCloud(cx,cy,scale){
+  ctx.fillStyle='rgba(255,255,255,.82)';
+  const r=22*scale;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r*.8,cy+r*.2,r*.7,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx-r*.8,cy+r*.2,r*.65,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r*.4,cy-r*.3,r*.55,0,Math.PI*2); ctx.fill();
+}
+
+// 월드 배경 (카메라 이동 후 좌표계에서 그리는 원거리 오브젝트)
+function renderWorldBgDecos(){
+  const t=Date.now()/1000;
+  // 배경 나무들
+  const treePositions=[80,280,520,760,1020,1300,1580,1860,2100];
+  for(const tx of treePositions){
+    drawTree(tx, floorY-4);
+  }
+  // 배경 꽃밭
+  for(let fx=60;fx<mapWidth;fx+=38+((fx*11)%30)){
+    const fy=floorY-6;
+    const fc=((fx*17)%3)===0?'#fff176':((fx*17)%3)===1?'#ff8fb1':'#aed6f1';
+    ctx.fillStyle=fc; ctx.globalAlpha=.8;
+    ctx.beginPath(); ctx.arc(fx,fy,3,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+function drawTree(x,groundY){
+  // 줄기
+  ctx.fillStyle='#6b3a1f';
+  ctx.fillRect(x-5,groundY-55,10,55);
+  // 나뭇잎 (3단 원)
+  ctx.fillStyle='#2e8b1a';
+  ctx.beginPath(); ctx.arc(x,groundY-70,26,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#3aad22';
+  ctx.beginPath(); ctx.arc(x-8,groundY-85,20,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+8,groundY-82,22,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#4dc42e';
+  ctx.beginPath(); ctx.arc(x,groundY-95,18,0,Math.PI*2); ctx.fill();
+}
+
 function renderPlatform(p,theme){
-  // 플랫폼 본체
-  const pg=ctx.createLinearGradient(0,p.y,0,p.y+p.h);
-  pg.addColorStop(0,'rgba(255,255,255,.18)');
-  pg.addColorStop(1,'rgba(0,0,0,.3)');
-  ctx.fillStyle=pg;
-  ctx.beginPath();
-  ctx.roundRect(p.x,p.y,p.w,p.h,6);
-  ctx.fill();
-  // 테두리
-  ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1.5;
-  ctx.stroke();
-  // 상단 하이라이트
-  ctx.fillStyle='rgba(255,255,255,.3)';
-  ctx.fillRect(p.x+4,p.y+2,p.w-8,3);
+  // 흙 몸통
+  const dg=ctx.createLinearGradient(0,p.y+8,0,p.y+p.h);
+  dg.addColorStop(0,'#7a4f28'); dg.addColorStop(1,'#5a3010');
+  ctx.fillStyle=dg;
+  ctx.beginPath(); ctx.roundRect(p.x,p.y+8,p.w,p.h-8,4); ctx.fill();
+
+  // 흙 무늬 (작은 돌)
+  ctx.fillStyle='rgba(0,0,0,.15)';
+  for(let rx=p.x+12;rx<p.x+p.w-10;rx+=24+((rx*7)%12)){
+    ctx.beginPath(); ctx.ellipse(rx,p.y+p.h-6,6,3,0,0,Math.PI*2); ctx.fill();
+  }
+
+  // 잔디 윗면
+  const gg=ctx.createLinearGradient(0,p.y,0,p.y+12);
+  gg.addColorStop(0,'#5aad2a'); gg.addColorStop(1,'#3d8a18');
+  ctx.fillStyle=gg;
+  ctx.beginPath(); ctx.roundRect(p.x,p.y,p.w,12,[4,4,0,0]); ctx.fill();
+
+  // 풀 날
+  ctx.fillStyle='#72d435';
+  for(let gx=p.x+4;gx<p.x+p.w-4;gx+=8){
+    const h=3+((gx*31)%5);
+    ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+3,p.y-h); ctx.lineTo(gx+6,p.y); ctx.fill();
+  }
+
+  // 꽃 (랜덤하게 몇 개)
+  if(((p.x*3+p.y)%5)===0){
+    const fx=p.x+p.w*0.25;
+    ctx.fillStyle='#fff176'; ctx.beginPath(); ctx.arc(fx,p.y-6,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ffcc02'; ctx.beginPath(); ctx.arc(fx,p.y-6,1.5,0,Math.PI*2); ctx.fill();
+  }
+  if(((p.x*7+p.y)%4)===0){
+    const fx=p.x+p.w*0.7;
+    ctx.fillStyle='#ff8fb1'; ctx.beginPath(); ctx.arc(fx,p.y-5,2.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(fx,p.y-5,1,0,Math.PI*2); ctx.fill();
+  }
 }
 
 function renderDoor(d){
@@ -1210,7 +1357,7 @@ function renderPlayer(){
   if(player.invincible>0&&Math.floor(player.invincible*12)%2===0) return;
   ctx.save();
   ctx.translate(player.x+player.w/2,player.y+player.h/2);
-  if(player.facing<0) ctx.scale(-1,1);
+  if(player.facing>0) ctx.scale(-1,1);
   // 이동 애니: 땅에 있을때 약간 스쿼시
   const onG=player.onGround;
   const scaleY=onG&&Math.abs(player.vx)>20?0.92:1;
@@ -1233,28 +1380,30 @@ function renderPlayer(){
 function renderEnemy(e){
   ctx.save();
   ctx.translate(e.x+e.w/2,e.y+e.h/2);
-  if(e.facing>0) ctx.scale(-1,1);
+  if(e.facing<0) ctx.scale(-1,1);
   if(e.isBoss){ctx.shadowColor='#ff4757';ctx.shadowBlur=22;}
-  // 보스: 위아래 떠있는 애니
-  const bobY=e.isBoss?Math.sin(e.animTick*2.5)*4:0;
+  // 모든 적 위아래 부유 애니
+  const bobY=Math.sin(e.animTick*2.2+(e.x*0.01))*5+(e.isBoss?Math.sin(e.animTick*1.3)*3:0);
   if(e.img.complete&&e.img.naturalWidth>0)
     ctx.drawImage(e.img,-e.w/2,-e.h/2+bobY,e.w,e.h);
   else{ctx.fillStyle=e.isBoss?'#ff4757':'#aaa';ctx.fillRect(-e.w/2,-e.h/2,e.w,e.h);}
   ctx.restore();
 
   // HP바
-  const bw=e.w+8,bx=e.x-4,by=e.y-12;
+  const bw=e.w+8,bx=e.x-4,by=e.y-12+bobY;
   ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(bx,by,bw,6);
   ctx.fillStyle=e.isBoss?'#ff4757':'#2ed573'; ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),6);
   ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=.5; ctx.strokeRect(bx,by,bw,6);
   if(e.isBoss){
     ctx.fillStyle='#ff4757'; ctx.font="11px 'Galmuri11',monospace"; ctx.textAlign='center';
-    ctx.fillText(e.name,e.x+e.w/2,e.y-16);
+    ctx.fillText(e.name,e.x+e.w/2,e.y-16+bobY);
   }
 
-  // 그림자
-  ctx.save(); ctx.globalAlpha=.2; ctx.fillStyle='#000';
-  ctx.beginPath(); ctx.ellipse(e.x+e.w/2,floorY,e.w*.45,5,0,0,Math.PI*2); ctx.fill();
+  // 바닥 그림자 (부유 높이에 따라 크기 변화)
+  const shadowDist=floorY-(e.y+e.h);
+  const shadowScale=Math.max(0.3, 1-shadowDist/200);
+  ctx.save(); ctx.globalAlpha=.2*shadowScale; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(e.x+e.w/2,floorY-2,e.w*.45*shadowScale,4*shadowScale,0,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 

@@ -677,8 +677,8 @@ function genPlatforms(stage){
 // ── 문(입구/출구) ─────────────────────────────────────────────
 function genDoors(stage){
   const H=floorY;
-  const entrance={x:60,y:H-110,w:60,h:110,type:'entrance',label:stage===0?'입구':'입구'};
-  const exit={x:mapWidth-120,y:H-110,w:60,h:110,type:'exit',label:'출구'};
+  const entrance={x:40,y:H-130,w:80,h:130,type:'entrance',label:'입구'};
+  const exit={x:mapWidth-130,y:H-130,w:80,h:130,type:'exit',label:'출구'};
   return [entrance,exit];
 }
 
@@ -694,7 +694,7 @@ function initStageMap(stage){
   // 플레이어 배치: 입구 오른쪽
   const ph=playerData.hp, pmh=playerData.maxHp;
   player={
-    x:doors[0].x+doors[0].w+10,y:floorY-52,
+    x:doors[0].x+doors[0].w+20,y:floorY-52,
     w:52,h:52,vx:0,vy:0,onGround:false,facing:1,
     img:Object.assign(new Image(),{src:playerData.sprite}),
     atkCooldown:[0,0],invincible:0,
@@ -1032,21 +1032,12 @@ function dmgEnemy(e,d,type){
 function checkDoors(){
   if(!player) return;
   for(const door of doors){
-    if(door.type==='entrance'){
-      // 입구는 통과 불가 — 벽처럼 막기
-      if(overlap(player,door)){
-        // 플레이어가 입구 오른쪽 벽에 닿으면 밀어냄
-        player.x=door.x+door.w+1;
-        player.vx=Math.max(0,player.vx);
-      }
-      continue;
-    }
-    if(overlap(player,door)){
-      if(door.type==='exit'&&gamePhase==='lobby'){
-        transitionToStage(1);
-      } else if(door.type==='exit'&&gamePhase==='clear'){
-        stageClearTransition();
-      }
+    if(!overlap(player,door)) continue;
+    if(door.type==='entrance'&&gamePhase==='lobby'){
+      // 입구로 들어가면 1스테이지 시작
+      transitionToStage(1);
+    } else if(door.type==='exit'&&gamePhase==='clear'){
+      stageClearTransition();
     }
   }
 }
@@ -1139,12 +1130,15 @@ function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const theme=getTheme(currentStage);
 
-  // 하늘 그라디언트
+  // 하늘 — 밝고 맑은 하늘
   const skyG=ctx.createLinearGradient(0,0,0,floorY);
-  skyG.addColorStop(0,theme.sky[0]); skyG.addColorStop(1,theme.sky[1]);
+  skyG.addColorStop(0,'#4fc3f7');
+  skyG.addColorStop(0.45,'#81d4fa');
+  skyG.addColorStop(0.85,'#b3e5fc');
+  skyG.addColorStop(1,'#e1f5fe');
   ctx.fillStyle=skyG; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // 배경 별/장식
+  // 배경 구름/장식
   renderBgDecos(theme);
 
   ctx.save(); ctx.translate(-camera.x,0);
@@ -1323,33 +1317,165 @@ function renderPlatform(p,theme){
 }
 
 function renderDoor(d){
-  const isExit=d.type==='exit';
-  const color=isExit?'#ffcb05':'#2ed573';
-  const cx=d.x+d.w/2, cy=d.y;
+  const t=Date.now()/1000;
+  const cx=d.x+d.w/2;
 
-  // 문 기둥
-  ctx.fillStyle=isExit?'rgba(255,203,5,.15)':'rgba(46,213,115,.15)';
-  ctx.fillRect(d.x,d.y,d.w,d.h);
+  if(d.type==='entrance'){
+    // ── 입구: 돌 아치 ──────────────────────────────────────────
+    const w=d.w, h=d.h, bx=d.x, by=d.y;
+    const archR=w/2;
 
-  // 테두리
-  ctx.strokeStyle=color; ctx.lineWidth=2.5;
-  ctx.strokeRect(d.x,d.y,d.w,d.h);
+    // 땅에 박힌 기초 (어두운 돌)
+    ctx.fillStyle='#5a4a3a';
+    ctx.fillRect(bx-6, by+h*0.7, w+12, h*0.3+4);
 
-  // 상단 아치
-  ctx.strokeStyle=color; ctx.lineWidth=2.5;
-  ctx.beginPath(); ctx.arc(cx,cy,d.w/2,Math.PI,0); ctx.stroke();
+    // 기둥 왼쪽
+    drawStonePillar(bx-8, by+archR, 18, h-archR);
+    // 기둥 오른쪽
+    drawStonePillar(bx+w-10, by+archR, 18, h-archR);
 
-  // 반짝임
-  const t=Date.now()/600;
-  ctx.globalAlpha=.5+.3*Math.sin(t+(isExit?1:0));
-  ctx.fillStyle=color;
-  ctx.font="bold 16px 'Galmuri11',monospace";
-  ctx.textAlign='center';
-  ctx.fillText(d.label,cx,d.y+d.h*.55);
-  // 화살표
-  ctx.font='18px monospace';
-  ctx.fillText(isExit?'→':'←',cx,d.y+d.h*.8);
-  ctx.globalAlpha=1;
+    // 아치 내부 (어두운 통로 느낌)
+    ctx.fillStyle='#1a0f08';
+    ctx.beginPath();
+    ctx.arc(cx, by+archR, archR-2, Math.PI, 0);
+    ctx.rect(bx+2, by+archR, w-4, h-archR-2);
+    ctx.fill();
+
+    // 아치 돌 블록들
+    const archStones=14;
+    for(let i=0;i<=archStones;i++){
+      const angle=Math.PI-(Math.PI*i/archStones);
+      const r1=archR, r2=archR+14;
+      const ax1=cx+Math.cos(angle)*r1, ay1=by+archR+Math.sin(angle)*r1;
+      const ax2=cx+Math.cos(angle)*r2, ay2=by+archR+Math.sin(angle)*r2;
+      const angle2=Math.PI-(Math.PI*(i+1)/archStones);
+      const bx1=cx+Math.cos(angle2)*r1, by1=by+archR+Math.sin(angle2)*r1;
+      const bx2=cx+Math.cos(angle2)*r2, by2=by+archR+Math.sin(angle2)*r2;
+      // 돌 하나
+      const stoneColor=i%2===0?'#8a7060':'#7a6050';
+      ctx.fillStyle=stoneColor;
+      ctx.beginPath();
+      ctx.moveTo(ax1,ay1); ctx.lineTo(ax2,ay2);
+      ctx.lineTo(bx2,by2); ctx.lineTo(bx1,by1);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#4a3828'; ctx.lineWidth=1;
+      ctx.stroke();
+    }
+
+    // 아치 꼭대기 장식 돌
+    ctx.fillStyle='#9a8070';
+    ctx.beginPath(); ctx.arc(cx, by+archR-archR-10, 12, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#5a4030'; ctx.lineWidth=1.5; ctx.stroke();
+    // 꼭대기 십자 문양
+    ctx.strokeStyle='#c8a878'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx,by+archR-archR-18); ctx.lineTo(cx,by+archR-archR-2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-7,by+archR-archR-10); ctx.lineTo(cx+7,by+archR-archR-10); ctx.stroke();
+
+    // 아치 안쪽 글로우 (들어갈 수 있다는 느낌)
+    const glowA=0.3+0.2*Math.sin(t*2);
+    const glowG=ctx.createRadialGradient(cx,by+h*0.6,0,cx,by+h*0.6,archR*0.8);
+    glowG.addColorStop(0,`rgba(100,200,255,${glowA})`);
+    glowG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=glowG;
+    ctx.beginPath();
+    ctx.arc(cx,by+archR,archR-2,Math.PI,0);
+    ctx.rect(bx+2,by+archR,w-4,h-archR-2);
+    ctx.fill();
+
+    // 입구 텍스트
+    ctx.save();
+    ctx.globalAlpha=0.7+0.2*Math.sin(t*1.5);
+    ctx.fillStyle='#ffe082';
+    ctx.font="bold 11px 'Galmuri11',monospace";
+    ctx.textAlign='center';
+    ctx.fillText('입구',cx,by+h*0.72);
+    ctx.restore();
+
+  } else {
+    // ── 출구: 황금 아치 ────────────────────────────────────────
+    const w=d.w, h=d.h, bx=d.x, by=d.y;
+    const archR=w/2;
+
+    // 기초
+    ctx.fillStyle='#4a3a18';
+    ctx.fillRect(bx-4, by+h*0.75, w+8, h*0.25+4);
+
+    // 출구 내부
+    ctx.fillStyle='#0d1a0d';
+    ctx.beginPath();
+    ctx.arc(cx, by+archR, archR-2, Math.PI, 0);
+    ctx.rect(bx+2, by+archR, w-4, h-archR-2);
+    ctx.fill();
+
+    // 기둥
+    drawGoldPillar(bx-6, by+archR, 16, h-archR);
+    drawGoldPillar(bx+w-10, by+archR, 16, h-archR);
+
+    // 황금 아치
+    ctx.strokeStyle='#ffcb05'; ctx.lineWidth=5;
+    ctx.shadowColor='rgba(255,203,5,.6)'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.arc(cx, by+archR, archR+4, Math.PI, 0); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='#ffa000'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx, by+archR, archR+8, Math.PI, 0); ctx.stroke();
+
+    // 출구 글로우
+    const glowA=0.25+0.2*Math.sin(t*2.5);
+    const glowG=ctx.createRadialGradient(cx,by+h*0.55,0,cx,by+h*0.55,archR);
+    glowG.addColorStop(0,`rgba(255,220,50,${glowA})`);
+    glowG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=glowG;
+    ctx.beginPath();
+    ctx.arc(cx,by+archR,archR-2,Math.PI,0);
+    ctx.rect(bx+2,by+archR,w-4,h-archR-2);
+    ctx.fill();
+
+    // 별 반짝임
+    for(let i=0;i<4;i++){
+      const sa=t*3+i*Math.PI/2;
+      const sx=cx+Math.cos(sa)*archR*0.5;
+      const sy=by+archR*0.6+Math.sin(sa)*archR*0.3;
+      const ss=1+Math.sin(t*4+i)*1;
+      ctx.fillStyle=`rgba(255,230,100,${0.4+0.4*Math.sin(t*3+i)})`;
+      ctx.beginPath(); ctx.arc(sx,sy,ss,0,Math.PI*2); ctx.fill();
+    }
+
+    ctx.save();
+    ctx.globalAlpha=0.7+0.25*Math.sin(t*2);
+    ctx.fillStyle='#ffcb05';
+    ctx.shadowColor='rgba(255,200,0,.8)'; ctx.shadowBlur=6;
+    ctx.font="bold 11px 'Galmuri11',monospace";
+    ctx.textAlign='center';
+    ctx.fillText('출구',cx,by+h*0.72);
+    ctx.restore();
+  }
+}
+
+function drawStonePillar(x,y,w,h){
+  // 돌 기둥
+  const pg=ctx.createLinearGradient(x,0,x+w,0);
+  pg.addColorStop(0,'#6a5848'); pg.addColorStop(0.4,'#8a7868'); pg.addColorStop(1,'#5a4838');
+  ctx.fillStyle=pg;
+  ctx.fillRect(x,y,w,h);
+  // 블록 줄
+  ctx.strokeStyle='#4a3828'; ctx.lineWidth=1;
+  for(let by2=y+10;by2<y+h;by2+=18){
+    ctx.beginPath(); ctx.moveTo(x,by2); ctx.lineTo(x+w,by2); ctx.stroke();
+  }
+  // 하이라이트
+  ctx.fillStyle='rgba(255,255,255,.1)';
+  ctx.fillRect(x+2,y,3,h);
+}
+
+function drawGoldPillar(x,y,w,h){
+  const pg=ctx.createLinearGradient(x,0,x+w,0);
+  pg.addColorStop(0,'#a07820'); pg.addColorStop(0.4,'#ffd740'); pg.addColorStop(1,'#a07820');
+  ctx.fillStyle=pg;
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='#c8960a'; ctx.lineWidth=1;
+  for(let by2=y+12;by2<y+h;by2+=20){
+    ctx.beginPath(); ctx.moveTo(x,by2); ctx.lineTo(x+w,by2); ctx.stroke();
+  }
 }
 
 function renderPlayer(){

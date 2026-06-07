@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>포켓몬 로그라이크</title>
+<link href="https://fonts.googleapis.com/css2?family=Galmuri11&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0a0f;--surface:#12121a;--card:#1a1a26;--border:#2a2a3a;
+  --accent:#ffcb05;--accent2:#3b5bdb;--text:#e8e8f0;--muted:#6b6b8a;
+  --red:#ff4757;--green:#2ed573;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Galmuri11',monospace;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;}
+.screen.hidden{display:none!important;}
+.hidden{display:none!important;}
+
+/* ── TITLE ── */
+#titleScreen{background:radial-gradient(ellipse at 50% 30%,#1a1a3a 0%,#0a0a0f 70%);}
+.title-bg-stars{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:twinkle var(--d,2s) var(--delay,0s) infinite;}
+@keyframes twinkle{0%,100%{opacity:.2;}50%{opacity:1;}}
+.title-logo{text-align:center;margin-bottom:2rem;position:relative;z-index:1;}
+.title-logo h1{font-size:clamp(1.8rem,5vw,3rem);color:var(--accent);text-shadow:0 0 30px rgba(255,203,5,.5);letter-spacing:.1em;line-height:1.2;}
+.title-logo p{color:var(--muted);font-size:.75rem;margin-top:.5rem;letter-spacing:.15em;}
+.pokeball-deco{width:80px;height:80px;border-radius:50%;background:linear-gradient(180deg,#e74c3c 50%,#fff 50%);border:4px solid #333;position:relative;margin:0 auto 1.5rem;animation:spin 8s linear infinite;}
+.pokeball-deco::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:#fff;border:4px solid #333;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.title-btns{display:flex;flex-direction:column;gap:.75rem;align-items:center;position:relative;z-index:1;}
+.btn-start{background:var(--accent);color:#000;border:none;padding:.9rem 2.5rem;font-family:'Galmuri11',monospace;font-size:1rem;border-radius:12px;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(255,203,5,.3);}
+.btn-start:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,203,5,.5);}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:.7rem 2rem;font-family:'Galmuri11',monospace;font-size:.85rem;border-radius:12px;cursor:pointer;}
+.title-user{color:var(--muted);font-size:.7rem;}
+
+/* ── LOGIN ── */
+#loginScreen{background:var(--bg);}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem 1.8rem;width:100%;max-width:360px;}
+.login-box h2{color:var(--accent);font-size:1rem;margin-bottom:1.2rem;text-align:center;}
+.login-tab{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.2rem;}
+.login-tab button{flex:1;background:none;border:none;color:var(--muted);font-family:'Galmuri11',monospace;font-size:.8rem;padding:.5rem;cursor:pointer;border-bottom:2px solid transparent;}
+.login-tab button.active{color:var(--accent);border-bottom-color:var(--accent);}
+.login-field{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1rem;}
+.login-field input{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.55rem .85rem;color:var(--text);font-family:'Galmuri11',monospace;font-size:.8rem;outline:none;}
+.login-field input:focus{border-color:var(--accent);}
+.login-err{color:var(--red);font-size:.68rem;min-height:1rem;text-align:center;}
+.btn-login{width:100%;background:var(--accent);color:#000;border:none;padding:.75rem;font-family:'Galmuri11',monospace;font-size:.85rem;border-radius:10px;cursor:pointer;}
+
+/* ── SELECT ── */
+#selectScreen{background:var(--bg);padding:1rem;overflow:hidden;}
+.select-header{text-align:center;margin-bottom:.75rem;width:100%;}
+.select-header h2{color:var(--accent);font-size:1.1rem;}
+.select-header p{color:var(--muted);font-size:.7rem;margin-top:.2rem;}
+.search-bar{width:100%;max-width:500px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.5rem .85rem;color:var(--text);font-family:'Galmuri11',monospace;font-size:.8rem;outline:none;margin-bottom:.6rem;}
+.search-bar:focus{border-color:var(--accent);}
+.pokemon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:.45rem;width:100%;max-width:600px;max-height:calc(100dvh - 210px);overflow-y:auto;padding:.2rem;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.pkcard{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:.35rem;cursor:pointer;transition:all .15s;text-align:center;position:relative;}
+.pkcard:hover{border-color:var(--accent);transform:translateY(-2px);}
+.pkcard.selected{border-color:var(--accent);background:rgba(255,203,5,.1);}
+.pkcard.met{border-color:var(--accent2);}
+.pkcard img{width:54px;height:54px;image-rendering:pixelated;}
+.pkcard .pk-name{font-size:.52rem;color:var(--text);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pkcard .pk-num{font-size:.48rem;color:var(--muted);}
+.met-badge{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--accent2);}
+.select-footer{width:100%;max-width:600px;margin-top:.6rem;display:flex;flex-direction:column;align-items:center;gap:.45rem;}
+.selected-info{display:flex;align-items:center;gap:.7rem;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.45rem .85rem;width:100%;}
+.selected-info img{width:46px;height:46px;image-rendering:pixelated;}
+.info-text h3{font-size:.78rem;color:var(--text);}
+.info-text p{font-size:.63rem;color:var(--muted);}
+.type-badge{display:inline-block;padding:.1rem .4rem;border-radius:20px;font-size:.53rem;margin-right:.2rem;}
+.warning-met{background:rgba(59,91,219,.15);border:1px solid rgba(59,91,219,.4);border-radius:8px;padding:.35rem .65rem;font-size:.63rem;color:#7c9dff;width:100%;text-align:center;}
+.btn-confirm{background:var(--accent);color:#000;border:none;padding:.65rem 2rem;font-family:'Galmuri11',monospace;font-size:.82rem;border-radius:10px;cursor:pointer;width:100%;}
+.btn-confirm:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;}
+
+/* ── GAME (canvas) ── */
+#gameScreen{background:#000;padding:0;}
+#gameCanvas{display:block;width:100%;height:100dvh;touch-action:none;}
+
+/* ── LEVELUP ── */
+#levelupScreen{background:rgba(0,0,0,.88);}
+.levelup-box{background:var(--card);border:2px solid var(--accent);border-radius:20px;padding:1.8rem;text-align:center;max-width:320px;width:90%;}
+.levelup-box h2{color:var(--accent);font-size:1.2rem;margin-bottom:.8rem;}
+.stat-changes{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin:.8rem 0;}
+.stat-row{background:var(--surface);border-radius:8px;padding:.35rem .55rem;font-size:.68rem;}
+.stat-row .label{color:var(--muted);}
+.stat-row .val{color:var(--green);}
+
+/* ── CLEAR ── */
+#clearScreen{background:radial-gradient(ellipse at 50% 50%,#1a2a1a 0%,#0a0a0f 70%);}
+.clear-content{text-align:center;}
+.clear-content h1{font-size:2rem;color:var(--accent);text-shadow:0 0 20px rgba(255,203,5,.5);}
+.reward-pokemon img{width:100px;height:100px;image-rendering:pixelated;filter:drop-shadow(0 0 20px rgba(255,203,5,.6));animation:float 2s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+
+/* ── GAMEOVER ── */
+#gameoverScreen{background:radial-gradient(ellipse at 50% 50%,#2a0a0a 0%,#0a0a0f 70%);}
+.gameover-content h1{font-size:2.5rem;color:var(--red);}
+
+/* ── HUD ── */
+#hud{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:20;padding:.45rem .6rem;}
+.hud-inner{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;}
+.hud-panel{background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.35rem .55rem;backdrop-filter:blur(4px);}
+.hud-name{font-size:.62rem;color:var(--accent);margin-bottom:.2rem;}
+.hud-hp-bar{width:120px;height:7px;background:#333;border-radius:4px;overflow:hidden;}
+.hud-hp-fill{height:100%;background:var(--green);border-radius:4px;transition:width .25s;}
+.hud-hp-text{font-size:.58rem;color:var(--text);margin-top:.12rem;}
+.hud-stage-num{font-size:.62rem;color:var(--accent);text-align:center;}
+.hud-stage-lv{font-size:.57rem;color:var(--muted);text-align:center;}
+.hud-boss-name{font-size:.62rem;color:var(--red);margin-bottom:.2rem;}
+.hud-boss-hp-bar{width:120px;height:7px;background:#333;border-radius:4px;overflow:hidden;}
+.hud-boss-hp-fill{height:100%;background:var(--red);border-radius:4px;transition:width .25s;}
+#hudBoss{border-color:rgba(255,71,87,.4);display:none;}
+#hudBoss.visible{display:block;}
+
+/* ── MOBILE CONTROLS ── */
+#controls{
+  position:fixed;bottom:0;left:0;right:0;
+  pointer-events:none;z-index:20;
+  display:none;
+  padding:0 0 env(safe-area-inset-bottom,0) 0;
+}
+.ctrl-dpad{
+  position:absolute;bottom:16px;left:16px;
+  display:grid;grid-template-columns:52px 52px 52px;
+  grid-template-rows:52px 52px;
+  gap:4px;
+  pointer-events:all;
+}
+/* 방향키: 왼쪽, 빈칸, 오른쪽, 점프 */
+.ctrl-right-panel{
+  position:absolute;bottom:16px;right:16px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  pointer-events:all;
+}
+.ctrl-atk-row{display:flex;gap:8px;}
+.ctrl-btn{
+  width:52px;height:52px;border-radius:50%;
+  background:rgba(20,20,40,.65);
+  border:2px solid rgba(255,255,255,.22);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;line-height:1;
+  pointer-events:all;cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  touch-action:none;
+  transition:background .08s,transform .08s;
+  color:rgba(255,255,255,.85);
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
+  -webkit-tap-highlight-color:transparent;
+}
+.ctrl-btn.jump{
+  width:60px;height:60px;font-size:1.2rem;
+  background:rgba(30,30,80,.7);
+  border-color:rgba(130,130,255,.45);
+}
+.ctrl-btn.atk1{
+  width:58px;height:58px;font-size:.72rem;font-weight:bold;
+  background:rgba(80,20,10,.7);
+  border-color:rgba(255,100,50,.55);
+  color:#ff8060;
+}
+.ctrl-btn.atk2{
+  width:58px;height:58px;font-size:.72rem;font-weight:bold;
+  background:rgba(20,20,80,.7);
+  border-color:rgba(100,100,255,.55);
+  color:#8080ff;
+}
+.ctrl-btn.pressed,
+.ctrl-btn:active{
+  background:rgba(255,255,255,.25)!important;
+  transform:scale(.9);
+}
+.ctrl-btn.dir-left{grid-column:1;grid-row:1;}
+.ctrl-btn.dir-jump{grid-column:2;grid-row:1;}
+.ctrl-btn.dir-right{grid-column:3;grid-row:1;}
+/* 빈칸 아래 행은 없음 — dpad 2행은 비움 */
+
+/* ── TOAST ── */
+#toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.45rem 1rem;font-size:.68rem;color:var(--text);z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;}
+
+/* ── STAGE 공통 버튼 ── */
+.stage-btn{background:var(--accent);color:#000;border:none;padding:.65rem 1.8rem;font-family:'Galmuri11',monospace;font-size:.82rem;border-radius:10px;cursor:pointer;}
+
+/* ── HINT ── */
+#stageHint{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);color:rgba(255,203,5,.8);font-size:.7rem;z-index:20;pointer-events:none;text-align:center;text-shadow:0 0 8px rgba(0,0,0,.8);}
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div class="screen" id="titleScreen">
+  <div class="title-bg-stars" id="stars"></div>
+  <div class="title-logo">
+    <div class="pokeball-deco"></div>
+    <h1>포켓몬<br>로그라이크</h1>
+    <p>POKEMON ROGUELIKE</p>
+  </div>
+  <div class="title-btns">
+    <div class="title-user" id="titleUser"></div>
+    <button class="btn-start" id="btnTitleStart">▶ 시작하기</button>
+    <button class="btn-outline" id="btnTitleLogout"  style="display:none">로그아웃</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen hidden" id="loginScreen">
+  <div class="login-box">
+    <h2>🎮 포켓몬 로그라이크</h2>
+    <div class="login-tab">
+      <button class="active" id="tabLogin" >로그인</button>
+      <button id="tabSignup" >회원가입</button>
+    </div>
+    <div class="login-field">
+      <input type="text" id="loginId" placeholder="아이디" autocomplete="off">
+      <input type="password" id="loginPw" placeholder="비밀번호" autocomplete="off">
+      <input type="password" id="loginPwConfirm" placeholder="비밀번호 확인" class="hidden" autocomplete="off">
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-login" id="btnLoginAction" >로그인</button>
+  </div>
+</div>
+
+<!-- SELECT -->
+<div class="screen hidden" id="selectScreen">
+  <div class="select-header">
+    <h2>🎮 포켓몬 선택</h2>
+    <p>함께할 포켓몬을 선택하세요</p>
+  </div>
+  <input class="search-bar" id="pkSearch" placeholder="이름 또는 번호로 검색...">
+  <div class="pokemon-grid" id="pokemonGrid"></div>
+  <div class="select-footer">
+    <div class="selected-info" id="selectedInfo" style="display:none">
+      <img id="selImg" src="" alt="">
+      <div class="info-text">
+        <h3 id="selName">-</h3>
+        <p id="selTypes">-</p>
+        <p id="selStats" style="font-size:.6rem;color:var(--muted);margin-top:.1rem"></p>
+      </div>
+    </div>
+    <div class="warning-met hidden" id="warnMet">⚠️ 이미 도감에 등록된 포켓몬입니다. 그래도 진행하시겠어요?</div>
+    <button class="btn-confirm" id="btnConfirm" disabled >이 포켓몬으로 시작!</button>
+  </div>
+</div>
+
+<!-- GAME CANVAS (lobby + stages) -->
+<div class="screen hidden" id="gameScreen">
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<!-- LEVELUP -->
+<div class="screen hidden" id="levelupScreen">
+  <div class="levelup-box">
+    <h2>⬆ 레벨 업!</h2>
+    <p id="lvupText" style="font-size:.73rem;color:var(--muted)"></p>
+    <div class="stat-changes" id="statChanges"></div>
+    <button class="stage-btn" id="btnNextStage" style="width:100%;margin-top:.5rem">다음 스테이지 →</button>
+  </div>
+</div>
+
+<!-- CLEAR -->
+<div class="screen hidden" id="clearScreen">
+  <div class="clear-content">
+    <h1>🎉 클리어!</h1>
+    <p style="color:var(--muted);font-size:.8rem;margin:.4rem 0 1.2rem">모든 스테이지를 클리어했습니다!</p>
+    <div class="reward-pokemon" style="display:flex;flex-direction:column;align-items:center;gap:.5rem;margin-bottom:1.2rem">
+      <img id="clearImg" src="" alt="">
+      <h3 id="clearName" style="color:var(--text);font-size:1rem;"></h3>
+      <p id="clearMsg" style="font-size:.7rem;color:var(--muted);"></p>
+    </div>
+    <button class="stage-btn" id="btnClearTitle">타이틀로</button>
+  </div>
+</div>
+
+<!-- GAMEOVER -->
+<div class="screen hidden" id="gameoverScreen">
+  <div class="gameover-content" style="text-align:center">
+    <h1>💀 게임 오버</h1>
+    <p id="gameoverMsg" style="color:var(--muted);font-size:.8rem;margin:1rem 0"></p>
+    <button class="stage-btn" id="btnGameoverTitle">타이틀로</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" style="display:none">
+  <div class="hud-inner">
+    <div class="hud-panel">
+      <div class="hud-name" id="hudName">-</div>
+      <div class="hud-hp-bar"><div class="hud-hp-fill" id="hudHpFill"></div></div>
+      <div class="hud-hp-text" id="hudHpText">HP 0/0</div>
+    </div>
+    <div class="hud-panel">
+      <div class="hud-stage-num" id="hudStage">LOBBY</div>
+      <div class="hud-stage-lv" id="hudLv">Lv.1</div>
+    </div>
+    <div class="hud-panel" id="hudBoss">
+      <div class="hud-boss-name" id="hudBossName">-</div>
+      <div class="hud-boss-hp-bar"><div class="hud-boss-hp-fill" id="hudBossHpFill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE CONTROLS -->
+<div id="controls">
+  <!-- 왼쪽: 방향키 -->
+  <div class="ctrl-dpad">
+    <div class="ctrl-btn dir-left" id="btnLeft">◀</div>
+    <div class="ctrl-btn dir-jump jump" id="btnJump">▲</div>
+    <div class="ctrl-btn dir-right" id="btnRight">▶</div>
+  </div>
+  <!-- 오른쪽: 공격 -->
+  <div class="ctrl-right-panel">
+    <div class="ctrl-atk-row">
+      <div class="ctrl-btn atk2" id="btnAtk2" style="display:none">X<br><span style="font-size:.5rem;opacity:.7" id="atk2Label"></span></div>
+      <div class="ctrl-btn atk1" id="btnAtk1">Z<br><span style="font-size:.5rem;opacity:.7" id="atk1Label"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- HINT -->
+<div id="stageHint"></div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:"AIzaSyA7U76tBd49620GgDqXqn3U4TM-lHcIiLA",
+  authDomain:"pokedaily-217fc.firebaseapp.com",
+  projectId:"pokedaily-217fc",
+  storageBucket:"pokedaily-217fc.firebasestorage.app",
+  appId:"1:520527569400:web:2ec16d4fa87308196a760d"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+let currentUser=null, isLoginMode=true, metPokemonIds=new Set();
+
+onAuthStateChanged(auth, async user=>{
+  if(user){
+    currentUser=user;
+    await loadMetIds(user.uid);
+    updateTitleUser(user.email?.replace('@pkdex.com','')||'트레이너');
+  } else {
+    currentUser=null; metPokemonIds=new Set(); updateTitleUser(null);
+  }
+});
+
+async function loadMetIds(uid){
+  try{
+    const snap=await getDoc(doc(db,'users',uid));
+    if(snap.exists()){ const met=snap.data().met||[]; metPokemonIds=new Set(met.map(m=>m.id)); }
+  }catch(e){}
+}
+
+function updateTitleUser(name){
+  document.getElementById('titleUser').textContent=name?name+' 트레이너로 로그인 중':'';
+  document.getElementById('btnTitleLogout').style.display=name?'inline-block':'none';
+}
+
+function switchTab(mode){
+  isLoginMode=mode==='login';
+  document.getElementById('tabLogin').classList.toggle('active',isLoginMode);
+  document.getElementById('tabSignup').classList.toggle('active',!isLoginMode);
+  document.getElementById('loginPwConfirm').classList.toggle('hidden',isLoginMode);
+  document.getElementById('btnLoginAction').textContent=isLoginMode?'로그인':'회원가입';
+  document.getElementById('loginErr').textContent='';
+}
+
+async function doAuth(){
+  const id=document.getElementById('loginId').value.trim();
+  const pw=document.getElementById('loginPw').value;
+  const pw2=document.getElementById('loginPwConfirm').value;
+  const err=document.getElementById('loginErr');
+  if(!id||!pw){err.textContent='아이디와 비밀번호를 입력하세요.';return;}
+  const email=id+'@pkdex.com';
+  const btn=document.getElementById('btnLoginAction'); btn.disabled=true; err.textContent='';
+  try{
+    if(isLoginMode){ await signInWithEmailAndPassword(auth,email,pw); }
+    else{
+      if(pw!==pw2){err.textContent='비밀번호가 일치하지 않습니다.';btn.disabled=false;return;}
+      const cred=await createUserWithEmailAndPassword(auth,email,pw);
+      await setDoc(doc(db,'users',cred.user.uid),{nickname:id,username:id.toLowerCase(),met:[],avatar:'🎮',bio:'',friends:[],friendRequests:[],friendsData:{}});
+    }
+    showScreen('titleScreen');
+  }catch(e){
+    const msgs={'auth/user-not-found':'아이디를 찾을 수 없어요.','auth/wrong-password':'비밀번호가 틀렸어요.','auth/email-already-in-use':'이미 사용 중인 아이디예요.'};
+    err.textContent=msgs[e.code]||e.message;
+  }
+  btn.disabled=false;
+}
+
+async function doLogout(){await signOut(auth);showScreen('titleScreen');}
+function onTitleStart(){
+  if(!currentUser){showScreen('loginScreen');return;}
+  showScreen('selectScreen');
+  if(allPokemon.length===0) loadPokemonList();
+}
+
+async function sendReward(pk){
+  if(!currentUser) return false;
+  try{
+    await addDoc(collection(db,'rewards',currentUser.uid,'pending'),{
+      id:pk.id,name:pk.name,
+      image:pk.sprite||`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pk.id}.png`,
+      types:pk.types||['노말'],from:'roguelike',ts:serverTimestamp()
+    });
+    return true;
+  }catch(e){showToast('전송 실패: '+e.message);return false;}
+}
+
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const TYPE_COLORS={불꽃:'#ff6b35',물:'#4fc3f7',풀:'#66bb6a',전기:'#ffd600',얼음:'#80deea',격투:'#ef5350',독:'#ab47bc',땅:'#8d6e63',비행:'#7986cb',에스퍼:'#f06292',벌레:'#9ccc65',바위:'#bdbdbd',고스트:'#7e57c2',드래곤:'#5c6bc0',악:'#546e7a',강철:'#90a4ae',페어리:'#f48fb1',노말:'#eeeeee'};
+const TYPE_EMOJIS={불꽃:'🔥',물:'💧',풀:'🌿',전기:'⚡',얼음:'❄️',격투:'👊',독:'☠️',땅:'🌍',비행:'🌪️',에스퍼:'🔮',벌레:'🐛',바위:'🪨',고스트:'👻',드래곤:'🐉',악:'🌑',강철:'⚙️',페어리:'✨',노말:'⭐'};
+const TYPE_KO={fire:'불꽃',water:'물',grass:'풀',electric:'전기',ice:'얼음',fighting:'격투',poison:'독',ground:'땅',flying:'비행',psychic:'에스퍼',bug:'벌레',rock:'바위',ghost:'고스트',dragon:'드래곤',dark:'악',steel:'강철',fairy:'페어리',normal:'노말'};
+const TYPE_ATTACKS={
+  불꽃:{color:'#ff8040',glow:'#ff4400',speed:8,size:11,dmgMul:1.2},
+  물:{color:'#4fc3f7',glow:'#0088cc',speed:10,size:10,dmgMul:1.0},
+  풀:{color:'#66bb6a',glow:'#338833',speed:7,size:11,dmgMul:1.0},
+  전기:{color:'#ffd600',glow:'#ffaa00',speed:15,size:7,dmgMul:1.1},
+  얼음:{color:'#80deea',glow:'#00bcd4',speed:9,size:10,dmgMul:1.0},
+  격투:{color:'#ef5350',glow:'#cc0000',speed:0,size:14,dmgMul:1.4,melee:true,range:70},
+  독:{color:'#ab47bc',glow:'#7b1fa2',speed:8,size:9,dmgMul:1.0},
+  땅:{color:'#a1887f',glow:'#5d4037',speed:7,size:14,dmgMul:1.2},
+  비행:{color:'#7986cb',glow:'#3949ab',speed:12,size:10,dmgMul:1.0},
+  에스퍼:{color:'#f48fb1',glow:'#c2185b',speed:9,size:11,dmgMul:1.1},
+  벌레:{color:'#9ccc65',glow:'#558b2f',speed:8,size:9,dmgMul:0.9},
+  바위:{color:'#bdbdbd',glow:'#757575',speed:6,size:14,dmgMul:1.2},
+  고스트:{color:'#9575cd',glow:'#4527a0',speed:5,size:13,dmgMul:1.2},
+  드래곤:{color:'#5c6bc0',glow:'#283593',speed:9,size:16,dmgMul:1.5},
+  악:{color:'#78909c',glow:'#263238',speed:11,size:9,dmgMul:1.1},
+  강철:{color:'#b0bec5',glow:'#455a64',speed:10,size:12,dmgMul:1.1},
+  페어리:{color:'#f48fb1',glow:'#ad1457',speed:8,size:11,dmgMul:1.0},
+  노말:{color:'#e0e0e0',glow:'#9e9e9e',speed:9,size:10,dmgMul:0.9},
+};
+const LEGEND_BY_GEN={
+  1:[{id:151,name:'뮤'},{id:150,name:'뮤츠'}],
+  2:[{id:249,name:'루기아'},{id:250,name:'칠색조'}],
+  3:[{id:382,name:'가이오가'},{id:383,name:'그란돈'}],
+  4:[{id:483,name:'디아루가'},{id:484,name:'펄기아'}],
+  5:[{id:643,name:'레시라무'},{id:644,name:'제크로무'}],
+  6:[{id:716,name:'제르네아스'},{id:717,name:'이벨타르'}],
+  7:[{id:792,name:'루나아라'},{id:791,name:'솔가레오'}],
+  8:[{id:888,name:'자시안'},{id:889,name:'자마젠타'}],
+  9:[{id:1007,name:'코라이돈'},{id:1008,name:'미라이돈'}],
+};
+const GEN_RANGES={1:[1,151],2:[152,251],3:[252,386],4:[387,493],5:[494,649],6:[650,721],7:[722,809],8:[810,905],9:[906,1025]};
+
+// 스테이지 테마 (배경 그라디언트 색상)
+const STAGE_THEMES=[
+  {sky:['#0d1b2a','#1a3a5c'],ground:['#1a3a1a','#0d1a0d'],name:'숲'},       // 1-2
+  {sky:['#1a0d2e','#2d1b4e'],ground:['#2a1a0a','#1a0d05'],name:'동굴'},      // 3-4
+  {sky:['#0a1a2a','#0d2a3a'],ground:['#1a2a3a','#0a1a2a'],name:'해저'},      // 5-6
+  {sky:['#1a1a0a','#2a2a0d'],ground:['#3a2a0a','#2a1a05'],name:'사막'},      // 7-8
+  {sky:['#0a0d1a','#1a1a2a'],ground:['#2a2a3a','#1a1a2a'],name:'유적'},      // 9-10
+  {sky:['#1a0a0a','#2a1a0a'],ground:['#3a1a0a','#2a0d05'],name:'화산'},      // 11-12
+  {sky:['#0a1a1a','#0d2a2a'],ground:['#1a3a3a','#0d2a2a'],name:'설산'},      // 13-14
+  {sky:['#0a0a1a','#1a0a2a'],ground:['#1a0a2a','#0d0a1a'],name:'유령숲'},    // 15-16
+  {sky:['#05050f','#0a0a1a'],ground:['#1a1a2a','#0d0d1a'],name:'우주'},       // 17-18
+  {sky:['#1a0505','#2a0a0a'],ground:['#2a0a0a','#1a0505'],name:'최후의 성'}, // 19-20
+];
+
+function getTheme(stage){
+  if(stage===0) return {sky:['#0d1a0d','#1a2a1a'],ground:['#1a2a1a','#0d1a0d'],name:'로비'};
+  return STAGE_THEMES[Math.min(Math.floor((stage-1)/2), STAGE_THEMES.length-1)];
+}
+
+// ═══════════════════════════════════════
+// POKEMON SELECT
+// ═══════════════════════════════════════
+let allPokemon=[],filteredPokemon=[],selectedPokemon=null;
+let gameGen=1,bosses={mid:null,final:null},currentStage=0,playerLevel=1,playerData=null;
+
+function spriteUrl(id){return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;}
+function getNameCache(){try{return JSON.parse(localStorage.getItem('pkrl_names')||'{}')}catch(e){return{}}}
+function saveNameCache(c){try{localStorage.setItem('pkrl_names',JSON.stringify(c))}catch(e){}}
+
+async function loadPokemonList(){
+  const grid=document.getElementById('pokemonGrid');
+  grid.innerHTML='<div style="color:var(--muted);font-size:.75rem;grid-column:1/-1;text-align:center;padding:2rem">로딩 중...</div>';
+  for(let i=1;i<=1025;i++) allPokemon.push({id:i,name:`#${String(i).padStart(3,'0')}`,types:[],sprite:spriteUrl(i)});
+  filteredPokemon=[...allPokemon]; renderGrid(); loadBasicNames();
+}
+
+async function loadBasicNames(){
+  const cache=getNameCache();
+  if(Object.keys(cache).length>900){applyNameCache(cache);return;}
+  try{
+    const r=await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025&offset=0');
+    const d=await r.json();
+    for(const item of d.results){
+      const id=parseInt(item.url.split('/').filter(Boolean).pop());
+      if(!cache[id]) cache[id]={name:item.name,ko:null};
+    }
+    saveNameCache(cache); applyNameCache(cache);
+  }catch(e){}
+}
+
+function fmtName(n){return n.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());}
+function applyNameCache(cache){
+  for(const pk of allPokemon){
+    if(cache[pk.id]){pk.engName=cache[pk.id].name||pk.name;pk.name=cache[pk.id].ko||fmtName(cache[pk.id].name||`#${pk.id}`);}
+  }
+  filterPokemon();
+}
+
+function renderGrid(){
+  const grid=document.getElementById('pokemonGrid'); grid.innerHTML='';
+  const shown=filteredPokemon.slice(0,200);
+  for(const pk of shown){
+    const el=document.createElement('div');
+    el.className='pkcard'+(metPokemonIds.has(pk.id)?' met':'');
+    el.dataset.id=pk.id;
+    el.innerHTML=`${metPokemonIds.has(pk.id)?'<div class="met-badge"></div>':''}
+      <img src="${pk.sprite}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 56 56%22><text y=%2240%22 font-size=%2240%22>❓</text></svg>'">
+      <div class="pk-name">${pk.name}</div><div class="pk-num">#${String(pk.id).padStart(3,'0')}</div>`;
+    el.onclick=()=>selectPk(pk); grid.appendChild(el);
+  }
+  if(filteredPokemon.length>200){
+    const m=document.createElement('div');
+    m.style.cssText='grid-column:1/-1;text-align:center;color:var(--muted);font-size:.63rem;padding:.4rem';
+    m.textContent=`검색으로 좁혀보세요 (${filteredPokemon.length-200}마리 더 있음)`;
+    grid.appendChild(m);
+  }
+}
+
+function filterPokemon(){
+  const q=document.getElementById('pkSearch').value.trim().toLowerCase();
+  filteredPokemon=!q?[...allPokemon]:allPokemon.filter(pk=>pk.name.toLowerCase().includes(q)||(pk.engName&&pk.engName.toLowerCase().includes(q))||String(pk.id).includes(q));
+  renderGrid();
+}
+
+async function selectPk(pk){
+  selectedPokemon=pk;
+  document.querySelectorAll('.pkcard').forEach(c=>c.classList.remove('selected'));
+  document.querySelector(`.pkcard[data-id="${pk.id}"]`)?.classList.add('selected');
+  if(!pk.types||pk.types.length===0) await fetchPokemonDetail(pk);
+  document.getElementById('selectedInfo').style.display='flex';
+  document.getElementById('selImg').src=pk.sprite;
+  document.getElementById('selName').textContent=pk.name;
+  const tb=(pk.types||[]).map(t=>`<span class="type-badge" style="background:${TYPE_COLORS[t]||'#888'};color:#000">${TYPE_EMOJIS[t]||''} ${t}</span>`).join('');
+  document.getElementById('selTypes').innerHTML=tb||'-';
+  const s=pk.stats||{};
+  document.getElementById('selStats').textContent=`HP:${s.hp||'?'} 공:${s.atk||'?'} 방:${s.def||'?'} 속:${s.spe||'?'}`;
+  document.getElementById('warnMet').classList.toggle('hidden',!metPokemonIds.has(pk.id));
+  document.getElementById('btnConfirm').disabled=false;
+}
+
+async function fetchPokemonDetail(pk){
+  try{
+    const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${pk.id}`);
+    const d=await r.json();
+    pk.types=d.types.map(t=>TYPE_KO[t.type.name]||t.type.name);
+    const sv=d.stats;
+    pk.stats={hp:sv.find(s=>s.stat.name==='hp')?.base_stat||50,atk:sv.find(s=>s.stat.name==='attack')?.base_stat||50,def:sv.find(s=>s.stat.name==='defense')?.base_stat||50,spa:sv.find(s=>s.stat.name==='special-attack')?.base_stat||50,spd:sv.find(s=>s.stat.name==='special-defense')?.base_stat||50,spe:sv.find(s=>s.stat.name==='speed')?.base_stat||50};
+    const sr=await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pk.id}`);
+    const sd=await sr.json();
+    const ko=sd.names.find(n=>n.language.name==='ko');
+    if(ko){pk.name=ko.name;const cache=getNameCache();if(cache[pk.id]){cache[pk.id].ko=ko.name;saveNameCache(cache);}}
+  }catch(e){}
+}
+
+async function confirmSelect(){
+  if(!selectedPokemon) return;
+  if(!selectedPokemon.stats) await fetchPokemonDetail(selectedPokemon);
+  gameGen=Math.floor(Math.random()*9)+1;
+  const sh=[...LEGEND_BY_GEN[gameGen]].sort(()=>Math.random()-.5);
+  bosses.mid=sh[0]; bosses.final=sh[1];
+  await Promise.all([loadBossStats(bosses.mid),loadBossStats(bosses.final)]);
+  currentStage=0; playerLevel=1;
+  playerData=buildPlayerData(selectedPokemon,1);
+  startLobby();
+}
+
+async function loadBossStats(boss){
+  try{
+    const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${boss.id}`);
+    const d=await r.json();
+    boss.types=d.types.map(t=>TYPE_KO[t.type.name]||t.type.name);
+    boss.sprite=spriteUrl(boss.id);
+    const sv=d.stats;
+    boss.baseStats={hp:sv.find(s=>s.stat.name==='hp')?.base_stat||100,atk:sv.find(s=>s.stat.name==='attack')?.base_stat||100,def:sv.find(s=>s.stat.name==='defense')?.base_stat||100,spe:sv.find(s=>s.stat.name==='speed')?.base_stat||100};
+  }catch(e){boss.types=['드래곤'];boss.sprite=spriteUrl(boss.id);boss.baseStats={hp:100,atk:100,def:100,spe:100};}
+}
+
+function calcStat(base,lv){return Math.floor((base*2*lv)/100)+5;}
+function calcHP(base,lv){return Math.floor((base*2*lv)/100)+lv+10;}
+function buildPlayerData(pk,lv){
+  const s=pk.stats;
+  return {id:pk.id,name:pk.name,sprite:pk.sprite,types:pk.types||['노말'],level:lv,maxHp:calcHP(s.hp,lv),hp:calcHP(s.hp,lv),atk:calcStat(Math.max(s.atk,s.spa),lv),def:calcStat(s.def,lv),spe:calcStat(s.spe,lv),baseStats:s};
+}
+
+// ═══════════════════════════════════════
+// ENGINE
+// ═══════════════════════════════════════
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+let gameRunning=false,animFrame=null,lastTime=0;
+const keys={left:false,right:false,jump:false,atk1:false,atk2:false};
+const just={jump:false,atk1:false,atk2:false};
+let player=null,enemies=[],projectiles=[],particles=[],camera={x:0,y:0};
+let platforms=[],doors=[],mapWidth=0,mapHeight=0,floorY=0,gamePhase='lobby',stageEnemyCount=0;
+const GRAVITY=1500,JUMP_VEL=-600,MOVE_SPD=230;
+
+function resizeCanvas(){
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  mapHeight=canvas.height; floorY=canvas.height-70;
+}
+
+// ── 플랫폼 레이아웃 생성 ──────────────────────────────────────
+function genPlatforms(stage){
+  const plats=[];
+  const W=mapWidth, H=floorY;
+  // 세 가지 패턴을 스테이지에 따라 순환
+  const pattern=stage%3;
+
+  if(stage===0){
+    // 로비: 느긋한 플랫폼 배치
+    plats.push({x:200,y:H-160,w:120,h:16});
+    plats.push({x:420,y:H-240,w:140,h:16});
+    plats.push({x:650,y:H-180,w:110,h:16});
+    plats.push({x:880,y:H-280,w:130,h:16});
+    plats.push({x:1100,y:H-200,w:150,h:16});
+    plats.push({x:1350,y:H-300,w:120,h:16});
+    plats.push({x:1600,y:H-160,w:140,h:16});
+    plats.push({x:1850,y:H-250,w:110,h:16});
+  } else if(pattern===0){
+    // 계단형
+    for(let i=0;i<6;i++){
+      plats.push({x:300+i*350,y:H-160-i*50,w:120+Math.random()*60|0,h:16});
+    }
+    plats.push({x:600,y:H-320,w:100,h:16});
+    plats.push({x:1200,y:H-360,w:110,h:16});
+  } else if(pattern===1){
+    // 지그재그
+    for(let i=0;i<7;i++){
+      const side=i%2===0?1:-1;
+      plats.push({x:300+i*320+(side>0?0:80),y:H-180-i*30,w:100+Math.random()*80|0,h:16});
+    }
+    plats.push({x:W/2-60,y:H-380,w:120,h:16});
+  } else {
+    // 군집형
+    plats.push({x:250,y:H-170,w:140,h:16});
+    plats.push({x:380,y:H-270,w:100,h:16});
+    plats.push({x:680,y:H-200,w:130,h:16});
+    plats.push({x:830,y:H-310,w:90,h:16});
+    plats.push({x:1100,y:H-190,w:120,h:16});
+    plats.push({x:1280,y:H-330,w:110,h:16});
+    plats.push({x:1550,y:H-240,w:140,h:16});
+    plats.push({x:1750,y:H-360,w:100,h:16});
+  }
+  return plats;
+}
+
+// ── 문(입구/출구) ─────────────────────────────────────────────
+function genDoors(stage){
+  const H=floorY;
+  const entrance={x:60,y:H-110,w:60,h:110,type:'entrance',label:stage===0?'입구':'입구'};
+  const exit={x:mapWidth-120,y:H-110,w:60,h:110,type:'exit',label:'출구'};
+  return [entrance,exit];
+}
+
+// ── 스테이지 초기화 ───────────────────────────────────────────
+function initStageMap(stage){
+  resizeCanvas();
+  mapWidth=Math.max(canvas.width*2.8,2200);
+  platforms=genPlatforms(stage);
+  doors=genDoors(stage);
+  projectiles=[]; particles=[]; camera={x:0,y:0};
+  gamePhase=stage===0?'lobby':'fight';
+
+  // 플레이어 배치: 입구 오른쪽
+  const ph=playerData.hp, pmh=playerData.maxHp;
+  player={
+    x:doors[0].x+doors[0].w+10,y:floorY-52,
+    w:52,h:52,vx:0,vy:0,onGround:false,facing:1,
+    img:Object.assign(new Image(),{src:playerData.sprite}),
+    atkCooldown:[0,0],invincible:0,
+    hp:ph,maxHp:pmh,
+    animTick:0,
+  };
+
+  enemies=[];
+  stageEnemyCount=0;
+
+  if(stage>0){
+    const isBoss=stage===10||stage===20;
+    if(isBoss){
+      const boss=stage===10?bosses.mid:bosses.final;
+      const bHp=calcHP(boss.baseStats.hp*2,playerData.level);
+      enemies.push(makeEnemy(boss,mapWidth-320,floorY-80,bHp,true));
+      document.getElementById('hudBossName').textContent=boss.name;
+      document.getElementById('hudBoss').classList.add('visible');
+      updateBossHud(enemies[0]);
+    } else {
+      document.getElementById('hudBoss').classList.remove('visible');
+      const cnt=3+Math.floor(Math.random()*3);
+      const [mn,mx]=GEN_RANGES[gameGen];
+      for(let i=0;i<cnt;i++){
+        const id=mn+Math.floor(Math.random()*(mx-mn+1));
+        const ex=400+i*340+Math.random()*100;
+        const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),baseStats:{hp:50+Math.random()*50,atk:40+Math.random()*40,def:30,spe:40}};
+        enemies.push(makeEnemy(rp,ex,floorY-52,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.5)),false));
+      }
+    }
+    stageEnemyCount=enemies.length;
+  }
+}
+
+function rndType(){const t=Object.keys(TYPE_COLORS);return t[Math.floor(Math.random()*t.length)];}
+
+function makeEnemy(pk,x,y,hp,isBoss){
+  const img=new Image(); img.src=pk.sprite||spriteUrl(pk.id);
+  return {x,y,w:isBoss?84:52,h:isBoss?84:52,vx:0,vy:0,onGround:false,facing:-1,
+    img,types:pk.types||['노말'],hp,maxHp:hp,isBoss,name:pk.name,
+    baseAtk:pk.baseStats?.atk||50,atkCooldown:0,aiTimer:0,jumpTimer:0,animTick:0};
+}
+
+// ── 로비 시작 ─────────────────────────────────────────────────
+function startLobby(){
+  showScreen('gameScreen');
+  document.getElementById('hud').style.display='block';
+  showControls(true);
+  initStageMap(0);
+  setupControls();
+  updateHUD();
+  setHint('입구로 들어가면 1스테이지가 시작됩니다!');
+  gameRunning=true; lastTime=0;
+  if(animFrame) cancelAnimationFrame(animFrame);
+  animFrame=requestAnimationFrame(gameLoop);
+}
+
+// ── 스테이지 시작 ─────────────────────────────────────────────
+function launchStage(stage){
+  currentStage=stage;
+  playerLevel=Math.max(1,stage);
+  const prev=playerData;
+  const nd=buildPlayerData(selectedPokemon,playerLevel);
+  const ratio=prev?(prev.hp/prev.maxHp):1;
+  nd.hp=Math.max(1,Math.floor(nd.maxHp*ratio));
+  playerData=nd;
+  initStageMap(stage);
+  updateHUD();
+  const isBoss=stage===10||stage===20;
+  if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
+  else setHint(`STAGE ${stage} — ${getTheme(stage).name} · 적을 모두 쓰러뜨리세요!`);
+  setTimeout(()=>setHint(''),3000);
+  gameRunning=true; lastTime=0;
+  if(animFrame) cancelAnimationFrame(animFrame);
+  animFrame=requestAnimationFrame(gameLoop);
+}
+
+// ── 컨트롤 셋업 ───────────────────────────────────────────────
+function setupControls(){
+  document.onkeydown=e=>{
+    if(e.key==='ArrowLeft') keys.left=true;
+    if(e.key==='ArrowRight') keys.right=true;
+    if((e.key==='ArrowUp'||e.key===' ')&&!e.repeat){keys.jump=true;just.jump=true;}
+    if((e.key==='z'||e.key==='Z')&&!e.repeat){just.atk1=true;keys.atk1=true;}
+    if((e.key==='x'||e.key==='X')&&!e.repeat){just.atk2=true;keys.atk2=true;}
+    if(['ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+  };
+  document.onkeyup=e=>{
+    if(e.key==='ArrowLeft') keys.left=false;
+    if(e.key==='ArrowRight') keys.right=false;
+    if(e.key==='ArrowUp'||e.key===' ') keys.jump=false;
+    if(e.key==='z'||e.key==='Z') keys.atk1=false;
+    if(e.key==='x'||e.key==='X') keys.atk2=false;
+  };
+  setupMobileBtn('btnLeft','left');
+  setupMobileBtn('btnRight','right');
+  setupMobileBtn('btnJump','jump');
+  setupMobileBtn('btnAtk1','atk1');
+  setupMobileBtn('btnAtk2','atk2');
+  // 공격 버튼 레이블
+  const t1=playerData.types[0]||'노말';
+  const t2=playerData.types[1];
+  document.getElementById('atk1Label').textContent=TYPE_EMOJIS[t1]||t1;
+  if(t2){
+    document.getElementById('btnAtk2').style.display='flex';
+    document.getElementById('atk2Label').textContent=TYPE_EMOJIS[t2]||t2;
+  } else {
+    document.getElementById('btnAtk2').style.display='none';
+  }
+}
+
+function setupMobileBtn(id,k){
+  const el=document.getElementById(id); if(!el) return;
+  const press=e=>{e.preventDefault();keys[k]=true;if(k==='jump'||k==='atk1'||k==='atk2')just[k]=true;el.classList.add('pressed');};
+  const rel=e=>{e.preventDefault();keys[k]=false;el.classList.remove('pressed');};
+  el.addEventListener('touchstart',press,{passive:false});
+  el.addEventListener('touchend',rel,{passive:false});
+  el.addEventListener('touchcancel',rel,{passive:false});
+  el.addEventListener('mousedown',press);
+  el.addEventListener('mouseup',rel);
+  el.addEventListener('mouseleave',rel);
+}
+
+function showControls(show){
+  document.getElementById('controls').style.display=show?'block':'none';
+}
+
+// ── 게임 루프 ─────────────────────────────────────────────────
+function gameLoop(ts){
+  if(!gameRunning) return;
+  const dt=Math.min((ts-lastTime)/1000,.05); lastTime=ts;
+  update(dt); render();
+  just.jump=false; just.atk1=false; just.atk2=false;
+  animFrame=requestAnimationFrame(gameLoop);
+}
+
+function update(dt){
+  updatePlayer(dt);
+  if(gamePhase==='fight') updateEnemies(dt);
+  updateProjectiles(dt); updateParticles(dt);
+  checkDoors(); checkWin(); updateCamera(); updateHudHp();
+}
+
+// ── 플레이어 업데이트 ─────────────────────────────────────────
+function updatePlayer(dt){
+  if(!player) return;
+  if(keys.left){player.vx=-MOVE_SPD;player.facing=-1;}
+  else if(keys.right){player.vx=MOVE_SPD;player.facing=1;}
+  else player.vx*=0.7;
+  if(just.jump&&player.onGround){player.vy=JUMP_VEL;player.onGround=false;spawnPtcl(player.x+player.w/2,player.y+player.h,'#aaa',5,'dust');}
+  player.vy=Math.min(player.vy+GRAVITY*dt,900);
+  player.x+=player.vx*dt; player.y+=player.vy*dt;
+  player.animTick+=dt;
+  // 플랫폼 충돌
+  player.onGround=false;
+  // 바닥
+  if(player.y+player.h>=floorY){player.y=floorY-player.h;player.vy=0;player.onGround=true;}
+  // 플랫폼 (아래서 위로 통과 가능)
+  for(const p of platforms){
+    if(player.vx>=0||true){ // 항상 체크
+      if(player.x+player.w>p.x&&player.x<p.x+p.w){
+        if(player.y+player.h>p.y&&player.y+player.h<p.y+p.h+player.vy*dt+12&&player.vy>=0){
+          player.y=p.y-player.h; player.vy=0; player.onGround=true;
+        }
+      }
+    }
+  }
+  // 맵 경계
+  player.x=Math.max(0,Math.min(mapWidth-player.w,player.x));
+  // 공격
+  if(player.atkCooldown[0]>0) player.atkCooldown[0]-=dt;
+  if(player.atkCooldown[1]>0) player.atkCooldown[1]-=dt;
+  if(just.atk1&&player.atkCooldown[0]<=0){fireAtk(0);player.atkCooldown[0]=0.38;}
+  if(just.atk2&&player.atkCooldown[1]<=0&&playerData.types.length>=2){fireAtk(1);player.atkCooldown[1]=0.38;}
+  // 무적
+  if(player.invincible>0) player.invincible-=dt;
+  // 적 접촉 데미지
+  if(gamePhase==='fight'&&player.invincible<=0){
+    for(const e of enemies){
+      if(overlap(player,e)){
+        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.12));
+        dmgPlayer(d); player.invincible=1.0; break;
+      }
+    }
+  }
+}
+
+function fireAtk(ti){
+  const type=playerData.types[ti]||'노말';
+  const cfg=TYPE_ATTACKS[type]||TYPE_ATTACKS['노말'];
+  const dmg=Math.max(1,Math.floor(playerData.atk*cfg.dmgMul*(0.85+Math.random()*.3)));
+  if(cfg.melee){
+    const hb={x:player.x+(player.facing>0?player.w:-cfg.range),y:player.y+4,w:cfg.range,h:player.h-8};
+    for(const e of enemies) if(overlap(hb,e)) dmgEnemy(e,dmg,type);
+    spawnPtcl(player.x+player.w/2+player.facing*45,player.y+player.h/2,cfg.color,10,'burst');
+    return;
+  }
+  projectiles.push({x:player.x+(player.facing>0?player.w:0),y:player.y+player.h*.4,
+    vx:cfg.speed*player.facing*65,vy:-30,size:cfg.size,
+    color:cfg.color,glow:cfg.glow,type,dmg,fromPlayer:true,life:1.6,age:0,trail:[]});
+}
+
+// ── 적 업데이트 ───────────────────────────────────────────────
+function updateEnemies(dt){
+  for(const e of enemies){
+    e.vy=Math.min(e.vy+GRAVITY*dt,900); e.x+=e.vx*dt; e.y+=e.vy*dt; e.animTick+=dt;
+    e.onGround=false;
+    if(e.y+e.h>=floorY){e.y=floorY-e.h;e.vy=0;e.onGround=true;}
+    for(const p of platforms){
+      if(e.x+e.w>p.x&&e.x<p.x+p.w){
+        if(e.y+e.h>p.y&&e.y+e.h<p.y+p.h+16&&e.vy>=0){e.y=p.y-e.h;e.vy=0;e.onGround=true;}
+      }
+    }
+    e.x=Math.max(0,Math.min(mapWidth-e.w,e.x));
+    if(!player) continue;
+    const dx=player.x-e.x; e.facing=dx>0?1:-1;
+    const dist=Math.abs(dx); const rng=e.isBoss?200:140;
+    e.aiTimer-=dt;
+    if(e.aiTimer<=0){
+      e.aiTimer=.4+Math.random()*.5;
+      const sp=50+e.baseAtk*.15;
+      e.vx=dist>rng?e.facing*(e.isBoss?sp*1.3:sp):e.vx*.5;
+    }
+    e.jumpTimer-=dt;
+    if(e.jumpTimer<=0&&e.onGround&&dist<400&&Math.random()<.35){
+      e.vy=JUMP_VEL*.78; e.onGround=false; e.jumpTimer=1.8+Math.random()*2;
+    }
+    e.atkCooldown-=dt;
+    if(e.atkCooldown<=0&&dist<rng){
+      e.atkCooldown=e.isBoss?1.0:1.6;
+      const at=e.types[Math.floor(Math.random()*e.types.length)];
+      const cfg=TYPE_ATTACKS[at]||TYPE_ATTACKS['노말'];
+      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.5))*cfg.dmgMul*.32));
+      projectiles.push({x:e.x+(e.facing>0?e.w:0),y:e.y+e.h*.4,
+        vx:cfg.speed*e.facing*65*.75,vy:-20,size:cfg.size*.85,
+        color:cfg.color,glow:cfg.glow,type:at,dmg:ed,fromPlayer:false,life:1.6,age:0,trail:[]});
+    }
+  }
+}
+
+// ── 투사체 ────────────────────────────────────────────────────
+function updateProjectiles(dt){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i];
+    if(p.trail) p.trail.push({x:p.x,y:p.y});
+    if(p.trail&&p.trail.length>5) p.trail.shift();
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=GRAVITY*dt*.06; p.age+=dt;
+    let hit=false;
+    if(p.fromPlayer){
+      for(const e of enemies) if(ptInRect(p.x,p.y,e)){dmgEnemy(e,p.dmg,p.type);spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;break;}
+    } else {
+      if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
+    }
+    if(hit||p.age>p.life||p.x<camera.x-50||p.x>camera.x+canvas.width+50||p.y>floorY+50) projectiles.splice(i,1);
+  }
+}
+
+// ── 파티클 ────────────────────────────────────────────────────
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;
+    p.vy+=p.type==='dust'?GRAVITY*dt*.15:GRAVITY*dt*.25;
+    p.life-=dt; if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+function spawnPtcl(x,y,color,cnt,type='burst'){
+  for(let i=0;i<cnt;i++){
+    const a=(Math.PI*2*i/cnt)+Math.random()*.6;
+    const sp=type==='dust'?30+Math.random()*60:60+Math.random()*130;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-(type==='dust'?10:50),color,size:2+Math.random()*4,life:.25+Math.random()*.45,type});
+  }
+}
+
+// ── 데미지 ────────────────────────────────────────────────────
+function dmgPlayer(d){
+  if(!player) return;
+  player.hp=Math.max(0,player.hp-d); playerData.hp=player.hp;
+  spawnPtcl(player.x+player.w/2,player.y+player.h/2,'#ff4757',6);
+  updateHudHp(); if(player.hp<=0) endGame(false);
+}
+
+function dmgEnemy(e,d,type){
+  e.hp=Math.max(0,e.hp-d);
+  spawnPtcl(e.x+e.w/2,e.y+e.h/2,TYPE_ATTACKS[type]?.color||'#fff',5);
+  if(e.isBoss) updateBossHud(e);
+  if(e.hp<=0){spawnPtcl(e.x+e.w/2,e.y+e.h/2,'#ffcb05',18,'burst');enemies=enemies.filter(en=>en!==e);}
+}
+
+// ── 문 체크 ───────────────────────────────────────────────────
+function checkDoors(){
+  if(!player) return;
+  for(const door of doors){
+    if(overlap(player,door)){
+      if(door.type==='exit'&&gamePhase==='lobby'){
+        // 로비 출구 → 1스테이지
+        transitionToStage(1);
+      } else if(door.type==='exit'&&gamePhase==='clear'){
+        // 스테이지 클리어 후 출구 → 레벨업 & 다음 스테이지 안내
+        stageClearTransition();
+      }
+      // 입구는 방향 전환 (되돌아가지 않음)
+    }
+  }
+}
+
+let transitioning=false;
+function transitionToStage(stage){
+  if(transitioning) return; transitioning=true;
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  setHint('');
+  // 페이드 효과
+  fadeOut(()=>{
+    transitioning=false;
+    launchStage(stage);
+    fadeIn();
+  });
+}
+
+function stageClearTransition(){
+  if(transitioning) return; transitioning=true;
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  setHint('');
+  if(currentStage>=20){endGame(true);transitioning=false;return;}
+  const prev={...playerData};
+  const nextStageNum=currentStage+1;
+  playerLevel=nextStageNum;
+  const nd=buildPlayerData(selectedPokemon,playerLevel);
+  const ratio=player?(player.hp/player.maxHp):1;
+  nd.hp=Math.max(1,Math.floor(nd.maxHp*ratio));
+  playerData=nd;
+  // 레벨업 화면 표시
+  document.getElementById('hud').style.display='none';
+  showControls(false);
+  showScreen('levelupScreen');
+  document.getElementById('lvupText').textContent=`${playerData.name} Lv.${playerData.level}`;
+  document.getElementById('statChanges').innerHTML=`
+    <div class="stat-row"><div class="label">최대 HP</div><div class="val">${prev.maxHp}→${nd.maxHp}</div></div>
+    <div class="stat-row"><div class="label">공격력</div><div class="val">${prev.atk}→${nd.atk}</div></div>
+    <div class="stat-row"><div class="label">방어력</div><div class="val">${prev.def}→${nd.def}</div></div>
+    <div class="stat-row"><div class="label">스피드</div><div class="val">${prev.spe}→${nd.spe}</div></div>`;
+  transitioning=false;
+}
+
+function nextStage(){
+  showScreen('gameScreen');
+  document.getElementById('hud').style.display='block';
+  showControls(true);
+  launchStage(currentStage);
+}
+
+// ── 승리 체크 ─────────────────────────────────────────────────
+function checkWin(){
+  if(gamePhase!=='fight') return;
+  if(enemies.length===0&&stageEnemyCount>0){
+    gamePhase='clear';
+    spawnPtcl(player.x+player.w/2,player.y,'#ffcb05',20,'burst');
+    setHint('✨ 클리어! 출구로 이동하세요!');
+  }
+}
+
+// ── 카메라 ────────────────────────────────────────────────────
+function updateCamera(){
+  if(!player) return;
+  const tx=player.x-canvas.width/3;
+  camera.x+=(Math.max(0,Math.min(mapWidth-canvas.width,tx))-camera.x)*0.12;
+}
+
+// ── HUD ───────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('hudName').textContent=playerData.name;
+  document.getElementById('hudStage').textContent=currentStage===0?'LOBBY':`STAGE ${currentStage}/20`;
+  document.getElementById('hudLv').textContent=`Lv.${playerData.level}`;
+  updateHudHp();
+}
+
+function updateHudHp(){
+  if(!player) return;
+  const pct=player.hp/player.maxHp*100;
+  const fill=document.getElementById('hudHpFill');
+  fill.style.width=pct+'%';
+  fill.style.background=pct>50?'#2ed573':pct>25?'#ffa502':'#ff4757';
+  document.getElementById('hudHpText').textContent=`${player.hp}/${player.maxHp}`;
+}
+
+function updateBossHud(boss){
+  document.getElementById('hudBossHpFill').style.width=(boss.hp/boss.maxHp*100)+'%';
+}
+
+// ── 렌더 ─────────────────────────────────────────────────────
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const theme=getTheme(currentStage);
+
+  // 하늘 그라디언트
+  const skyG=ctx.createLinearGradient(0,0,0,floorY);
+  skyG.addColorStop(0,theme.sky[0]); skyG.addColorStop(1,theme.sky[1]);
+  ctx.fillStyle=skyG; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // 배경 별/장식
+  renderBgDecos(theme);
+
+  ctx.save(); ctx.translate(-camera.x,0);
+
+  // 바닥
+  const gndG=ctx.createLinearGradient(0,floorY,0,canvas.height);
+  gndG.addColorStop(0,theme.ground[0]); gndG.addColorStop(1,theme.ground[1]);
+  ctx.fillStyle=gndG; ctx.fillRect(0,floorY,mapWidth,canvas.height-floorY);
+
+  // 바닥선
+  ctx.strokeStyle='rgba(255,203,5,.25)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,floorY); ctx.lineTo(mapWidth,floorY); ctx.stroke();
+
+  // 플랫폼
+  for(const p of platforms) renderPlatform(p,theme);
+
+  // 문
+  for(const d of doors) renderDoor(d);
+
+  // 파티클
+  for(const p of particles){
+    const a=Math.min(1,p.life/.5);
+    ctx.globalAlpha=a; ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // 투사체
+  for(const p of projectiles) renderProj(p);
+
+  // 적
+  for(const e of enemies) renderEnemy(e);
+
+  // 플레이어
+  renderPlayer();
+
+  ctx.restore();
+
+  // 로비: 안내 오버레이
+  if(currentStage===0) renderLobbyOverlay();
+}
+
+function renderBgDecos(theme){
+  const t=Date.now()/1000;
+  ctx.save();
+  for(let i=0;i<40;i++){
+    const sx=((i*137+50)%1000)/1000*canvas.width;
+    const sy=((i*89+20)%1000)/1000*(canvas.height*.65);
+    const a=.15+.3*Math.sin(t+i);
+    ctx.fillStyle=`rgba(255,255,255,${a})`;
+    ctx.fillRect(sx,sy,1.5,1.5);
+  }
+  // 테마별 장식
+  if(currentStage>=5&&currentStage<=8){
+    // 물방울/구름
+    for(let i=0;i<6;i++){
+      const cx=((i*200+t*20)%(canvas.width+100))-50;
+      ctx.globalAlpha=.06; ctx.fillStyle='#4fc3f7';
+      ctx.beginPath(); ctx.ellipse(cx,canvas.height*.3+i*20,60,25,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+  if(currentStage>=11&&currentStage<=12){
+    // 불꽃 흔들림
+    for(let i=0;i<5;i++){
+      const fx=canvas.width*.1+i*canvas.width*.2;
+      const fy=canvas.height*.7+Math.sin(t*2+i)*8;
+      ctx.globalAlpha=.08; ctx.fillStyle='#ff6b35';
+      ctx.beginPath(); ctx.ellipse(fx,fy,30,15,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function renderPlatform(p,theme){
+  // 플랫폼 본체
+  const pg=ctx.createLinearGradient(0,p.y,0,p.y+p.h);
+  pg.addColorStop(0,'rgba(255,255,255,.18)');
+  pg.addColorStop(1,'rgba(0,0,0,.3)');
+  ctx.fillStyle=pg;
+  ctx.beginPath();
+  ctx.roundRect(p.x,p.y,p.w,p.h,6);
+  ctx.fill();
+  // 테두리
+  ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1.5;
+  ctx.stroke();
+  // 상단 하이라이트
+  ctx.fillStyle='rgba(255,255,255,.3)';
+  ctx.fillRect(p.x+4,p.y+2,p.w-8,3);
+}
+
+function renderDoor(d){
+  const isExit=d.type==='exit';
+  const color=isExit?'#ffcb05':'#2ed573';
+  const cx=d.x+d.w/2, cy=d.y;
+
+  // 문 기둥
+  ctx.fillStyle=isExit?'rgba(255,203,5,.15)':'rgba(46,213,115,.15)';
+  ctx.fillRect(d.x,d.y,d.w,d.h);
+
+  // 테두리
+  ctx.strokeStyle=color; ctx.lineWidth=2.5;
+  ctx.strokeRect(d.x,d.y,d.w,d.h);
+
+  // 상단 아치
+  ctx.strokeStyle=color; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(cx,cy,d.w/2,Math.PI,0); ctx.stroke();
+
+  // 반짝임
+  const t=Date.now()/600;
+  ctx.globalAlpha=.5+.3*Math.sin(t+(isExit?1:0));
+  ctx.fillStyle=color;
+  ctx.font="bold 16px 'Galmuri11',monospace";
+  ctx.textAlign='center';
+  ctx.fillText(d.label,cx,d.y+d.h*.55);
+  // 화살표
+  ctx.font='18px monospace';
+  ctx.fillText(isExit?'→':'←',cx,d.y+d.h*.8);
+  ctx.globalAlpha=1;
+}
+
+function renderPlayer(){
+  if(!player) return;
+  if(player.invincible>0&&Math.floor(player.invincible*12)%2===0) return;
+  ctx.save();
+  ctx.translate(player.x+player.w/2,player.y+player.h/2);
+  if(player.facing<0) ctx.scale(-1,1);
+  // 이동 애니: 땅에 있을때 약간 스쿼시
+  const onG=player.onGround;
+  const scaleY=onG&&Math.abs(player.vx)>20?0.92:1;
+  const scaleX=onG&&Math.abs(player.vx)>20?1.06:1;
+  ctx.scale(scaleX,scaleY);
+  ctx.shadowColor=TYPE_ATTACKS[playerData.types[0]]?.glow||'#fff'; ctx.shadowBlur=18;
+  if(player.img.complete&&player.img.naturalWidth>0)
+    ctx.drawImage(player.img,-player.w/2,-player.h/2,player.w,player.h);
+  else{ctx.fillStyle='#ffcb05';ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);}
+  ctx.restore();
+
+  // 땅에 서있을때 그림자
+  ctx.save();
+  ctx.globalAlpha=.25;
+  ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(player.x+player.w/2,floorY,player.w*.5,6,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function renderEnemy(e){
+  ctx.save();
+  ctx.translate(e.x+e.w/2,e.y+e.h/2);
+  if(e.facing>0) ctx.scale(-1,1);
+  if(e.isBoss){ctx.shadowColor='#ff4757';ctx.shadowBlur=22;}
+  // 보스: 위아래 떠있는 애니
+  const bobY=e.isBoss?Math.sin(e.animTick*2.5)*4:0;
+  if(e.img.complete&&e.img.naturalWidth>0)
+    ctx.drawImage(e.img,-e.w/2,-e.h/2+bobY,e.w,e.h);
+  else{ctx.fillStyle=e.isBoss?'#ff4757':'#aaa';ctx.fillRect(-e.w/2,-e.h/2,e.w,e.h);}
+  ctx.restore();
+
+  // HP바
+  const bw=e.w+8,bx=e.x-4,by=e.y-12;
+  ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(bx,by,bw,6);
+  ctx.fillStyle=e.isBoss?'#ff4757':'#2ed573'; ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),6);
+  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=.5; ctx.strokeRect(bx,by,bw,6);
+  if(e.isBoss){
+    ctx.fillStyle='#ff4757'; ctx.font="11px 'Galmuri11',monospace"; ctx.textAlign='center';
+    ctx.fillText(e.name,e.x+e.w/2,e.y-16);
+  }
+
+  // 그림자
+  ctx.save(); ctx.globalAlpha=.2; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(e.x+e.w/2,floorY,e.w*.45,5,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function renderProj(p){
+  const alpha=Math.max(0,1-p.age/p.life);
+  // 트레일
+  if(p.trail&&p.trail.length>1){
+    for(let i=1;i<p.trail.length;i++){
+      const ta=alpha*(i/p.trail.length)*.4;
+      ctx.save(); ctx.globalAlpha=ta; ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(p.trail[i].x,p.trail[i].y,p.size*(i/p.trail.length)*.7,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.save(); ctx.globalAlpha=alpha; ctx.shadowColor=p.glow; ctx.shadowBlur=14;
+  ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*.35,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function renderLobbyOverlay(){
+  // 포켓몬 이름/타입 표시
+  const t=Date.now()/800;
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,.55)';
+  ctx.fillRect(canvas.width/2-130,canvas.height*.12,260,68);
+  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(canvas.width/2-130,canvas.height*.12,260,68);
+  ctx.textAlign='center';
+  ctx.fillStyle='#ffcb05'; ctx.font="14px 'Galmuri11',monospace";
+  ctx.fillText('🎮 '+playerData.name, canvas.width/2, canvas.height*.12+26);
+  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font="11px 'Galmuri11',monospace";
+  ctx.fillText('타입: '+playerData.types.join(' / '), canvas.width/2, canvas.height*.12+46);
+  ctx.fillStyle=`rgba(255,255,255,${.5+.25*Math.sin(t)})`;
+  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', canvas.width/2, canvas.height*.12+63);
+  ctx.restore();
+}
+
+// ── 게임 종료 ────────────────────────────────────────────────
+async function endGame(win){
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  document.getElementById('hud').style.display='none';
+  showControls(false); setHint('');
+  document.onkeydown=null; document.onkeyup=null;
+  if(win){
+    showScreen('clearScreen');
+    document.getElementById('clearImg').src=selectedPokemon.sprite;
+    document.getElementById('clearName').textContent=selectedPokemon.name;
+    document.getElementById('clearMsg').textContent='도감으로 전송 중...';
+    const ok=await sendReward(selectedPokemon);
+    document.getElementById('clearMsg').textContent=ok?'✅ 포켓몬 데일리 도감에 전송됐어요!':'❌ 전송 실패 (로그인 확인)';
+  } else {
+    showScreen('gameoverScreen');
+    document.getElementById('gameoverMsg').textContent=`STAGE ${currentStage}에서 쓰러졌습니다...`;
+  }
+}
+
+function backToTitle(){
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  document.getElementById('hud').style.display='none';
+  showControls(false); setHint('');
+  document.onkeydown=null; document.onkeyup=null;
+  showScreen('titleScreen');
+}
+
+// ── 유틸 ─────────────────────────────────────────────────────
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
+function overlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
+function ptInRect(px,py,r){return px>r.x&&px<r.x+r.w&&py>r.y&&py<r.y+r.h;}
+
+function setHint(msg){document.getElementById('stageHint').textContent=msg;}
+
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// 페이드 오버레이
+const fadeEl=document.createElement('div');
+fadeEl.style.cssText='position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:999;transition:opacity .35s';
+document.body.appendChild(fadeEl);
+function fadeOut(cb){fadeEl.style.pointerEvents='all';fadeEl.style.opacity='1';setTimeout(cb,380);}
+function fadeIn(){setTimeout(()=>{fadeEl.style.opacity='0';fadeEl.style.pointerEvents='none';},50);}
+
+window.addEventListener('resize',()=>{
+  if(!document.getElementById('gameScreen').classList.contains('hidden')){
+    resizeCanvas();
+    if(player) player.y=Math.min(player.y,floorY-player.h);
+  }
+});
+
+// 별 생성
+(()=>{
+  const c=document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const s=document.createElement('div');s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${1.5+Math.random()*3}s;--delay:${Math.random()*3}s`;
+    c.appendChild(s);
+  }
+})();
+
+// ── 모든 버튼 이벤트 연결 (module scope 문제 해결) ───────────
+document.addEventListener('DOMContentLoaded', ()=>{});
+// module은 defer이므로 DOM 이미 준비됨 — 바로 연결
+(()=>{
+  const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener('click',fn); };
+  on('btnTitleStart',   ()=>onTitleStart());
+  on('btnTitleLogout',  ()=>doLogout());
+  on('tabLogin',        ()=>switchTab('login'));
+  on('tabSignup',       ()=>switchTab('signup'));
+  on('btnLoginAction',  ()=>doAuth());
+  on('btnConfirm',      ()=>confirmSelect());
+  on('btnNextStage',    ()=>nextStage());
+  on('btnClearTitle',   ()=>backToTitle());
+  on('btnGameoverTitle',()=>backToTitle());
+  // 검색창
+  const srch=document.getElementById('pkSearchInput')||document.getElementById('pkSearch');
+  if(srch) srch.addEventListener('input',()=>filterPokemon());
+})();
+</script>
+</body>
+</html>

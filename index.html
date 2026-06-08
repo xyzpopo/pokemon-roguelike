@@ -466,10 +466,38 @@ async function recordNormalKill(e){
 async function sendNormalReward(id){
   if(!currentUser) return;
   try{
+    // allPokemon 캐시에서 이름·타입 가져오기
+    const cached=allPokemon.find(p=>p.id===Number(id));
+    let name=cached?.name||`#${id}`;
+    let types=cached?.types||[];
+
+    // 한국어→영어 타입 변환 맵
+    const _KO2EN={노말:'normal',불꽃:'fire',물:'water',전기:'electric',풀:'grass',얼음:'ice',격투:'fighting',독:'poison',땅:'ground',비행:'flying',에스퍼:'psychic',벌레:'bug',바위:'rock',고스트:'ghost',드래곤:'dragon',악:'dark',강철:'steel',페어리:'fairy'};
+    // 캐시 타입이 한국어면 영어로 변환
+    if(types.length>0) types=types.map(t=>_KO2EN[t]||t);
+    // 타입이 없으면 PokeAPI에서 영어로 직접 조회
+    if(!types||types.length===0){
+      try{
+        const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+        const d=await r.json();
+        types=d.types.map(t=>t.type.name);
+      }catch(fe){ types=['normal']; }
+    }
+
+    // 이름이 #숫자 형식이면 한국어 이름 조회 시도
+    if(!name||name.startsWith('#')){
+      try{
+        const sr=await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+        const sd=await sr.json();
+        const ko=sd.names.find(n=>n.language.name==='ko');
+        if(ko) name=ko.name;
+      }catch(ne){}
+    }
+
     await addDoc(collection(db,'rewards',currentUser.uid,'pending'),{
-      id:Number(id), name:`#${id}`,
+      id:Number(id), name,
       image:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
-      types:['노말'], from:'normal_kill', ts:serverTimestamp()
+      types, from:'normal_kill', ts:serverTimestamp()
     });
   }catch(e){}
 }
@@ -477,10 +505,20 @@ async function sendNormalReward(id){
 async function sendLegendReward(boss){
   if(!currentUser) return;
   try{
+    // 한국어→영어 타입 변환 맵
+    const _KO2EN={노말:'normal',불꽃:'fire',물:'water',전기:'electric',풀:'grass',얼음:'ice',격투:'fighting',독:'poison',땅:'ground',비행:'flying',에스퍼:'psychic',벌레:'bug',바위:'rock',고스트:'ghost',드래곤:'dragon',악:'dark',강철:'steel',페어리:'fairy'};
+    let types=(boss.types||[]).map(t=>_KO2EN[t]||t);
+    if(!types||types.length===0){
+      try{
+        const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${boss.id}`);
+        const d=await r.json();
+        types=d.types.map(t=>t.type.name);
+      }catch(fe){ types=['normal']; }
+    }
     await addDoc(collection(db,'rewards',currentUser.uid,'pending'),{
       id:boss.id, name:boss.name,
       image:boss.sprite||`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${boss.id}.png`,
-      types:boss.types||['드래곤'], from:'legend_kill', ts:serverTimestamp()
+      types, from:'legend_kill', ts:serverTimestamp()
     });
     showToast(`✅ ${boss.name} 도감 전송 완료!`);
   }catch(e){
@@ -592,10 +630,19 @@ function switchKillTab(tab){
 async function sendReward(pk){
   if(!currentUser) return false;
   try{
+    const _KO2EN={노말:'normal',불꽃:'fire',물:'water',전기:'electric',풀:'grass',얼음:'ice',격투:'fighting',독:'poison',땅:'ground',비행:'flying',에스퍼:'psychic',벌레:'bug',바위:'rock',고스트:'ghost',드래곤:'dragon',악:'dark',강철:'steel',페어리:'fairy'};
+    let types=(pk.types||[]).map(t=>_KO2EN[t]||t);
+    if(!types||types.length===0){
+      try{
+        const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${pk.id}`);
+        const d=await r.json();
+        types=d.types.map(t=>t.type.name);
+      }catch(fe){ types=['normal']; }
+    }
     await addDoc(collection(db,'rewards',currentUser.uid,'pending'),{
       id:pk.id,name:pk.name,
       image:pk.sprite||`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pk.id}.png`,
-      types:pk.types||['노말'],from:'roguelike',ts:serverTimestamp()
+      types,from:'roguelike',ts:serverTimestamp()
     });
     return true;
   }catch(e){showToast('전송 실패: '+e.message);return false;}

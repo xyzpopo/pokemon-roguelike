@@ -241,10 +241,30 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <input class="search-bar" id="pkSearch" placeholder="이름 또는 번호로 검색...">
   <div class="pokemon-grid" id="pokemonGrid"></div>
   <div class="select-footer">
-    <!-- 전설 포켓몬 격파 기록 패널 -->
-    <div id="legendKillPanel" style="width:100%;background:rgba(255,203,5,.07);border:1px solid rgba(255,203,5,.25);border-radius:12px;padding:.5rem .85rem;display:none;">
-      <div style="font-size:.62rem;color:var(--accent);margin-bottom:.35rem;">⚔️ 전설 포켓몬 격파 기록 (10회 격파 시 도감 전송)</div>
-      <div id="legendKillList" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div>
+    <!-- 격파 기록 패널 (전설 / 일반 탭) -->
+    <div id="killRecordPanel" style="width:100%;display:none;">
+      <div style="display:flex;gap:0;margin-bottom:.35rem;border-radius:10px;overflow:hidden;border:1px solid rgba(255,203,5,.25);">
+        <button id="killTabLegend" onclick="switchKillTab('legend')"
+          style="flex:1;background:rgba(255,203,5,.18);color:var(--accent);border:none;padding:.35rem;font-family:Galmuri11,monospace;font-size:.65rem;cursor:pointer;">
+          ⚔️ 전설 격파
+        </button>
+        <button id="killTabNormal" onclick="switchKillTab('normal')"
+          style="flex:1;background:transparent;color:var(--muted);border:none;border-left:1px solid rgba(255,203,5,.2);padding:.35rem;font-family:Galmuri11,monospace;font-size:.65rem;cursor:pointer;">
+          💥 일반 격파
+        </button>
+      </div>
+      <!-- 전설 탭 -->
+      <div id="legendKillPanel" style="background:rgba(255,203,5,.05);border:1px solid rgba(255,203,5,.18);border-radius:10px;padding:.45rem .7rem;">
+        <div style="font-size:.6rem;color:var(--muted);margin-bottom:.3rem;">10회 격파 시 도감 전송</div>
+        <div id="legendKillList" style="display:flex;flex-wrap:wrap;gap:.3rem;max-height:100px;overflow-y:auto;"></div>
+        <div id="legendKillEmpty" style="font-size:.62rem;color:var(--muted);text-align:center;padding:.4rem;display:none;">아직 격파 기록이 없습니다</div>
+      </div>
+      <!-- 일반 탭 -->
+      <div id="normalKillPanel" style="background:rgba(100,150,255,.05);border:1px solid rgba(100,150,255,.18);border-radius:10px;padding:.45rem .7rem;display:none;">
+        <div style="font-size:.6rem;color:var(--muted);margin-bottom:.3rem;">30회 격파 시 도감 전송</div>
+        <div id="normalKillList" style="display:flex;flex-wrap:wrap;gap:.3rem;max-height:100px;overflow-y:auto;"></div>
+        <div id="normalKillEmpty" style="font-size:.62rem;color:var(--muted);text-align:center;padding:.4rem;display:none;">아직 격파 기록이 없습니다</div>
+      </div>
     </div>
     <div class="selected-info" id="selectedInfo" style="display:none">
       <img id="selImg" src="" alt="">
@@ -363,6 +383,7 @@ const db   = getFirestore(app);
 // ═══════════════════════════════════════
 let currentUser=null, isLoginMode=true, metPokemonIds=new Set();
 let legendKills={};  // { [pokemonId]: count }
+let normalKills={};  // { [pokemonId]: count } 일반 포켓몬 격파 기록
 
 onAuthStateChanged(auth, async user=>{
   if(user){
@@ -370,7 +391,7 @@ onAuthStateChanged(auth, async user=>{
     await loadUserData(user.uid);
     updateTitleUser(user.email?.replace('@pkdex.com','')||'트레이너');
   } else {
-    currentUser=null; metPokemonIds=new Set(); legendKills={}; updateTitleUser(null);
+    currentUser=null; metPokemonIds=new Set(); legendKills={}; normalKills={}; updateTitleUser(null);
   }
 });
 
@@ -381,6 +402,7 @@ async function loadUserData(uid){
       const d=snap.data();
       metPokemonIds=new Set((d.met||[]).map(m=>m.id));
       legendKills=d.legendKills||{};
+      normalKills=d.normalKills||{};
     }
   }catch(e){}
 }
@@ -390,7 +412,8 @@ async function recordLegendKill(boss){
   if(!currentUser||!boss) return;
   const id=String(boss.id);
   const prev=legendKills[id]||0;
-  legendKills[id]=prev+1;
+  const gain=Math.random()<0.2?2:1;  // 20% 확률로 +2
+  legendKills[id]=prev+gain;
   const count=legendKills[id];
 
   try{
@@ -412,6 +435,43 @@ async function recordLegendKill(boss){
   }
   // 보스 HP바 카운트 업데이트
   updateBossKillCountHud(boss.id);
+}
+
+// 일반 포켓몬 격파 카운트 → 30회 시 도감 전송
+async function recordNormalKill(e){
+  if(!currentUser||!e||e.isBoss) return;
+  const id=String(e.id||e.name?.replace('#',''));
+  if(!id||isNaN(Number(id))) return;
+  const prev=normalKills[id]||0;
+  const gain=Math.random()<0.2?2:1;  // 20% 확률로 +2
+  normalKills[id]=prev+gain;
+  const count=normalKills[id];
+  // 30회 달성 시만 저장 (매번 저장하면 Firestore 요청 과다)
+  if(count===30||count%30===0){
+    try{
+      await setDoc(doc(db,'users',currentUser.uid),{normalKills},{merge:true});
+    }catch(ex){}
+  }
+  if(count===30){
+    showToast(`🌟 #${id} 30회 격파! 도감에 전송됩니다!`);
+    await sendNormalReward(id);
+  } else if(count>30&&count%30===0){
+    showToast(`✅ #${id} ${count}회 격파! 또 도감 전송!`);
+    await sendNormalReward(id);
+  } else if(count%10===0){
+    showToast(`💥 #${id} ${count}/30회 격파`);
+  }
+}
+
+async function sendNormalReward(id){
+  if(!currentUser) return;
+  try{
+    await addDoc(collection(db,'rewards',currentUser.uid,'pending'),{
+      id:Number(id), name:`#${id}`,
+      image:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+      types:['노말'], from:'normal_kill', ts:serverTimestamp()
+    });
+  }catch(e){}
 }
 
 async function sendLegendReward(boss){
@@ -474,30 +534,59 @@ function onTitleStart(){
 }
 
 function renderLegendKillPanel(){
-  const panel=document.getElementById('legendKillPanel');
+  // 전설 + 일반 탭 전체 렌더
+  const panel=document.getElementById('killRecordPanel');
+  if(!panel) return;
+  const hasLegend=Object.values(legendKills).some(v=>v>0);
+  const hasNormal=Object.values(normalKills).some(v=>v>0);
+  panel.style.display=(hasLegend||hasNormal)?'block':'none';
+  _renderLegendTab();
+  _renderNormalTab();
+}
+
+function _renderKillCard(id,count,maxCount,accentColor){
+  const done=count>=maxCount;
+  const pct=Math.min(count,maxCount)/maxCount*100;
+  return `<div style="background:rgba(0,0,0,.3);border:1px solid ${done?'var(--green)':`rgba(${accentColor},.25)`};border-radius:8px;padding:.28rem .45rem;min-width:90px;max-width:120px;flex:1;">
+    <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem;">
+      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png"
+           style="width:24px;height:24px;image-rendering:pixelated;">
+      <span style="font-size:.54rem;color:${done?'var(--green)':'var(--text)'};">${done?'✅':('#'+id)}</span>
+    </div>
+    <div style="background:rgba(255,255,255,.1);border-radius:3px;height:4px;overflow:hidden;">
+      <div style="width:${pct}%;height:100%;background:${done?'var(--green)':`rgb(${accentColor})`};border-radius:3px;transition:width .3s;"></div>
+    </div>
+    <div style="font-size:.5rem;color:var(--muted);text-align:right;margin-top:.1rem;">${count}/${maxCount}회</div>
+  </div>`;
+}
+
+function _renderLegendTab(){
   const list=document.getElementById('legendKillList');
-  if(!panel||!list) return;
+  const empty=document.getElementById('legendKillEmpty');
+  if(!list) return;
   const entries=Object.entries(legendKills).filter(([,v])=>v>0);
-  if(entries.length===0){panel.style.display='none';return;}
-  panel.style.display='block';
-  list.innerHTML=entries.map(([id,count])=>{
-    const done=count>=10;
-    const bar=Math.min(count,10);
-    const pct=bar*10;
-    return `<div style="background:rgba(0,0,0,.3);border:1px solid ${done?'var(--green)':'rgba(255,203,5,.2)'};border-radius:8px;padding:.3rem .5rem;min-width:110px;flex:1;">
-      <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.2rem;">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png"
-             style="width:28px;height:28px;image-rendering:pixelated;">
-        <span style="font-size:.58rem;color:${done?'var(--green)':'var(--text)'};">
-          ${done?'✅ 완료':'#'+id}
-        </span>
-      </div>
-      <div style="background:rgba(255,255,255,.1);border-radius:4px;height:5px;overflow:hidden;">
-        <div style="width:${pct}%;height:100%;background:${done?'var(--green)':'var(--accent)'};border-radius:4px;transition:width .3s;"></div>
-      </div>
-      <div style="font-size:.52rem;color:var(--muted);text-align:right;margin-top:.15rem;">${count}/10회</div>
-    </div>`;
-  }).join('');
+  if(entries.length===0){list.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty) empty.style.display='none';
+  list.innerHTML=entries.map(([id,count])=>_renderKillCard(id,count,10,'255,203,5')).join('');
+}
+
+function _renderNormalTab(){
+  const list=document.getElementById('normalKillList');
+  const empty=document.getElementById('normalKillEmpty');
+  if(!list) return;
+  const entries=Object.entries(normalKills).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0){list.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty) empty.style.display='none';
+  list.innerHTML=entries.slice(0,30).map(([id,count])=>_renderKillCard(id,count,30,'100,150,255')).join('');
+}
+
+function switchKillTab(tab){
+  document.getElementById('legendKillPanel').style.display=tab==='legend'?'block':'none';
+  document.getElementById('normalKillPanel').style.display=tab==='normal'?'block':'none';
+  document.getElementById('killTabLegend').style.background=tab==='legend'?'rgba(255,203,5,.18)':'transparent';
+  document.getElementById('killTabLegend').style.color=tab==='legend'?'var(--accent)':'var(--muted)';
+  document.getElementById('killTabNormal').style.background=tab==='normal'?'rgba(100,150,255,.18)':'transparent';
+  document.getElementById('killTabNormal').style.color=tab==='normal'?'#7c9dff':'var(--muted)';
 }
 
 async function sendReward(pk){
@@ -619,16 +708,40 @@ function getEvoStage(stage){
   return 3;
 }
 
-// 해당 진화 단계 포켓몬 ID 랜덤 선택
+// 전설·환상 포켓몬 ID (일반 스테이지에서 제외)
+const LEGEND_MYTHICAL_IDS=new Set([
+  // 1세대
+  144,145,146,150,151,
+  // 2세대
+  243,244,245,249,250,251,
+  // 3세대
+  377,378,379,380,381,382,383,384,385,386,
+  // 4세대
+  480,481,482,483,484,485,486,487,488,489,490,491,492,493,
+  // 5세대
+  494,638,639,640,641,642,643,644,645,646,647,648,649,
+  // 6세대
+  716,717,718,719,720,721,
+  // 7세대
+  785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,801,802,807,808,809,
+  // 8세대
+  888,889,890,891,892,893,894,895,896,897,898,
+  // 9세대
+  1001,1002,1003,1004,1005,1006,1007,1008,1009,1010,1017,1020,1021,1022,1023,1024,1025
+]);
+
+// 해당 진화 단계 포켓몬 ID 랜덤 선택 (전설/환상 제외)
 function pickEnemyId(gen, evoStage){
   const evoData=GEN_EVO_STAGES[gen];
   if(!evoData) return GEN_RANGES[gen][0]+Math.floor(Math.random()*(GEN_RANGES[gen][1]-GEN_RANGES[gen][0]+1));
-  // 해당 단계 목록
-  let pool=evoData[evoStage]||[];
-  // 목록이 비어있으면 상위/하위 단계 fallback
+  let pool=(evoData[evoStage]||[]).filter(id=>!LEGEND_MYTHICAL_IDS.has(id));
   if(pool.length===0){
-    for(let fb=evoStage-1;fb>=0;fb--){if(evoData[fb]&&evoData[fb].length>0){pool=evoData[fb];break;}}
+    for(let fb=evoStage-1;fb>=0;fb--){
+      const fb2=(evoData[fb]||[]).filter(id=>!LEGEND_MYTHICAL_IDS.has(id));
+      if(fb2.length>0){pool=fb2;break;}
+    }
   }
+  if(pool.length===0) pool=(evoData[0]||[]).filter(id=>!LEGEND_MYTHICAL_IDS.has(id));
   if(pool.length===0) pool=evoData[0]||[];
   return pool[Math.floor(Math.random()*pool.length)];
 }
@@ -723,8 +836,19 @@ function renderGrid(reset=true){
 }
 
 function filterPokemon(){
-  const q=document.getElementById('pkSearch').value.trim().toLowerCase();
-  filteredPokemon=!q?[...allPokemon]:allPokemon.filter(pk=>pk.name.toLowerCase().includes(q)||(pk.engName&&pk.engName.toLowerCase().includes(q))||String(pk.id).includes(q));
+  const raw=document.getElementById('pkSearch').value.trim();
+  const q=raw.toLowerCase();
+  if(!q){ filteredPokemon=[...allPokemon]; renderGrid(); return; }
+  // 숫자만 입력 시 번호 검색
+  if(/^\d+$/.test(q)){
+    filteredPokemon=allPokemon.filter(pk=>String(pk.id).startsWith(q)||String(pk.id)===q);
+  } else {
+    filteredPokemon=allPokemon.filter(pk=>{
+      const name=pk.name.toLowerCase();
+      const eng=(pk.engName||'').toLowerCase();
+      return name.includes(q)||eng.includes(q)||eng.replace(/-/g,'').includes(q.replace(/\s/g,''));
+    });
+  }
   renderGrid();
 }
 
@@ -805,7 +929,7 @@ function buildPlayerData(pk,lv){
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d');
 let gameRunning=false,animFrame=null,lastTime=0;
-const keys={left:false,right:false,jump:false,atk1:false,atk2:false};
+const keys={left:false,right:false,jump:false,atk1:false,atk2:false,down:false};
 const just={jump:false,atk1:false,atk2:false};
 let player=null,enemies=[],projectiles=[],particles=[],camera={x:0,y:0};
 let platforms=[],doors=[],mapWidth=0,mapHeight=0,floorY=0,gamePhase='lobby',stageEnemyCount=0;
@@ -1356,7 +1480,7 @@ function initStageMap(stage){
       updateBossKillCountHud(boss.id);
     } else {
       document.getElementById('hudBoss').classList.remove('visible');
-      const cnt=3+Math.floor(Math.random()*3);
+      const cnt=5+Math.floor(Math.random()*4);
       const evoStage=getEvoStage(stage);
       const evoScale=1+evoStage*0.35;
       const spawnPositions=window._mapEnemyPos||[];
@@ -1566,9 +1690,9 @@ function explodeBomb(b,idx){
   b.exploded=true;
   const cx=b.x+b.w/2, cy=b.y+b.h/2;
   const radius=110;
-  spawnPtcl(cx,cy,'#ff8040',30,'burst');
-  spawnPtcl(cx,cy,'#ffcb05',20,'burst');
-  spawnPtcl(cx,cy,'#ff4757',15,'burst');
+  spawnPtcl(cx,cy,'#ff8040',14,'burst');
+  spawnPtcl(cx,cy,'#ffcb05',10,'burst');
+  spawnPtcl(cx,cy,'#ff4757',8,'burst');
   // 범위 내 적 데미지
   for(const e of enemies){
     const ex=e.x+e.w/2, ey=e.y+e.h/2;
@@ -1655,6 +1779,7 @@ function setupControls(){
     if(e.key==='ArrowLeft') keys.left=true;
     if(e.key==='ArrowRight') keys.right=true;
     if((e.key==='ArrowUp'||e.key===' ')&&!e.repeat){keys.jump=true;just.jump=true;}
+    if(e.key==='ArrowDown'){keys.down=true;}
     if((e.key==='z'||e.key==='Z')&&!e.repeat){just.atk1=true;keys.atk1=true;}
     if((e.key==='x'||e.key==='X')&&!e.repeat){just.atk2=true;keys.atk2=true;}
     if(['ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
@@ -1663,6 +1788,7 @@ function setupControls(){
     if(e.key==='ArrowLeft') keys.left=false;
     if(e.key==='ArrowRight') keys.right=false;
     if(e.key==='ArrowUp'||e.key===' ') keys.jump=false;
+    if(e.key==='ArrowDown') keys.down=false;
     if(e.key==='z'||e.key==='Z') keys.atk1=false;
     if(e.key==='x'||e.key==='X') keys.atk2=false;
   };
@@ -1689,11 +1815,12 @@ function setupControls(){
     knob.style.transform=`translate(calc(-50% + ${nx}px),calc(-50% + ${ny}px))`;
     keys.left=_jsVec.x<-JS_DEAD;
     keys.right=_jsVec.x>JS_DEAD;
+    keys.down=_jsVec.y>0.55&&Math.abs(_jsVec.x)<0.5;
   }
   function jsEnd(e){
     e.preventDefault();
     _jsActive=false; _jsVec={x:0,y:0};
-    keys.left=false; keys.right=false;
+    keys.left=false; keys.right=false; keys.down=false;
     knob.style.transform='translate(-50%,-50%)';
   }
   if(!_controlsSetup){
@@ -1764,20 +1891,36 @@ function updatePlayer(dt){
   if(keys.left){player.vx=-MOVE_SPD;player.facing=-1;}
   else if(keys.right){player.vx=MOVE_SPD;player.facing=1;}
   else player.vx*=0.7;
-  if(just.jump&&player.onGround){player.vy=JUMP_VEL;player.onGround=false;spawnPtcl(player.x+player.w/2,player.y+player.h,'#aaa',5,'dust');}
+  // 비행 타입: 더블점프 (공중에서 1회 추가)
+  const isFlying=playerData.types&&playerData.types.includes('비행');
+  if(just.jump){
+    if(player.onGround){
+      player.vy=JUMP_VEL; player.onGround=false; player._dblJumpUsed=false;
+      spawnPtcl(player.x+player.w/2,player.y+player.h,'#aaa',5,'dust');
+    } else if(isFlying&&!player._dblJumpUsed){
+      player.vy=JUMP_VEL*0.85; player._dblJumpUsed=true;
+      spawnPtcl(player.x+player.w/2,player.y+player.h/2,'#7986cb',10,'burst');
+      showToast('🌪️ 더블 점프!');
+    }
+  }
   player.vy=Math.min(player.vy+GRAVITY*dt,900);
   player.x+=player.vx*dt; player.y+=player.vy*dt;
   player.animTick+=dt;
   // 플랫폼 충돌
   player.onGround=false;
   // 바닥
-  if(player.y+player.h>=floorY){player.y=floorY-player.h;player.vy=0;player.onGround=true;}
+  if(player.y+player.h>=floorY){player.y=floorY-player.h;player.vy=0;player.onGround=true;player._dblJumpUsed=false;}
   // 플랫폼 (위에서 아래로만 착지, 아래서 위로 통과 가능)
+  // keys.down: 아래 방향키/조이스틱 → 플랫폼 통과 (0.18초 유지)
+  if(keys.down&&player.onGround) player._dropTimer=0.18;
+  if(player._dropTimer>0) player._dropTimer-=dt;
+  const dropping=player._dropTimer>0;
   for(const p of platforms){
+    if(dropping) continue; // 통과 중엔 모든 플랫폼 무시
     if(player.x+player.w>p.x+4&&player.x<p.x+p.w-4){
       const foot=player.y+player.h;
       if(foot>p.y&&foot<p.y+p.h+Math.max(18,Math.abs(player.vy)*dt+4)&&player.vy>=0){
-        player.y=p.y-player.h; player.vy=0; player.onGround=true;
+        player.y=p.y-player.h; player.vy=0; player.onGround=true; player._dblJumpUsed=false;
       }
     }
   }
@@ -2010,12 +2153,16 @@ function updateParticles(dt){
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;
     p.vy+=p.type==='dust'?GRAVITY*dt*.15:GRAVITY*dt*.25;
-    p.life-=dt; if(p.life<=0) particles.splice(i,1);
+    p.life-=dt;
   }
+  if(particles.some(p=>p.life<=0)) particles=particles.filter(p=>p.life>0);
 }
 
+const MAX_PARTICLES=250;
 function spawnPtcl(x,y,color,cnt,type='burst'){
-  for(let i=0;i<cnt;i++){
+  if(particles.length>=MAX_PARTICLES) return;
+  const add=Math.min(cnt, MAX_PARTICLES-particles.length);
+  for(let i=0;i<add;i++){
     const a=(Math.PI*2*i/cnt)+Math.random()*.6;
     const sp=type==='dust'?30+Math.random()*60:60+Math.random()*130;
     particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-(type==='dust'?10:50),color,size:2+Math.random()*4,life:.25+Math.random()*.45,type});
@@ -2040,6 +2187,9 @@ function dmgEnemy(e,d,type){
     if(e.isBoss){
       const bossRef=(currentStage===10)?bosses.mid:bosses.final;
       recordLegendKill(bossRef);
+    } else {
+      // 일반 포켓몬 격파 카운트
+      recordNormalKill(e);
     }
     // 적 처치 시 HP 회복 아이템 확률 드롭 (보스: 확정, 일반: 40%)
     if(e.isBoss||Math.random()<0.4) dropHealItem(e.x+e.w/2,e.y+e.h/2);
@@ -3068,7 +3218,7 @@ function restartGame(){
   document.getElementById('hud').style.display='none';
   showControls(false); setHint('');
   document.onkeydown=null; document.onkeyup=null;
-  keys.left=false; keys.right=false; keys.jump=false; keys.atk1=false; keys.atk2=false;
+  keys.left=false; keys.right=false; keys.jump=false; keys.atk1=false; keys.atk2=false; keys.down=false;
   just.jump=false; just.atk1=false; just.atk2=false;
   showScreen('selectScreen');
   if(allPokemon.length===0) loadPokemonList();
@@ -3082,7 +3232,7 @@ function backToTitle(){
   showControls(false); setHint('');
   document.onkeydown=null; document.onkeyup=null;
   // 키 상태 초기화
-  keys.left=false; keys.right=false; keys.jump=false; keys.atk1=false; keys.atk2=false;
+  keys.left=false; keys.right=false; keys.jump=false; keys.atk1=false; keys.atk2=false; keys.down=false;
   just.jump=false; just.atk1=false; just.atk2=false;
   showScreen('titleScreen');
 }

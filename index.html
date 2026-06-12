@@ -1,4 +1,85 @@
 <!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              포켓몬 로그라이크 — 개발 가이드                               ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  📁 파일 구조 (단일 HTML, <script type="module"> 내부)                     ║
+║  ─────────────────────────────────────────────────────                      ║
+║  1. <style>           CSS (화면별 + 반응형 미디어쿼리 + 컨트롤)             ║
+║  2. <body> HTML       화면 레이아웃 (title/login/select/game/hud/controls)  ║
+║  3. Firebase          Auth + Firestore 초기화 & 인증 로직                   ║
+║  4. 상수/설정          TYPE_ATTACKS, ATTACK_STYLES, 포켓몬 데이터 등        ║
+║  5. 게임 상태          player, enemies, projectiles, particles 등            ║
+║  6. 맵 시스템          맵 블루프린트(spawnPositions, platforms), floorY     ║
+║  7. 적 AI              makeEnemy / PERSONALITY_CFG / updateEnemies          ║
+║  8. 컨트롤 설정         setupControls() — 키보드 + 조이스틱 + 버튼          ║
+║  9. 게임 루프           gameLoop → update(dt) → render()                    ║
+║  10. 렌더링             renderPlayer / renderEnemy / renderHUD 등            ║
+║                                                                              ║
+║  🎮 화면 흐름                                                               ║
+║  titleScreen → loginScreen → selectScreen → gameScreen(lobby/stage)         ║
+║              ↑________ levelupScreen / clearScreen / gameoverScreen ________↑║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  🗺️  맵 블루프린트 시스템                                                  ║
+║  ─────────────────────────────────────────────────────                      ║
+║  · MAP_BLUEPRINTS[stageKey] 에 스폰/플랫폼/점프패드 좌표를 정의             ║
+║  · stageKey: 'lobby' | '1'~'9' | '10(boss)' | '11'~'19' | '20(boss)'      ║
+║  · spawnPositions: [{x}] — 적 스폰 x좌표 (y는 floorY 자동)                ║
+║  · platforms: [{x,y,w,h}] — 플랫폼 (y는 캔버스 픽셀 기준)                 ║
+║  · jumpPads:  [{x,y,w,h,power}] — 점프패드 (power: 1.0 기본)              ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  👾 적 AI 구조                                                              ║
+║  ─────────────────────────────────────────────────────                      ║
+║  · 성격: normal | timid(소심) | brave(용맹)                                 ║
+║    → PERSONALITY_CFG[key].{ hpMul, fleeAt, canFlee, spdMul, atkCdMul }    ║
+║  · aiState: 'chase' | 'retreat' | 'keepDist' | 'surround'                 ║
+║  · 우두머리(isPackLeader): HP×1.8, 스킬 2~3개, 주기적 부하 소환            ║
+║  · 멀티 스킬: attackStyles[] 배열 — 우두머리/용맹만 2~3개, 나머지 1개      ║
+║  · 소환 함수: summonMinion(leader) — 부하 생성 및 leaderRef 연결            ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  ⚔️  공격 스타일 추가 방법                                                  ║
+║  ─────────────────────────────────────────────────────                      ║
+║  ATTACK_STYLES['새스타일'] = {                                              ║
+║    label: '표시명',                                                          ║
+║    fire(e, type, cfg, dmg) { /* projectiles.push(...) */ },                 ║
+║    cooldown: () => 1.5,   // 초                                              ║
+║  };                                                                          ║
+║  TYPE_STYLE_POOL['타입'] 배열에 '새스타일' 추가하면 해당 타입 적에 배정     ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  📱 반응형 레이아웃 규칙                                                    ║
+║  ─────────────────────────────────────────────────────                      ║
+║  · 브레이크포인트:                                                           ║
+║      mobile portrait  : max-width 479px                                     ║
+║      mobile landscape : max-height 500px (가로모드)                         ║
+║      tablet           : 480px ~ 1023px                                      ║
+║      desktop          : min-width 1024px                                     ║
+║  · 컨트롤 표시 조건:                                                         ║
+║      터치 디바이스(ontouchstart 존재) 또는 화면 너비 < 1024px → 표시        ║
+║      데스크톱(키보드 사용 가능)       → 컨트롤 숨김                         ║
+║  · HUD: 모바일에서는 compact(작게), 태블릿 이상은 normal                    ║
+║  · CSS 변수 --ctrl-size, --ctrl-gap으로 버튼 크기 일괄 조정                 ║
+║  · 가로모드: 컨트롤 높이를 줄이고 HUD를 좌우로 분리                         ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  🔥 Firebase 구조                                                           ║
+║  ─────────────────────────────────────────────────────                      ║
+║  Firestore: users/{uid} → { name, metPokemon:[], legendKills:{}, ...}       ║
+║  Auth: email/password (@pkdex.com 도메인 강제)                              ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  ⚙️  자주 수정하는 상수 위치                                                ║
+║  ─────────────────────────────────────────────────────                      ║
+║  · 적 수       : initStageMap()의 cnt 수식                                  ║
+║  · 플레이어 속도: PLAYER_SPEED, JUMP_VEL                                    ║
+║  · 스테이지 수  : MAX_STAGE (현재 20)                                       ║
+║  · 포켓몬 세대  : gameGen (1~현재 세대)                                     ║
+║  · 타입 색상   : TYPE_COLORS{}                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+-->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6,13 +87,24 @@
 <title>포켓몬 로그라이크</title>
 <link href="https://fonts.googleapis.com/css2?family=Galmuri11&display=swap" rel="stylesheet">
 <style>
+/* ── 리셋 & 루트 변수 ─────────────────────────────────────────── */
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
   --bg:#0a0a0f;--surface:#12121a;--card:#1a1a26;--border:#2a2a3a;
   --accent:#ffcb05;--accent2:#3b5bdb;--text:#e8e8f0;--muted:#6b6b8a;
   --red:#ff4757;--green:#2ed573;
+  /* 컨트롤 크기 — 미디어쿼리로 재정의 */
+  --ctrl-size:64px;
+  --ctrl-gap:10px;
+  --js-size:110px;
+  --ctrl-bottom:18px;
+  --hud-bar-w:120px;
+  --hud-font:0.62rem;
+  --hud-small:0.57rem;
 }
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Galmuri11',monospace;}
+
+/* ── 공통 화면 ───────────────────────────────────────────────── */
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;}
 .screen.hidden{display:none!important;}
 .hidden{display:none!important;}
@@ -36,7 +128,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 /* ── LOGIN ── */
 #loginScreen{background:var(--bg);}
-.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem 1.8rem;width:100%;max-width:360px;}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem 1.8rem;width:90%;max-width:360px;}
 .login-box h2{color:var(--accent);font-size:1rem;margin-bottom:1.2rem;text-align:center;}
 .login-tab{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.2rem;}
 .login-tab button{flex:1;background:none;border:none;color:var(--muted);font-family:'Galmuri11',monospace;font-size:.8rem;padding:.5rem;cursor:pointer;border-bottom:2px solid transparent;}
@@ -97,44 +189,63 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 #gameoverScreen{background:radial-gradient(ellipse at 50% 50%,#2a0a0a 0%,#0a0a0f 70%);}
 .gameover-content h1{font-size:2.5rem;color:var(--red);}
 
-/* ── HUD ── */
-#hud{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:20;padding:.45rem .6rem;}
-.hud-inner{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;}
-.hud-panel{background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.35rem .55rem;backdrop-filter:blur(4px);}
-.hud-name{font-size:.62rem;color:var(--accent);margin-bottom:.2rem;}
-.hud-hp-bar{width:120px;height:7px;background:#333;border-radius:4px;overflow:hidden;}
+/* ══════════════════════════════════════════════════════════
+   HUD — 기본(데스크톱/태블릿)
+══════════════════════════════════════════════════════════ */
+#hud{
+  position:fixed;top:0;left:0;right:0;
+  pointer-events:none;z-index:20;
+  padding:.45rem .7rem;
+}
+.hud-inner{
+  display:flex;align-items:flex-start;
+  justify-content:space-between;gap:.5rem;
+}
+.hud-panel{
+  background:rgba(0,0,0,.75);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:.35rem .6rem;
+  backdrop-filter:blur(4px);
+  flex-shrink:0;
+}
+.hud-name{font-size:var(--hud-font);color:var(--accent);margin-bottom:.2rem;white-space:nowrap;}
+.hud-hp-bar{width:var(--hud-bar-w);height:7px;background:#333;border-radius:4px;overflow:hidden;}
 .hud-hp-fill{height:100%;background:var(--green);border-radius:4px;transition:width .25s;}
-.hud-hp-text{font-size:.58rem;color:var(--text);margin-top:.12rem;}
-.hud-stage-num{font-size:.62rem;color:var(--accent);text-align:center;}
-.hud-stage-lv{font-size:.57rem;color:var(--muted);text-align:center;}
-.hud-boss-name{font-size:.62rem;color:var(--red);margin-bottom:.2rem;}
-.hud-boss-hp-bar{width:120px;height:7px;background:#333;border-radius:4px;overflow:hidden;}
+.hud-hp-text{font-size:var(--hud-small);color:var(--text);margin-top:.12rem;}
+.hud-stage-num{font-size:var(--hud-font);color:var(--accent);text-align:center;}
+.hud-stage-lv{font-size:var(--hud-small);color:var(--muted);text-align:center;}
+.hud-boss-name{font-size:var(--hud-font);color:var(--red);margin-bottom:.2rem;white-space:nowrap;}
+.hud-boss-hp-bar{width:var(--hud-bar-w);height:7px;background:#333;border-radius:4px;overflow:hidden;}
 .hud-boss-hp-fill{height:100%;background:var(--red);border-radius:4px;transition:width .25s;}
 #hudBoss{border-color:rgba(255,71,87,.4);display:none;}
 #hudBoss.visible{display:block;}
 
-/* ── MOBILE CONTROLS ── */
+/* ══════════════════════════════════════════════════════════
+   MOBILE CONTROLS — CSS 변수 기반, 미디어쿼리로 크기 조정
+══════════════════════════════════════════════════════════ */
 #controls{
-  position:fixed;bottom:0;left:0;right:0;height:160px;
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 14px);
   pointer-events:none;z-index:20;
-  display:none;
+  display:none; /* JS에서 showControls() 로 제어 */
 }
-/* 조이스틱 */
+/* 조이스틱 영역 */
 #joystickZone{
-  position:absolute;bottom:18px;left:18px;
-  width:110px;height:110px;
+  position:absolute;
+  bottom:var(--ctrl-bottom);left:var(--ctrl-bottom);
+  width:var(--js-size);height:var(--js-size);
   pointer-events:all;
 }
 #joystickBase{
-  position:absolute;inset:0;
-  border-radius:50%;
+  position:absolute;inset:0;border-radius:50%;
   background:rgba(20,20,40,.55);
   border:2px solid rgba(255,255,255,.18);
   box-shadow:0 2px 12px rgba(0,0,0,.4);
 }
 #joystickKnob{
   position:absolute;
-  width:44px;height:44px;
+  width:calc(var(--js-size)*.4);height:calc(var(--js-size)*.4);
   border-radius:50%;
   background:rgba(255,255,255,.28);
   border:2px solid rgba(255,255,255,.5);
@@ -146,37 +257,39 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 }
 /* 오른쪽 버튼 패널 */
 .ctrl-right-panel{
-  position:absolute;bottom:18px;right:18px;
-  display:flex;flex-direction:column;align-items:flex-end;gap:10px;
+  position:absolute;
+  bottom:var(--ctrl-bottom);right:var(--ctrl-bottom);
+  display:flex;flex-direction:column;
+  align-items:flex-end;gap:var(--ctrl-gap);
   pointer-events:all;
 }
-.ctrl-atk-row{display:flex;gap:10px;align-items:center;}
+.ctrl-atk-row{display:flex;gap:var(--ctrl-gap);align-items:flex-end;}
 .ctrl-btn{
   border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:.7rem;font-weight:bold;line-height:1.1;
-  text-align:center;
+  font-weight:bold;line-height:1.1;text-align:center;
   pointer-events:all;cursor:pointer;
-  user-select:none;-webkit-user-select:none;
-  touch-action:none;
+  user-select:none;-webkit-user-select:none;touch-action:none;
   transition:transform .08s,background .08s;
   box-shadow:0 3px 10px rgba(0,0,0,.5);
   -webkit-tap-highlight-color:transparent;
+  font-size:calc(var(--ctrl-size)*.2);
 }
 .ctrl-btn.jump{
-  width:64px;height:64px;font-size:1.3rem;
+  width:var(--ctrl-size);height:var(--ctrl-size);
+  font-size:calc(var(--ctrl-size)*.33);
   background:rgba(40,40,100,.75);
   border:2.5px solid rgba(150,150,255,.55);
   color:rgba(200,200,255,.9);
 }
 .ctrl-btn.atk1{
-  width:60px;height:60px;
+  width:calc(var(--ctrl-size)*.94);height:calc(var(--ctrl-size)*.94);
   background:rgba(100,30,10,.75);
   border:2.5px solid rgba(255,120,60,.6);
   color:#ff9070;
 }
 .ctrl-btn.atk2{
-  width:60px;height:60px;
+  width:calc(var(--ctrl-size)*.94);height:calc(var(--ctrl-size)*.94);
   background:rgba(20,30,100,.75);
   border:2.5px solid rgba(100,130,255,.6);
   color:#90a8ff;
@@ -185,16 +298,184 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   transform:scale(.86);
   background:rgba(255,255,255,.3)!important;
 }
+/* 버튼 라벨 — 두 줄 허용 */
+.ctrl-btn span{
+  font-size:calc(var(--ctrl-size)*.13);
+  line-height:1.2;text-align:center;
+  white-space:pre-wrap;word-break:break-all;
+  padding:0 2px;
+}
 
 /* ── TOAST ── */
-#toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.45rem 1rem;font-size:.68rem;color:var(--text);z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+#toast{
+  position:fixed;top:68px;left:50%;transform:translateX(-50%);
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:.45rem 1rem;
+  font-size:.68rem;color:var(--text);
+  z-index:200;opacity:0;transition:opacity .3s;
+  pointer-events:none;white-space:nowrap;
+  max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+}
 #toast.show{opacity:1;}
 
 /* ── STAGE 공통 버튼 ── */
-.stage-btn{background:var(--accent);color:#000;border:none;padding:.65rem 1.8rem;font-family:'Galmuri11',monospace;font-size:.82rem;border-radius:10px;cursor:pointer;}
+.stage-btn{
+  background:var(--accent);color:#000;border:none;
+  padding:.65rem 1.8rem;font-family:'Galmuri11',monospace;
+  font-size:.82rem;border-radius:10px;cursor:pointer;
+}
 
-/* ── HINT ── */
-#stageHint{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);color:rgba(255,203,5,.8);font-size:.7rem;z-index:20;pointer-events:none;text-align:center;text-shadow:0 0 8px rgba(0,0,0,.8);}
+/* ── 화면 전환 애니메이션 ──────────────────────────────────────
+   .screen 은 기본 opacity:0 / transform 상태에서
+   .screen-enter 클래스가 붙으면 재생, .hidden 이면 숨김
+────────────────────────────────────────────────────────────── */
+
+/* 공통: 화면이 숨겨지는 exit 애니메이션 */
+@keyframes scr-fade-out{
+  from{opacity:1;transform:scale(1);}
+  to  {opacity:0;transform:scale(.97);}
+}
+/* 공통 enter */
+@keyframes scr-fade-in{
+  from{opacity:0;transform:scale(1.03);}
+  to  {opacity:1;transform:scale(1);}
+}
+/* 아래에서 슬라이드 업 */
+@keyframes scr-slide-up{
+  from{opacity:0;transform:translateY(28px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+/* 위에서 슬라이드 다운 */
+@keyframes scr-slide-down{
+  from{opacity:0;transform:translateY(-28px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+/* 왼쪽에서 슬라이드인 */
+@keyframes scr-slide-right{
+  from{opacity:0;transform:translateX(-40px);}
+  to  {opacity:1;transform:translateX(0);}
+}
+/* 줌인 (보스/보너스) */
+@keyframes scr-zoom-in{
+  from{opacity:0;transform:scale(.85);}
+  to  {opacity:1;transform:scale(1);}
+}
+/* 밝게 터지며 등장 (클리어) */
+@keyframes scr-flash-in{
+  0%  {opacity:0;filter:brightness(4);}
+  40% {opacity:1;filter:brightness(1.4);}
+  100%{opacity:1;filter:brightness(1);}
+}
+/* 흔들림 (게임오버) */
+@keyframes scr-shake-in{
+  0%  {opacity:0;transform:translateX(-16px);}
+  25% {opacity:1;transform:translateX(10px);}
+  50% {transform:translateX(-7px);}
+  75% {transform:translateX(4px);}
+  100%{transform:translateX(0);}
+}
+
+/* 화면별 진입 애니메이션 */
+.screen.entering#titleScreen    {animation:scr-fade-in   .45s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#loginScreen    {animation:scr-slide-up  .38s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#selectScreen   {animation:scr-slide-right .38s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#gameScreen     {animation:scr-fade-in   .28s ease both;}
+.screen.entering#levelupScreen  {animation:scr-slide-up  .32s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#clearScreen    {animation:scr-flash-in  .55s ease both;}
+.screen.entering#bonusEntryScreen{animation:scr-zoom-in  .48s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#bonusClearScreen{animation:scr-flash-in .6s ease both;}
+.screen.entering#gameoverScreen {animation:scr-shake-in  .5s ease both;}
+
+/* exit: 화면이 사라질 때 */
+.screen.exiting{
+  animation:scr-fade-out .22s ease forwards;
+  pointer-events:none;
+}
+  position:fixed;bottom:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 28px);
+  left:50%;transform:translateX(-50%);
+  color:rgba(255,203,5,.85);font-size:.7rem;z-index:20;
+  pointer-events:none;text-align:center;
+  text-shadow:0 0 8px rgba(0,0,0,.9);
+  white-space:nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════
+   📱 모바일 세로 (~ 479px)
+══════════════════════════════════════════════════════════ */
+@media (max-width:479px){
+  :root{
+    --ctrl-size:58px;
+    --ctrl-gap:8px;
+    --js-size:100px;
+    --ctrl-bottom:14px;
+    --hud-bar-w:90px;
+    --hud-font:0.55rem;
+    --hud-small:0.50rem;
+  }
+  .hud-panel{padding:.28rem .45rem;}
+  .pokemon-grid{grid-template-columns:repeat(auto-fill,minmax(58px,1fr));}
+  .pkcard img{width:38px;height:38px;}
+  .levelup-box{padding:1.2rem 1rem;}
+  .gameover-content h1{font-size:1.8rem;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   📱 모바일 가로 (height ~ 500px) — 컨트롤 compact
+══════════════════════════════════════════════════════════ */
+@media (max-height:500px) and (orientation:landscape){
+  :root{
+    --ctrl-size:50px;
+    --ctrl-gap:6px;
+    --js-size:86px;
+    --ctrl-bottom:8px;
+    --hud-bar-w:80px;
+    --hud-font:0.52rem;
+    --hud-small:0.47rem;
+  }
+  #controls{
+    height:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 10px);
+  }
+  /* 가로모드: HUD를 한 줄로 더 압축 */
+  .hud-panel{padding:.2rem .38rem;}
+  .hud-hp-bar,.hud-boss-hp-bar{height:5px;}
+  /* 스테이지 힌트 위치 조정 */
+  #stageHint{font-size:.6rem;}
+  /* 타이틀 — 폴볼 숨김 */
+  .pokeball-deco{display:none;}
+  .title-logo{margin-bottom:1rem;}
+  /* 포켓몬 선택 그리드 조정 */
+  .pokemon-grid{max-height:calc(100dvh - 150px);}
+}
+
+/* ══════════════════════════════════════════════════════════
+   📲 태블릿 (480px ~ 1023px)
+══════════════════════════════════════════════════════════ */
+@media (min-width:480px) and (max-width:1023px){
+  :root{
+    --ctrl-size:66px;
+    --ctrl-gap:11px;
+    --js-size:114px;
+    --ctrl-bottom:20px;
+    --hud-bar-w:130px;
+    --hud-font:0.65rem;
+    --hud-small:0.60rem;
+  }
+  .pokemon-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));}
+}
+
+/* ══════════════════════════════════════════════════════════
+   🖥️  데스크톱 (1024px+) — 컨트롤 숨김, HUD 넉넉
+══════════════════════════════════════════════════════════ */
+@media (min-width:1024px){
+  :root{
+    --hud-bar-w:150px;
+    --hud-font:0.68rem;
+    --hud-small:0.62rem;
+  }
+  #controls{display:none!important;}
+  #stageHint{bottom:24px;}
+  .pokemon-grid{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));}
+}
 </style>
 </head>
 <body>
@@ -305,6 +586,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
       <p id="clearMsg" style="font-size:.7rem;color:var(--muted);"></p>
     </div>
     <button class="stage-btn" id="btnClearTitle">타이틀로</button>
+  </div>
+</div>
+
+<!-- BONUS STAGE ENTRY -->
+<div class="screen hidden" id="bonusEntryScreen" style="background:radial-gradient(ellipse at 50% 40%,#1a0a2a 0%,#0a0a0f 70%);">
+  <div style="text-align:center;padding:2rem 1.5rem;max-width:380px;width:90%;">
+    <div style="font-size:3rem;margin-bottom:.6rem;animation:float 1.5s ease-in-out infinite;">👑</div>
+    <h1 style="color:#ffcb05;font-size:1.5rem;text-shadow:0 0 20px rgba(255,203,5,.6);margin-bottom:.4rem;">BONUS STAGE</h1>
+    <p style="color:#c9b8ff;font-size:.8rem;margin-bottom:1.4rem;line-height:1.6;">
+      숨겨진 왕좌의 방에 도달했다!<br>
+      <span style="color:#ffcb05;">우두머리 10마리</span>가 기다리고 있다…
+    </p>
+    <div id="bonusLeaderPreview" style="display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem;margin-bottom:1.4rem;min-height:48px;"></div>
+    <div style="background:rgba(255,203,5,.08);border:1px solid rgba(255,203,5,.25);border-radius:12px;padding:.7rem 1rem;margin-bottom:1.4rem;font-size:.68rem;color:var(--muted);line-height:1.7;">
+      ⚠️ 체력은 클리어 시 상태 그대로 유지<br>
+      💀 쓰러지면 게임 오버 (재도전 불가)<br>
+      🏆 클리어 시 특별 보상 지급
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.6rem;">
+      <button class="stage-btn" id="btnBonusEnter" style="background:linear-gradient(135deg,#ffcb05,#ff9500);font-size:.9rem;padding:.8rem 2rem;">⚔️ 도전한다!</button>
+      <button class="stage-btn" id="btnBonusSkip" style="background:transparent;border:1px solid var(--muted);color:var(--muted);font-size:.75rem;padding:.55rem 1.5rem;">포기하고 타이틀로</button>
+    </div>
+  </div>
+</div>
+
+<!-- BONUS CLEAR -->
+<div class="screen hidden" id="bonusClearScreen" style="background:radial-gradient(ellipse at 50% 40%,#1a1500 0%,#0a0a0f 70%);">
+  <div style="text-align:center;padding:2rem 1.5rem;max-width:380px;width:90%;">
+    <div style="font-size:3.5rem;margin-bottom:.5rem;animation:float 1.5s ease-in-out infinite;">🏆</div>
+    <h1 style="color:#ffcb05;font-size:1.6rem;text-shadow:0 0 30px rgba(255,203,5,.8);margin-bottom:.3rem;">PERFECT!</h1>
+    <p style="color:#c9b8ff;font-size:.8rem;margin-bottom:1.2rem;">보너스 스테이지 완전 클리어!</p>
+    <div class="reward-pokemon" style="display:flex;flex-direction:column;align-items:center;gap:.4rem;margin-bottom:1.2rem;">
+      <img id="bonusClearImg" src="" alt="" style="width:90px;height:90px;image-rendering:pixelated;filter:drop-shadow(0 0 20px rgba(255,203,5,.8));">
+      <h3 id="bonusClearName" style="color:var(--accent);font-size:1rem;"></h3>
+      <p id="bonusClearMsg" style="font-size:.7rem;color:var(--muted);"></p>
+    </div>
+    <button class="stage-btn" id="btnBonusClearTitle">타이틀로</button>
   </div>
 </div>
 
@@ -817,6 +1135,11 @@ function getTheme(stage){
 // ═══════════════════════════════════════
 let allPokemon=[],filteredPokemon=[],selectedPokemon=null;
 let gameGen=1,bosses={mid:null,final:null},currentStage=0,playerLevel=1,playerData=null;
+// ── 보너스 스테이지 상태 ──
+const BONUS_STAGE_ID=99;          // 보너스 스테이지 식별자
+const BONUS_ENTRY_CHANCE=0.45;    // 45% 확률로 보너스 진입
+let isBonusStage=false;           // 현재 보너스 스테이지 여부
+let bonusLeaders=[];              // 보너스 스테이지 우두머리 목록(미리 생성)
 
 function spriteUrl(id){return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;}
 function getNameCache(){try{return JSON.parse(localStorage.getItem('pkrl_names')||'{}')}catch(e){return{}}}
@@ -984,8 +1307,23 @@ let healItems=[],bombs=[],jumpPads=[];
 const GRAVITY=1500,JUMP_VEL=-600,MOVE_SPD=230;
 
 function resizeCanvas(){
-  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-  mapHeight=canvas.height; floorY=canvas.height-70;
+  // CSS 표시 크기
+  const cssW=window.innerWidth, cssH=window.innerHeight;
+  const dpr=window.devicePixelRatio||1;
+
+  // 캔버스 물리 픽셀 = CSS 크기 × DPR (고해상도 디스플레이 찌그러짐 방지)
+  window.innerWidth =Math.round(cssW*dpr);
+  window.innerHeight=Math.round(cssH*dpr);
+
+  // CSS 크기는 고정 (브라우저가 늘리지 않도록)
+  canvas.style.width =cssW+'px';
+  canvas.style.height=cssH+'px';
+
+  // 이후 모든 좌표는 CSS 픽셀 기준으로 유지 — ctx만 스케일
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  // 게임 로직 좌표계는 CSS 픽셀 기준
+  mapHeight=cssH; floorY=cssH-70;
 }
 
 // ── 플랫폼 레이아웃 생성 ──────────────────────────────────────
@@ -1489,7 +1827,7 @@ function genDoors(stage){
 // ── 스테이지 초기화 ───────────────────────────────────────────
 function initStageMap(stage){
   resizeCanvas();
-  mapWidth=Math.max(canvas.width*2.8,2200);
+  mapWidth=Math.max(window.innerWidth*2.8,2200);
   window._mapEnemyPos=[];
   window._mapBombPos=[];
   platforms=genPlatforms(stage);  // 이 안에서 _mapEnemyPos, _mapBombPos, jumpPads 세팅됨
@@ -1527,21 +1865,57 @@ function initStageMap(stage){
       updateBossKillCountHud(boss.id);
     } else {
       document.getElementById('hudBoss').classList.remove('visible');
-      const cnt=5+Math.floor(Math.random()*4);
+      const cnt=Math.floor(7+stage*0.6+Math.random()*4);
       const evoStage=getEvoStage(stage);
       const evoScale=1+evoStage*0.35;
       const spawnPositions=window._mapEnemyPos||[];
 
       for(let i=0;i<cnt;i++){
         const id=pickEnemyId(gameGen, evoStage);
-        // 블루프린트 스폰 위치: x좌표만 사용, y는 항상 바닥
-        let ex=500+i*320+Math.random()*100;
-        if(i<spawnPositions.length) ex=spawnPositions[i].x;
+        let ex;
+        if(i<spawnPositions.length){
+          ex=spawnPositions[i].x;
+        } else {
+          // 블루프린트 위치 초과분: 맵 전체에 균등 분포
+          ex=300+(Math.random()*(mapWidth-600));
+        }
         const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
           baseStats:{hp:(50+Math.random()*40)*evoScale,atk:(40+Math.random()*35)*evoScale,def:30*evoScale,spe:40}};
         const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.5)),false);
         en.attackStyle=assignAttackStyle(rp.types,false);
+        en.attackStyles=[en.attackStyle];  // 기본은 1개 (우두머리/용맹 지정 후 확장)
+        // 원거리 스타일이면 선호 거리 설정
+        const rangedStyles=['ranged','snipe','wave','spread','lob'];
+        en.preferDist=rangedStyles.includes(en.attackStyle)?(200+Math.random()*80):0;
         enemies.push(en);
+      }
+      // ── 우두머리 지정 (cnt>=4면 1마리, cnt>=9면 2마리, cnt>=14면 3마리) ──
+      const leaderCount=(cnt>=14)?3:(cnt>=9)?2:(cnt>=4)?1:0;
+      const shuffled=[...enemies].sort(()=>Math.random()-.5);
+      for(let li=0;li<leaderCount;li++){
+        const leader=shuffled[li];
+        leader.isPackLeader=true;
+        leader.hp=Math.floor(leader.maxHp*1.8);
+        leader.maxHp=leader.hp;
+        leader.w=118; leader.h=118;
+        // 우두머리: 확정 2개, 33% 확률로 3개
+        const lStyleCount=Math.random()<0.33?3:2;
+        leader.attackStyles=assignAttackStylesMulti(leader.types,lStyleCount);
+        leader.attackStyle=leader.attackStyles[0];
+        leader.styleIdx=0;
+        // 하위 부원들 연결
+        enemies.forEach(en=>{
+          if(!en.isPackLeader&&en.leaderRef===null) en.leaderRef=leader;
+        });
+      }
+      // 용맹 성격 적에게도 멀티 스타일 부여
+      for(const en of enemies){
+        if(en.personality==='brave'&&!en.isPackLeader){
+          const bStyleCount=Math.random()<0.33?3:2;
+          en.attackStyles=assignAttackStylesMulti(en.types,bStyleCount);
+          en.attackStyle=en.attackStyles[0];
+          en.styleIdx=0;
+        }
       }
     }
     stageEnemyCount=enemies.length;
@@ -1665,6 +2039,23 @@ function assignAttackStyle(types,isBoss){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 
+// 우두머리/용맹용: 확정 2개, 최대 3개 스타일 배열 반환
+function assignAttackStylesMulti(types, count){
+  const allStyles=Object.keys(ATTACK_STYLES);
+  const result=[];
+  // 첫 번째는 타입 기반
+  result.push(assignAttackStyle(types, false));
+  // 두 번째는 풀에서 중복 없이
+  const pool2=allStyles.filter(s=>s!==result[0]);
+  result.push(pool2[Math.floor(Math.random()*pool2.length)]);
+  // 세 번째 (count===3)
+  if(count>=3){
+    const pool3=allStyles.filter(s=>!result.includes(s));
+    if(pool3.length>0) result.push(pool3[Math.floor(Math.random()*pool3.length)]);
+  }
+  return result;
+}
+
 // ── 폭탄 배치 ─────────────────────────────────────────────────
 function spawnBombs(stage){
   const count=2+Math.floor(stage/4); // 스테이지가 높을수록 많아짐
@@ -1761,17 +2152,43 @@ function explodeBomb(b,idx){
 
 
 
+// ── 성격 정의 ─────────────────────────────────────────────────
+// normal  : 기본 (HP 100%, 도주 30%)
+// timid   : 소심 (HP 70%, 도주 60% — 일찍 도망)
+// brave   : 용맹 (HP 140%, 절대 도주 안 함, 공격적)
+const PERSONALITIES=['normal','normal','normal','timid','timid','brave'];
+function pickPersonality(){ return PERSONALITIES[Math.floor(Math.random()*PERSONALITIES.length)]; }
+
+const PERSONALITY_CFG={
+  normal:{ hpMul:1.00, fleeAt:0.30, canFlee:true,  spdMul:1.00, atkCdMul:1.00, label:'',      icon:'',   color:'#aaa'    },
+  timid: { hpMul:0.70, fleeAt:0.60, canFlee:true,  spdMul:1.10, atkCdMul:1.20, label:'소심',  icon:'😨', color:'#74b9ff' },
+  brave: { hpMul:1.40, fleeAt:0.00, canFlee:false, spdMul:0.95, atkCdMul:0.80, label:'용맹',  icon:'🔥', color:'#ff7675' },
+};
+
 function makeEnemy(pk,x,y,hp,isBoss){
   const img=new Image(); img.src=pk.sprite||spriteUrl(pk.id);
   const w=isBoss?150:100, h=isBoss?150:100;
-  // 스타일이 없으면 attackStyle은 null (나중에 initStageMap에서 부여)
-  return {x, y:y-h,  // y는 "발 위치" → 상단 y로 변환
+  // 보스는 성격 없음 (normal 고정)
+  const personality=isBoss?'normal':pickPersonality();
+  const pcfg=PERSONALITY_CFG[personality];
+  const adjHp=Math.round(hp*pcfg.hpMul);
+  return {x, y:y-h,
     w, h, vx:0, vy:0, onGround:false, facing:-1,
-    img, types:pk.types||['노말'], hp, maxHp:hp, isBoss, name:pk.name,
+    img, types:pk.types||['노말'], hp:adjHp, maxHp:adjHp, isBoss, name:pk.name,
     baseAtk:pk.baseStats?.atk||50,
-    atkCooldown:1.0+Math.random()*1.5,  // 스폰 즉시 공격 방지
+    atkCooldown:1.0+Math.random()*1.5,
     aiTimer:Math.random()*0.5, jumpTimer:0, animTick:0,
-    attackStyle:null};
+    attackStyle:null,        // 하위 호환용 (첫 번째 스타일)
+    attackStyles:[],         // 전체 스타일 배열
+    personality,          // 성격
+    isPackLeader:false,
+    leaderRef:null,
+    aiState:'chase',
+    fleeTimer:0,
+    summonCooldown:8+Math.random()*4,
+    alertRadius:350,
+    preferDist:0,
+  };
 }
 
 // ── 로비 시작 ─────────────────────────────────────────────────
@@ -1807,7 +2224,11 @@ function launchStage(stage){
   const isBoss=stage===10||stage===20;
   const evoLabels=['미진화체','1차 진화체','2차 진화체','3차 진화체'];
   if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
-  else setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!`);
+  else{
+    const leaderCount=enemies.filter(e=>e.isPackLeader).length;
+    const leaderHint=leaderCount>0?` · 👑 우두머리 ${leaderCount}마리 출현!`:'';
+    setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!${leaderHint}`);
+  }
   setTimeout(()=>setHint(''),3000);
   gameRunning=true; lastTime=0;
   if(animFrame) cancelAnimationFrame(animFrame);
@@ -1910,8 +2331,17 @@ function setupMobileBtn(id,k){
 }
 
 function showControls(show){
-  document.getElementById('controls').style.display=show?'block':'none';
+  // 데스크톱(터치 없음 + 너비 1024+)은 항상 숨김
+  const needsTouch='ontouchstart' in window || window.innerWidth < 1024;
+  const ctrl=document.getElementById('controls');
+  ctrl.style.display=(show && needsTouch)?'block':'none';
 }
+
+// 화면 크기 변화 시 컨트롤 재조정
+window.addEventListener('resize', ()=>{
+  resizeCanvas();
+  if(gameRunning) showControls(true);
+});
 
 // ── 게임 루프 ─────────────────────────────────────────────────
 function gameLoop(ts){
@@ -2059,6 +2489,7 @@ function fireAtk(ti){
 // ── 적 업데이트 ───────────────────────────────────────────────
 function updateEnemies(dt){
   for(const e of enemies){
+    // 물리
     e.vy=Math.min(e.vy+GRAVITY*dt,900); e.x+=e.vx*dt; e.y+=e.vy*dt; e.animTick+=dt;
     e.onGround=false;
     if(e.y+e.h>=floorY){e.y=floorY-e.h; e.vy=0; e.onGround=true;}
@@ -2070,7 +2501,6 @@ function updateEnemies(dt){
         }
       }
     }
-    // 점프패드 충돌 (적도 날아오름)
     for(const jp of jumpPads){
       if(e.x+e.w>jp.x&&e.x<jp.x+jp.w){
         if(e.y+e.h>jp.y&&e.y+e.h<jp.y+jp.h+16&&e.vy>=0){
@@ -2083,97 +2513,249 @@ function updateEnemies(dt){
 
     const dx=player.x-e.x;
     const dy=player.y-e.y;
-    e.facing=dx>0?1:-1;
     const dist=Math.abs(dx);
     const distY=Math.abs(dy);
-
-    // 보스/일반 기본 수치
-    const spd=e.isBoss?90+e.baseAtk*.2:55+e.baseAtk*.12;
-    const atkRng=e.isBoss?260:180;
-    const projRng=e.isBoss?380:280;
     const hpRatio=e.hp/e.maxHp;
 
-    e.aiTimer-=dt;
+    // ─────────────────────────────────────────────────────────
+    // AI 상태 결정
+    // ─────────────────────────────────────────────────────────
+    const isRanged=(e.preferDist>0);
+    const isMelee=(e.attackStyle==='melee'||e.attackStyle==='burst');
+    const pcfg=PERSONALITY_CFG[e.personality||'normal'];
 
-    // ── AI 상태 머신 ──────────────────────────────────────────
-    // 플레이어가 위에 있으면 플랫폼으로 올라가려 시도
-    const playerAbove=player.y<e.y-30&&distY<300&&dist<350;
-    // 플레이어가 멀면 접근, 가까우면 공격/회피
-    if(e.aiTimer<=0){
-      if(hpRatio<0.3&&dist<200&&e.onGround){
-        // HP 낮으면 후퇴 (도주 AI)
-        e.vx=-e.facing*spd*1.3;
-        e.aiTimer=0.5+Math.random()*0.3;
-      } else if(dist>projRng){
-        // 멀면: 전진
-        e.vx=e.facing*spd*(e.isBoss?1.2:1.0);
-        e.aiTimer=0.3+Math.random()*0.3;
-      } else if(dist>atkRng){
-        // 중거리: 앞뒤 지그재그 + 투사체 준비
-        e.vx=e.facing*spd*(0.5+Math.random()*0.5);
-        e.aiTimer=0.25+Math.random()*0.35;
+    // 도주 조건: 성격별 fleeAt 사용 (우두머리는 -10% 보정, 용맹은 canFlee=false)
+    const fleeThreshold=e.isPackLeader
+      ? Math.max(0, pcfg.fleeAt-0.10)
+      : pcfg.fleeAt;
+
+    if(pcfg.canFlee && hpRatio<=fleeThreshold){
+      // 소심: 처음 도주 진입 시 짧게 "소리" 이펙트
+      if(e.aiState!=='retreat'){
+        spawnPtcl(e.x+e.w/2,e.y,pcfg.color,6);
+      }
+      e.aiState='retreat';
+      if(e.fleeTimer<=0) e.fleeTimer=2.0+Math.random()*1.5;
+    } else if(isRanged&&dist<e.preferDist*0.6&&e.aiState!=='retreat'){
+      // 원거리 타입이고 너무 가까우면 거리 유지
+      e.aiState='keepDist';
+    } else if(e.aiState==='retreat'&&(!pcfg.canFlee||hpRatio>fleeThreshold+0.1)){
+      // 회복되면 복귀 (용맹은 canFlee=false이므로 바로 해제)
+      e.aiState='chase';
+      e.fleeTimer=0;
+    } else if(e.aiState!=='retreat'){
+      // 우두머리 하위 부원: 우두머리가 살아있으면 포위
+      if(e.leaderRef&&enemies.includes(e.leaderRef)&&dist<500){
+        e.aiState='surround';
       } else {
-        // 근거리: 좌우 스텝 또는 백대시
-        const dodge=Math.random()<0.4;
-        e.vx=dodge?-e.facing*spd*0.8:e.facing*spd*0.3;
-        e.aiTimer=0.2+Math.random()*0.25;
+        e.aiState='chase';
       }
     }
 
-    // 플랫폼 점프: 플레이어가 위에 있고 플랫폼이 근처에 있을 때
+    // 도주 타이머 감소
+    if(e.fleeTimer>0) e.fleeTimer-=dt;
+    else if(e.aiState==='retreat') e.aiState='chase';
+
+    e.facing=dx>0?1:-1;
+
+    // ─────────────────────────────────────────────────────────
+    // 이동 속도 (성격 보정 적용)
+    const spd=e.isBoss?90+e.baseAtk*.2:55+e.baseAtk*.12;
+    const leaderBonus=e.isPackLeader?1.15:1.0;
+    const baseSpd=spd*leaderBonus*pcfg.spdMul;
+
+    // ─────────────────────────────────────────────────────────
+    // 상태별 이동 처리
+    e.aiTimer-=dt;
+    if(e.aiTimer<=0){
+      switch(e.aiState){
+        case 'retreat':{
+          // 반대 방향으로 전력 도주 + 약간 지그재그
+          const fleeDir=dx>0?-1:1;
+          e.vx=fleeDir*baseSpd*1.6;
+          // 막혀있으면 점프해서 탈출
+          if(e.onGround&&Math.random()<0.3){
+            e.vy=JUMP_VEL*0.75; e.onGround=false;
+          }
+          e.aiTimer=0.2+Math.random()*0.2;
+          break;
+        }
+        case 'keepDist':{
+          // 원거리 적: 선호 거리 유지
+          if(dist<e.preferDist*0.7){
+            // 너무 가까움 → 후퇴
+            e.vx=-e.facing*baseSpd*1.1;
+          } else if(dist>e.preferDist*1.3){
+            // 너무 멀다 → 접근
+            e.vx=e.facing*baseSpd*0.7;
+          } else {
+            // 적정 거리 → 좌우 스텝
+            e.vx=(Math.random()<0.5?1:-1)*baseSpd*0.4;
+          }
+          e.aiTimer=0.3+Math.random()*0.3;
+          break;
+        }
+        case 'surround':{
+          // 우두머리 하위 부원: 플레이어를 측면에서 포위 (우두머리 반대쪽)
+          const leaderDx=e.leaderRef?(player.x-e.leaderRef.x):0;
+          // 우두머리가 오른쪽에서 접근 중이면 나는 왼쪽에서
+          const flanDir=leaderDx>0?-1:1;
+          const flanTarget=player.x+flanDir*120;
+          const tdx=flanTarget-e.x;
+          e.vx=(tdx>0?1:-1)*baseSpd*1.0;
+          e.aiTimer=0.25+Math.random()*0.3;
+          break;
+        }
+        case 'chase':
+        default:{
+          const atkRng=e.isBoss?260:180;
+          const projRng=e.isBoss?380:280;
+          if(dist>projRng){
+            e.vx=e.facing*baseSpd*(e.isBoss?1.2:1.0);
+          } else if(dist>atkRng){
+            e.vx=e.facing*baseSpd*(0.5+Math.random()*0.5);
+          } else {
+            // 근거리: 근접이면 접근, 원거리이면 약간 후퇴
+            if(isRanged){
+              e.vx=-e.facing*baseSpd*0.5;
+            } else {
+              const dodge=Math.random()<0.35;
+              e.vx=dodge?-e.facing*baseSpd*0.8:e.facing*baseSpd*0.3;
+            }
+          }
+          e.aiTimer=0.25+Math.random()*0.3;
+          break;
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 점프 AI
+    const playerAbove=player.y<e.y-30&&distY<300&&dist<350;
     e.jumpTimer-=dt;
     if(e.jumpTimer<=0&&e.onGround){
-      if(playerAbove&&Math.random()<0.55){
+      if(e.aiState==='retreat'){
+        // 도주 중 앞에 벽(맵 경계)이면 점프
+        if((e.x<=10||e.x>=mapWidth-e.w-10)&&Math.random()<0.7){
+          e.vy=JUMP_VEL*0.85; e.onGround=false; e.jumpTimer=1.0+Math.random()*1.0;
+        }
+      } else if(playerAbove&&Math.random()<0.55){
         e.vy=JUMP_VEL*(e.isBoss?0.85:0.8);
-        e.onGround=false;
-        e.jumpTimer=1.2+Math.random()*1.5;
+        e.onGround=false; e.jumpTimer=1.2+Math.random()*1.5;
       } else if(dist<400&&Math.random()<0.25){
         e.vy=JUMP_VEL*0.7;
-        e.onGround=false;
-        e.jumpTimer=2.0+Math.random()*2.0;
+        e.onGround=false; e.jumpTimer=2.0+Math.random()*2.0;
       }
     }
 
-    // ── 공격 ──────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // 우두머리 소환 (일정 주기마다 파괴된 부원 보충)
+    if(e.isPackLeader&&!e.isBoss&&hpRatio>0.2){
+      e.summonCooldown-=dt;
+      if(e.summonCooldown<=0){
+        const minionCount=enemies.filter(en=>en.leaderRef===e).length;
+        if(minionCount<2){
+          // 부원 소환
+          summonMinion(e);
+          e.summonCooldown=8+Math.random()*5;
+          // 소환 이펙트
+          spawnPtcl(e.x+e.w/2,e.y+e.h/2,'#ffcb05',12,'burst');
+          showToast(`👑 ${e.name||'우두머리'}가 부하를 소환했다!`);
+        } else {
+          e.summonCooldown=3;
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 공격
     e.atkCooldown-=dt;
-    if(e.atkCooldown<=0&&dist<projRng){
+    const atkRng2=e.isBoss?260:180;
+    const projRng2=e.isBoss?380:(e.preferDist>0?e.preferDist*1.2:280);
+
+    if(e.atkCooldown<=0&&dist<projRng2&&e.aiState!=='retreat'){
       const at=e.types[Math.floor(Math.random()*e.types.length)];
       const cfg=TYPE_ATTACKS[at]||TYPE_ATTACKS['노말'];
-      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.5))*cfg.dmgMul*.32));
+      const leaderDmgMul=e.isPackLeader?1.2:1.0;
+      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.5))*cfg.dmgMul*.32*leaderDmgMul));
 
       if(e.isBoss){
-        // 보스: HP에 따라 패턴 변화 (attackStyle 기반)
         const style=e.attackStyle||'spread';
         if(hpRatio<0.5){
-          // HP 절반 이하: 항상 spread + 추가 스타일
           ATTACK_STYLES['spread'].fire(e,at,cfg,ed);
           if(style!=='spread') ATTACK_STYLES[style]?.fire(e,at,cfg,Math.floor(ed*.6));
           e.atkCooldown=0.9;
         } else {
           ATTACK_STYLES[style]?.fire(e,at,cfg,ed);
-          if(Math.random()<0.3&&dist<200) e.vx=e.facing*320; // 돌진
+          if(Math.random()<0.3&&dist<200) e.vx=e.facing*320;
           e.atkCooldown=ATTACK_STYLES[style]?.cooldown?.()??1.2;
         }
       } else {
-        // 일반 적: 배정된 스타일로만 공격
-        const style=e.attackStyle||'ranged';
-        const styleDef=ATTACK_STYLES[style];
-        const needsClose=(style==='melee'||style==='burst');
-        // 근접은 atkRng 안에서, 원거리/기타는 projRng 안에서
-        const inRange=needsClose?(dist<atkRng+60):(dist<projRng);
+        // 멀티 스타일: styles 배열 순환 (우두머리/용맹), 아니면 단일 스타일
+        const styles=e.attackStyles&&e.attackStyles.length>1?e.attackStyles:null;
+        let styleKey;
+        if(styles){
+          // 인덱스 순환
+          if(e.styleIdx===undefined) e.styleIdx=0;
+          styleKey=styles[e.styleIdx%styles.length];
+          e.styleIdx++;
+        } else {
+          styleKey=e.attackStyle||'ranged';
+        }
+        const styleDef=ATTACK_STYLES[styleKey];
+        const needsClose=(styleKey==='melee'||styleKey==='burst');
+        const inRange=needsClose?(dist<atkRng2+60):(dist<projRng2);
         if(styleDef&&inRange){
           if(!needsClose||dist<130){
             styleDef.fire(e,at,cfg,ed);
-            e.atkCooldown=styleDef.cooldown?.()??1.4;
+            const cdMul=(e.isPackLeader?0.85:1.0)*pcfg.atkCdMul;
+            // 멀티 스타일이면 쿨타임 약간 증가 (밸런스)
+            const multiMul=styles?1.15:1.0;
+            e.atkCooldown=(styleDef.cooldown?.()??1.4)*cdMul*multiMul;
           } else {
-            // 근접 스타일인데 아직 거리 있으면 빠르게 접근만
-            e.vx=e.facing*spd*1.2;
+            e.vx=e.facing*baseSpd*1.2;
             e.atkCooldown=0.25;
           }
         }
       }
     }
   }
+}
+
+// ── 우두머리 부하 소환 ────────────────────────────────────────
+function summonMinion(leader){
+  const evoStage=getEvoStage(currentStage);
+  const evoScale=1+evoStage*0.35;
+  const id=pickEnemyId(gameGen,Math.max(0,evoStage-1));
+  const spawnX=leader.x+(Math.random()<0.5?-150:150);
+  const rp={id,name:`#${id}`,types:leader.types,sprite:spriteUrl(id),
+    baseStats:{hp:35*evoScale,atk:30*evoScale,def:20*evoScale,spe:40}};
+  const en=makeEnemy(rp,spawnX,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.4)),false);
+  // 부하 성격 결정
+  en.personality=leader.personality==='brave'
+    ?(Math.random()<0.6?'brave':'normal')
+    :pickPersonality();
+  // 성격 HP 재보정
+  const mpcfg=PERSONALITY_CFG[en.personality];
+  en.hp=Math.round(en.hp*mpcfg.hpMul);
+  en.maxHp=en.hp;
+  // 용맹 부하: 멀티 스타일 부여
+  if(en.personality==='brave'){
+    const bStyleCount=Math.random()<0.33?3:2;
+    en.attackStyles=assignAttackStylesMulti(leader.types,bStyleCount);
+    en.attackStyle=en.attackStyles[0];
+    en.styleIdx=0;
+  } else {
+    en.attackStyle=assignAttackStyle(leader.types,false);
+    en.attackStyles=[en.attackStyle];
+    en.styleIdx=0;
+  }
+  const rangedStyles=['ranged','snipe','wave','spread','lob'];
+  en.preferDist=rangedStyles.includes(en.attackStyle)?(200+Math.random()*60):0;
+  en.leaderRef=leader;
+  en.aiState='surround';
+  enemies.push(en);
+  stageEnemyCount++;
 }
 
 // ── 투사체 ────────────────────────────────────────────────────
@@ -2191,7 +2773,7 @@ function updateProjectiles(dt){
     } else {
       if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
     }
-    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+canvas.width+100||p.y>floorY+20) projectiles.splice(i,1);
+    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+window.innerWidth+100||p.y>floorY+20) projectiles.splice(i,1);
   }
 }
 
@@ -2230,15 +2812,23 @@ function dmgEnemy(e,d,type){
   if(e.isBoss) updateBossHud(e);
   if(e.hp<=0){
     spawnPtcl(e.x+e.w/2,e.y+e.h/2,'#ffcb05',18,'burst');
-    // 보스 처치 시 legendKill 카운트
     if(e.isBoss){
       const bossRef=(currentStage===10)?bosses.mid:bosses.final;
       recordLegendKill(bossRef);
     } else {
-      // 일반 포켓몬 격파 카운트
       recordNormalKill(e);
     }
-    // 적 처치 시 HP 회복 아이템 확률 드롭 (보스: 확정, 일반: 40%)
+    // 우두머리가 죽으면 부하들 패닉 도주
+    if(e.isPackLeader){
+      for(const en of enemies){
+        if(en.leaderRef===e){
+          en.leaderRef=null;
+          en.aiState='retreat';
+          en.fleeTimer=4.0+Math.random()*2.0;
+        }
+      }
+      showToast('💀 우두머리를 쓰러뜨렸다! 부하들이 도망친다!');
+    }
     if(e.isBoss||Math.random()<0.4) dropHealItem(e.x+e.w/2,e.y+e.h/2);
     enemies=enemies.filter(en=>en!==e);
   }
@@ -2277,7 +2867,16 @@ function stageClearTransition(){
   if(transitioning) return; transitioning=true;
   gameRunning=false; cancelAnimationFrame(animFrame);
   setHint('');
-  if(currentStage>=20){endGame(true);transitioning=false;return;}
+  if(currentStage>=20){
+    // 보너스 스테이지 확률 분기
+    if(Math.random()<BONUS_ENTRY_CHANCE){
+      prepareBonusStage();
+    } else {
+      endGame(true);
+    }
+    transitioning=false;
+    return;
+  }
   const prev={...playerData};
   const nextStageNum=currentStage+1;
   currentStage=nextStageNum;   // ← 핵심 수정: currentStage 실제 증가
@@ -2315,12 +2914,19 @@ function checkWin(){
   if(gamePhase!=='fight') return;
   if(enemies.length===0&&stageEnemyCount>0){
     gamePhase='clear';
+    spawnPtcl(player.x+player.w/2,player.y,'#ffcb05',20,'burst');
+
+    if(isBonusStage){
+      // 보너스 스테이지: 출구 없이 바로 클리어
+      setHint('🏆 보너스 스테이지 클리어!');
+      setTimeout(()=>{ endBonusStage(); },2200);
+      return;
+    }
+
     // 출구 잠금 해제
     const exitDoor=doors.find(d=>d.type==='exit');
     if(exitDoor) exitDoor.locked=false;
-    spawnPtcl(player.x+player.w/2,player.y,'#ffcb05',20,'burst');
     setHint('✨ 클리어! 출구로 이동하세요! →');
-    // 출구 방향 화살표 힌트 (3초 후 사라짐)
     setTimeout(()=>setHint(''),5000);
   }
 }
@@ -2328,16 +2934,18 @@ function checkWin(){
 // ── 카메라 ────────────────────────────────────────────────────
 function updateCamera(){
   if(!player) return;
-  const tx=player.x-canvas.width/3;
-  camera.x+=(Math.max(0,Math.min(mapWidth-canvas.width,tx))-camera.x)*0.12;
+  const tx=player.x-window.innerWidth/3;
+  camera.x+=(Math.max(0,Math.min(mapWidth-window.innerWidth,tx))-camera.x)*0.12;
 }
 
 // ── HUD ───────────────────────────────────────────────────────
 function updateHUD(){
   document.getElementById('hudName').textContent=playerData.name;
   // 맵 이름 표시
-  let stageLabel=currentStage===0?'LOBBY':`STAGE ${currentStage}/20`;
-  if(currentStage>0&&window._currentMapName) stageLabel+=` [${window._currentMapName}]`;
+  let stageLabel=currentStage===0?'LOBBY'
+    :isBonusStage?`👑 BONUS`
+    :`STAGE ${currentStage}/20`;
+  if(!isBonusStage&&currentStage>0&&window._currentMapName) stageLabel+=` [${window._currentMapName}]`;
   document.getElementById('hudStage').textContent=stageLabel;
   document.getElementById('hudLv').textContent=`Lv.${playerData.level}`;
   updateHudHp();
@@ -2370,9 +2978,21 @@ function updateBossKillCountHud(bossId){
   }
 }
 
+// 엔티티 발 아래 실제 지면 y 반환 (플랫폼 위면 플랫폼 y, 아니면 floorY)
+function groundYBelow(ex, ew, footY){
+  let best=floorY;
+  for(const p of platforms){
+    // 수평으로 겹치고, 발 위치가 플랫폼 위에 있을 때
+    if(ex+ew>p.x+4 && ex<p.x+p.w-4 && footY<=p.y+4){
+      if(p.y<best) best=p.y;
+    }
+  }
+  return best;
+}
+
 // ── 렌더 ─────────────────────────────────────────────────────
 function render(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
   const theme=getTheme(currentStage);
 
   // 하늘 — 테마별 색상
@@ -2384,7 +3004,7 @@ function render(){
     skyG.addColorStop(0,s0); skyG.addColorStop(0.55,s1);
     skyG.addColorStop(1,adjustColor(s1,20));
   }
-  ctx.fillStyle=skyG; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle=skyG; ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
 
   // 배경 구름/장식
   renderBgDecos(theme);
@@ -2460,9 +3080,9 @@ function renderFloor(theme){
   const ft=FLOOR_THEMES[theme.name]||FLOOR_THEMES['숲'];
 
   // 흙층
-  const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.height);
+  const dirtG=ctx.createLinearGradient(0,floorY+18,0,window.innerHeight);
   dirtG.addColorStop(0,ft.dirt[0]); dirtG.addColorStop(1,ft.dirt[1]);
-  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,canvas.height-floorY);
+  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,window.innerHeight-floorY);
 
   // 표면층
   const surfG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
@@ -2525,8 +3145,8 @@ function renderBgDecos(theme){
   const isDark=darkThemes.includes(theme.name)||currentStage===0||currentStage>=15;
   if(isDark){
     for(let i=0;i<50;i++){
-      const sx=((i*137+50)%1000)/1000*canvas.width;
-      const sy=((i*89+20)%1000)/1000*(canvas.height*.7);
+      const sx=((i*137+50)%1000)/1000*window.innerWidth;
+      const sy=((i*89+20)%1000)/1000*(window.innerHeight*.7);
       ctx.fillStyle=`rgba(255,255,255,${.1+.3*Math.sin(t+i)})`;
       ctx.fillRect(sx,sy,1.5+(i%3===0?1:0),1.5+(i%3===0?1:0));
     }
@@ -2536,14 +3156,14 @@ function renderBgDecos(theme){
   if(brightThemes.includes(theme.name)||currentStage<=4){
     ctx.globalAlpha=.65;
     const clouds=[
-      {x:canvas.width*.1,y:canvas.height*.12,s:1.0},
-      {x:canvas.width*.38,y:canvas.height*.08,s:0.75},
-      {x:canvas.width*.65,y:canvas.height*.14,s:1.2},
-      {x:canvas.width*.82,y:canvas.height*.06,s:0.6},
+      {x:window.innerWidth*.1,y:window.innerHeight*.12,s:1.0},
+      {x:window.innerWidth*.38,y:window.innerHeight*.08,s:0.75},
+      {x:window.innerWidth*.65,y:window.innerHeight*.14,s:1.2},
+      {x:window.innerWidth*.82,y:window.innerHeight*.06,s:0.6},
     ];
     for(const cl of clouds){
-      const ox=((t*12)%canvas.width);
-      const cx=(cl.x-ox*0.04+canvas.width)%canvas.width;
+      const ox=((t*12)%window.innerWidth);
+      const cx=(cl.x-ox*0.04+window.innerWidth)%window.innerWidth;
       // 설산은 흰 구름, 어두운 테마는 회색 구름
       const cloudColor=theme.name==='설산'?'rgba(200,220,255,.9)':'rgba(255,255,255,.82)';
       drawCloud(cx,cl.y,cl.s,cloudColor);
@@ -2553,8 +3173,8 @@ function renderBgDecos(theme){
   // 화산: 불씨 파티클 효과 (배경)
   if(theme.name==='화산'){
     for(let i=0;i<8;i++){
-      const fx=((i*271+t*30)%canvas.width);
-      const fy=canvas.height*.4+Math.sin(t*2+i)*(canvas.height*.2);
+      const fx=((i*271+t*30)%window.innerWidth);
+      const fy=window.innerHeight*.4+Math.sin(t*2+i)*(window.innerHeight*.2);
       ctx.fillStyle=`rgba(255,${80+i*10},0,${.1+.1*Math.sin(t+i)})`;
       ctx.beginPath(); ctx.arc(fx,fy,2+i%3,0,Math.PI*2); ctx.fill();
     }
@@ -2562,8 +3182,8 @@ function renderBgDecos(theme){
   // 해저: 기포
   if(theme.name==='해저'){
     for(let i=0;i<10;i++){
-      const bx=((i*193+t*15)%canvas.width);
-      const by=canvas.height-((t*25+i*50)%(canvas.height));
+      const bx=((i*193+t*15)%window.innerWidth);
+      const by=window.innerHeight-((t*25+i*50)%window.innerHeight);
       ctx.fillStyle=`rgba(100,200,255,${.1+.08*Math.sin(t+i)})`;
       ctx.beginPath(); ctx.arc(bx,by,2+i%4,0,Math.PI*2); ctx.fill();
     }
@@ -2988,9 +3608,14 @@ function renderPlayer(){
   const scaleX=onG&&Math.abs(player.vx)>20?1.06:1;
   ctx.scale(scaleX,scaleY);
   ctx.shadowColor=TYPE_ATTACKS[playerData.types[0]]?.glow||'#fff'; ctx.shadowBlur=18;
-  if(player.img.complete&&player.img.naturalWidth>0)
-    ctx.drawImage(player.img,-player.w/2,-player.h/2,player.w,player.h);
-  else{ctx.fillStyle='#ffcb05';ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);}
+  if(player.img.complete&&player.img.naturalWidth>0){
+    const iw=player.img.naturalWidth, ih=player.img.naturalHeight;
+    const scale=player.w/iw;
+    const dw=player.w, dh=ih*scale;
+    ctx.drawImage(player.img,-dw/2, player.h/2-dh, dw, dh);
+  } else {
+    ctx.fillStyle='#ffcb05'; ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);
+  }
   ctx.restore();
 
   // 플레이어 HP바 — 이미지 바로 위 고정
@@ -3011,61 +3636,179 @@ function renderPlayer(){
 
   // 땅에 서있을때 그림자
   ctx.save();
-  ctx.globalAlpha=.25;
+  const pShadowY=groundYBelow(player.x, player.w, player.y+player.h);
+  const pShadowDist=pShadowY-(player.y+player.h);
+  const pShadowScale=Math.max(0.3, 1-pShadowDist/200);
+  ctx.globalAlpha=.25*pShadowScale;
   ctx.fillStyle='#000';
-  ctx.beginPath(); ctx.ellipse(player.x+player.w/2,floorY,player.w*.5,6,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(player.x+player.w/2, pShadowY, player.w*.5*pShadowScale, 6*pShadowScale, 0, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
 function renderEnemy(e){
+  const cx=e.x+e.w/2, cy=e.y+e.h/2;
+  const hpRatio=e.hp/e.maxHp;
+  const t=Date.now()/1000;
+
+  // ── 우두머리 오라 (아래 레이어) ──
+  if(e.isPackLeader){
+    const pulse=0.5+0.5*Math.sin(t*3);
+    ctx.save();
+    ctx.globalAlpha=0.18+0.12*pulse;
+    const aura=ctx.createRadialGradient(cx,cy,0,cx,cy,e.w*0.85);
+    aura.addColorStop(0,'#ffcb05'); aura.addColorStop(1,'transparent');
+    ctx.fillStyle=aura;
+    ctx.beginPath(); ctx.arc(cx,cy,e.w*0.85,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── 도주 상태: 빨간 경보 효과 ──
+  if(e.aiState==='retreat'){
+    const pulse=0.4+0.6*Math.abs(Math.sin(t*8));
+    ctx.save();
+    ctx.globalAlpha=0.2*pulse;
+    ctx.fillStyle='#ff4757';
+    ctx.beginPath(); ctx.arc(cx,cy,e.w*0.6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── 스프라이트 ──
   ctx.save();
-  ctx.translate(e.x+e.w/2,e.y+e.h/2);
+  ctx.translate(cx, cy);
   if(e.facing>0) ctx.scale(-1,1);
   if(e.isBoss){ctx.shadowColor='#ff4757';ctx.shadowBlur=22;}
-  // 위아래 부유 애니 (이미지에만 적용)
+  else if(e.isPackLeader){ctx.shadowColor='#ffcb05';ctx.shadowBlur=14;}
+  else if(e.personality==='brave'){ctx.shadowColor='#ff7675';ctx.shadowBlur=8;}
+  else if(e.personality==='timid'){ctx.shadowColor='#74b9ff';ctx.shadowBlur=6;}
+
   const bobY=Math.sin(e.animTick*2.2+(e.x*0.01))*5+(e.isBoss?Math.sin(e.animTick*1.3)*3:0);
-  if(e.img.complete&&e.img.naturalWidth>0)
-    ctx.drawImage(e.img,-e.w/2,-e.h/2+bobY,e.w,e.h);
-  else{ctx.fillStyle=e.isBoss?'#ff4757':'#aaa';ctx.fillRect(-e.w/2,-e.h/2+bobY,e.w,e.h);}
+
+  if(e.img.complete&&e.img.naturalWidth>0){
+    const iw=e.img.naturalWidth, ih=e.img.naturalHeight;
+    const scale=e.w/iw;
+    const dw=e.w, dh=ih*scale;
+    // 히트박스 하단(발)에 맞춰 그림 — 세로 짧은 스프라이트도 바닥에 붙음
+    ctx.drawImage(e.img, -dw/2, e.h/2-dh+bobY, dw, dh);
+  } else {
+    ctx.fillStyle=e.isBoss?'#ff4757':e.isPackLeader?'#ffcb05':'#aaa';
+    ctx.fillRect(-e.w/2, -e.h/2+bobY, e.w, e.h);
+  }
   ctx.restore();
 
-  // HP바 — 이미지 위 고정 위치 (bobY 미적용)
+  // ── HP 바 ──
   const barW=e.w+12;
   const barX=e.x-6;
-  const barY=e.y-20;  // 이미지 상단에서 고정
-  const barH=e.isBoss?9:7;
-  const hpRatio=e.hp/e.maxHp;
+  const barY=e.y-20;
+  const barH=e.isBoss?9:e.isPackLeader?8:7;
 
-  // 배경
   ctx.fillStyle='rgba(0,0,0,.65)';
   ctx.beginPath(); ctx.roundRect(barX,barY,barW,barH,3); ctx.fill();
 
-  // HP 색상 (비율에 따라)
   const hpColor=hpRatio>0.5?'#2ed573':hpRatio>0.25?'#ffa502':'#ff4757';
-  ctx.fillStyle=e.isBoss?'#ff4757':hpColor;
+  // 성격별 HP 바 색상
+  const barColor=e.isBoss?'#ff4757'
+    :e.isPackLeader?'#ffcb05'
+    :e.personality==='brave'?`hsl(${Math.round(hpRatio*120)},90%,55%)`  // 용맹: 선명
+    :e.personality==='timid'?'#74b9ff'   // 소심: 파란색 고정
+    :hpColor;
+  ctx.fillStyle=barColor;
   if(hpRatio>0){
     ctx.beginPath(); ctx.roundRect(barX,barY,barW*hpRatio,barH,3); ctx.fill();
   }
-
-  // 테두리
   ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.roundRect(barX,barY,barW,barH,3); ctx.stroke();
 
-  // 보스: 이름 텍스트
-  if(e.isBoss){
-    ctx.fillStyle='#ff6b7a';
-    ctx.font="bold 12px 'Galmuri11',monospace";
-    ctx.textAlign='center';
-    ctx.shadowColor='rgba(0,0,0,.8)'; ctx.shadowBlur=4;
-    ctx.fillText(e.name, e.x+e.w/2, barY-5);
-    ctx.shadowBlur=0;
+  // 성격 아이콘 (HP 바 오른쪽 끝)
+  const pcfgR=PERSONALITY_CFG[e.personality||'normal'];
+  if(pcfgR.icon&&!e.isBoss){
+    ctx.save();
+    ctx.font='10px monospace';
+    ctx.textAlign='left';
+    ctx.globalAlpha=0.9;
+    ctx.fillText(pcfgR.icon, barX+barW+3, barY+barH);
+    ctx.restore();
   }
 
-  // 바닥 그림자
-  const shadowDist=floorY-(e.y+e.h);
+  // ── 멀티 스타일 뱃지 (우두머리 / 용맹) ──
+  if(!e.isBoss && e.attackStyles && e.attackStyles.length>1){
+    const styles=e.attackStyles;
+    const curIdx=(e.styleIdx===undefined?0:(e.styleIdx===0?styles.length-1:e.styleIdx-1))%styles.length;
+    const badgeY=barY-8;
+    const slotW=36, slotH=14, gap=3;
+    const totalW=styles.length*(slotW+gap)-gap;
+    let bx=cx-totalW/2;
+    ctx.save();
+    for(let si=0;si<styles.length;si++){
+      const sk=styles[si];
+      const label=ATTACK_STYLES[sk]?.label||sk;
+      const isActive=si===curIdx;
+      // 배경
+      ctx.globalAlpha=isActive?0.92:0.45;
+      ctx.fillStyle=isActive?(e.isPackLeader?'#ffcb05':'#ff7675'):'rgba(0,0,0,.6)';
+      ctx.beginPath(); ctx.roundRect(bx,badgeY,slotW,slotH,3); ctx.fill();
+      // 테두리 (활성)
+      if(isActive){
+        ctx.globalAlpha=1;
+        ctx.strokeStyle=e.isPackLeader?'#fff8dc':'#fff';
+        ctx.lineWidth=1;
+        ctx.beginPath(); ctx.roundRect(bx,badgeY,slotW,slotH,3); ctx.stroke();
+      }
+      // 텍스트
+      ctx.globalAlpha=isActive?1:0.6;
+      ctx.fillStyle=isActive?'#000':'#ccc';
+      ctx.font=`bold 8px 'Galmuri11',monospace`;
+      ctx.textAlign='center';
+      ctx.fillText(label, bx+slotW/2, badgeY+slotH-3);
+      bx+=slotW+gap;
+    }
+    ctx.restore();
+  }
+
+  // ── 보스/우두머리 이름 표시 ──
+  if(e.isBoss||e.isPackLeader){
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=5;
+    if(e.isBoss){
+      ctx.fillStyle='#ff6b7a';
+      ctx.font="bold 12px 'Galmuri11',monospace";
+      ctx.fillText(e.name, cx, barY-5);
+    } else {
+      ctx.fillStyle='#ffcb05';
+      ctx.font="bold 11px 'Galmuri11',monospace";
+      // 스타일 뱃지가 있으면 이름을 더 위에
+      const nameY=(e.attackStyles&&e.attackStyles.length>1)?barY-20:barY-5;
+      ctx.fillText('👑 우두머리', cx, nameY);
+    }
+    ctx.restore();
+  }
+
+  // ── 도주 상태 아이콘 ──
+  if(e.aiState==='retreat'&&!e.isBoss){
+    ctx.save();
+    ctx.font='14px monospace';
+    ctx.textAlign='center';
+    ctx.globalAlpha=0.85;
+    ctx.fillText('💨', cx, e.y-26);
+    ctx.restore();
+  }
+
+  // ── 원거리 거리 유지 아이콘 (keepDist 상태) ──
+  if(e.aiState==='keepDist'){
+    ctx.save();
+    ctx.font='11px monospace';
+    ctx.textAlign='center';
+    ctx.globalAlpha=0.7;
+    ctx.fillText('🎯', cx, e.y-26);
+    ctx.restore();
+  }
+
+  // ── 바닥 그림자 ──
+  const shadowGroundY=groundYBelow(e.x, e.w, e.y+e.h);
+  const shadowDist=shadowGroundY-(e.y+e.h);
   const shadowScale=Math.max(0.3, 1-shadowDist/200);
   ctx.save(); ctx.globalAlpha=.2*shadowScale; ctx.fillStyle='#000';
-  ctx.beginPath(); ctx.ellipse(e.x+e.w/2,floorY-2,e.w*.45*shadowScale,4*shadowScale,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, shadowGroundY-2, e.w*.45*shadowScale, 4*shadowScale, 0, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
@@ -3227,16 +3970,143 @@ function renderLobbyOverlay(){
   const t=Date.now()/800;
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,.55)';
-  ctx.fillRect(canvas.width/2-130,canvas.height*.12,260,68);
-  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(canvas.width/2-130,canvas.height*.12,260,68);
+  ctx.fillRect(window.innerWidth/2-130,window.innerHeight*.12,260,68);
+  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(window.innerWidth/2-130,window.innerHeight*.12,260,68);
   ctx.textAlign='center';
   ctx.fillStyle='#ffcb05'; ctx.font="14px 'Galmuri11',monospace";
-  ctx.fillText('🎮 '+playerData.name, canvas.width/2, canvas.height*.12+26);
+  ctx.fillText('🎮 '+playerData.name, window.innerWidth/2, window.innerHeight*.12+26);
   ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font="11px 'Galmuri11',monospace";
-  ctx.fillText('타입: '+playerData.types.join(' / '), canvas.width/2, canvas.height*.12+46);
+  ctx.fillText('타입: '+playerData.types.join(' / '), window.innerWidth/2, window.innerHeight*.12+46);
   ctx.fillStyle=`rgba(255,255,255,${.5+.25*Math.sin(t)})`;
-  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', canvas.width/2, canvas.height*.12+63);
+  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', window.innerWidth/2, window.innerHeight*.12+63);
   ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 보너스 스테이지
+// ══════════════════════════════════════════════════════════════
+
+// 보너스 스테이지 준비 — 우두머리 10마리 미리 생성해 진입 화면에 표시
+function prepareBonusStage(){
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  document.getElementById('hud').style.display='none';
+  showControls(false); setHint('');
+
+  // 우두머리 포켓몬 10마리 랜덤 생성
+  bonusLeaders=[];
+  const usedIds=new Set();
+  for(let i=0;i<10;i++){
+    let id;
+    do { id=pickEnemyId(gameGen,3); } while(usedIds.has(id)&&usedIds.size<50);
+    usedIds.add(id);
+    bonusLeaders.push({
+      id,
+      name:`#${id}`,
+      types:[rndType(), Math.random()<0.4?rndType():null].filter(Boolean),
+      sprite:spriteUrl(id),
+      baseStats:{hp:120+Math.random()*60, atk:90+Math.random()*40, def:60, spe:50}
+    });
+  }
+
+  // 진입 화면에 우두머리 스프라이트 미리보기
+  const preview=document.getElementById('bonusLeaderPreview');
+  preview.innerHTML=bonusLeaders.map(l=>
+    `<img src="${l.sprite}" alt="${l.name}"
+      style="width:42px;height:42px;image-rendering:pixelated;
+             border:2px solid rgba(255,203,5,.5);border-radius:8px;
+             background:rgba(0,0,0,.4);"
+      onerror="this.style.display='none'">`
+  ).join('');
+
+  showScreen('bonusEntryScreen');
+}
+
+// 보너스 스테이지 실제 시작
+function launchBonusStage(){
+  isBonusStage=true;
+  currentStage=BONUS_STAGE_ID;
+
+  // 맵 초기화 (보스 아레나 재사용)
+  resizeCanvas();
+  mapWidth=Math.max(window.innerWidth*3.5,3000);
+  platforms=genPlatforms(20);   // 최종 아레나 맵 사용
+  doors=genDoors(20);
+  projectiles=[]; particles=[]; camera={x:0,y:0};
+  healItems=[]; bombs=[]; jumpPads=jumpPads||[];
+  gamePhase='fight';
+
+  // 플레이어 배치
+  const ph=playerData.hp, pmh=playerData.maxHp;
+  player={
+    x:doors[0].x+doors[0].w+20, y:floorY-100,
+    w:100, h:100, vx:0, vy:0, onGround:false, facing:1,
+    img:Object.assign(new Image(),{src:playerData.sprite}),
+    atkCooldown:[0,0], invincible:0,
+    hp:ph, maxHp:pmh, animTick:0,
+  };
+
+  // 우두머리 10마리 배치 — 맵 전체에 분산
+  enemies=[]; stageEnemyCount=0;
+  document.getElementById('hudBoss').classList.remove('visible');
+
+  bonusLeaders.forEach((ldr,i)=>{
+    const ex=600+i*Math.floor((mapWidth-800)/10);
+    const bHp=calcHP(ldr.baseStats.hp*2.5, playerData.level);
+    const en=makeEnemy(ldr, ex, floorY, bHp, false);
+
+    // 전원 우두머리 설정
+    en.isPackLeader=true;
+    en.hp=bHp; en.maxHp=bHp;
+    en.w=120; en.h=120;
+
+    // 스킬 3개 확정
+    en.attackStyles=assignAttackStylesMulti(ldr.types,3);
+    en.attackStyle=en.attackStyles[0];
+    en.styleIdx=0;
+
+    // 성격: 용맹 고정 (보너스 스테이지는 무조건 싸움)
+    en.personality='brave';
+    en.hp=Math.round(en.hp*PERSONALITY_CFG.brave.hpMul);
+    en.maxHp=en.hp;
+
+    // 원거리 설정
+    const rangedStyles=['ranged','snipe','wave','spread','lob'];
+    en.preferDist=rangedStyles.includes(en.attackStyle)?(200+Math.random()*80):0;
+
+    enemies.push(en);
+  });
+  stageEnemyCount=enemies.length;
+
+  updateHUD();
+  setHint('👑 보너스 스테이지 — 우두머리 10마리를 쓰러뜨려라!');
+  setTimeout(()=>setHint(''),4000);
+
+  showScreen('gameScreen');
+  document.getElementById('hud').style.display='block';
+  showControls(true);
+  setupControls();
+
+  gameRunning=true; lastTime=0;
+  if(animFrame) cancelAnimationFrame(animFrame);
+  animFrame=requestAnimationFrame(gameLoop);
+}
+
+// 보너스 스테이지 클리어
+async function endBonusStage(){
+  gameRunning=false; cancelAnimationFrame(animFrame);
+  isBonusStage=false;
+  document.getElementById('hud').style.display='none';
+  showControls(false); setHint('');
+  document.onkeydown=null; document.onkeyup=null;
+
+  showScreen('bonusClearScreen');
+  document.getElementById('bonusClearImg').src=selectedPokemon.sprite;
+  document.getElementById('bonusClearName').textContent=selectedPokemon.name;
+  document.getElementById('bonusClearMsg').textContent='특별 보상 전송 중...';
+  const ok=await sendReward(selectedPokemon);
+  document.getElementById('bonusClearMsg').textContent=ok
+    ?'✅ 포켓몬 데일리 도감에 전송됐어요!'
+    :'❌ 전송 실패 (로그인 확인)';
 }
 
 // ── 게임 종료 ────────────────────────────────────────────────
@@ -3254,7 +4124,7 @@ async function endGame(win){
     document.getElementById('clearMsg').textContent=ok?'✅ 포켓몬 데일리 도감에 전송됐어요!':'❌ 전송 실패 (로그인 확인)';
   } else {
     showScreen('gameoverScreen');
-    const stageLabel=currentStage===0?'로비':(`STAGE ${currentStage}/20`);
+    const stageLabel=currentStage===0?'로비':isBonusStage?'보너스 스테이지':(`STAGE ${currentStage}/20`);
     document.getElementById('gameoverMsg').textContent=`${stageLabel}에서 쓰러졌습니다...`;
   }
 }
@@ -3285,7 +4155,43 @@ function backToTitle(){
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
+function showScreen(id){
+  const next=document.getElementById(id);
+  const current=[...document.querySelectorAll('.screen:not(.hidden)')].filter(s=>s.id!==id);
+
+  if(current.length===0){
+    // 현재 보이는 화면 없음 — 바로 표시
+    document.querySelectorAll('.screen').forEach(s=>{
+      s.classList.add('hidden');
+      s.classList.remove('entering','exiting');
+    });
+    next.classList.remove('hidden','exiting');
+    next.classList.add('entering');
+    next.addEventListener('animationend',()=>next.classList.remove('entering'),{once:true});
+    return;
+  }
+
+  // exit 애니메이션 → 완료 후 next 표시
+  let exited=0;
+  current.forEach(scr=>{
+    scr.classList.add('exiting');
+    scr.classList.remove('entering');
+    const done=()=>{
+      scr.classList.add('hidden');
+      scr.classList.remove('exiting');
+      exited++;
+      if(exited===current.length){
+        next.classList.remove('hidden','exiting');
+        next.classList.add('entering');
+        next.addEventListener('animationend',()=>next.classList.remove('entering'),{once:true});
+      }
+    };
+    // exit 애니메이션(.22s)이 끝나면 전환
+    scr.addEventListener('animationend', done, {once:true});
+    // 혹시 애니메이션이 안 재생되면 폴백
+    setTimeout(done, 260);
+  });
+}
 function overlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 function ptInRect(px,py,r){return px>r.x&&px<r.x+r.w&&py>r.y&&py<r.y+r.h;}
 
@@ -3335,6 +4241,9 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('btnConfirm',      ()=>confirmSelect());
   on('btnNextStage',    ()=>nextStage());
   on('btnClearTitle',   ()=>backToTitle());
+  on('btnBonusEnter',   ()=>launchBonusStage());
+  on('btnBonusSkip',    ()=>backToTitle());
+  on('btnBonusClearTitle', ()=>backToTitle());
   on('btnGameoverTitle',()=>backToTitle());
   on('btnGameoverRestart',()=>restartGame());
   // 검색창

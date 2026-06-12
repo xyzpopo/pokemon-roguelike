@@ -1857,7 +1857,7 @@ function initStageMap(stage){
     const isBoss=stage===10||stage===20;
     if(isBoss){
       const boss=stage===10?bosses.mid:bosses.final;
-      const bHp=calcHP(boss.baseStats.hp*2.8,playerData.level);
+      const bHp=calcHP(boss.baseStats.hp*2.3,playerData.level);
       // 보스: 바닥 위에 정확히 배치 (makeEnemy 내부에서 -h 처리)
       const be=makeEnemy(boss,mapWidth-380,floorY,bHp,true);
       be.attackStyle=assignAttackStyle(boss.types||['드래곤'],true);
@@ -1868,9 +1868,9 @@ function initStageMap(stage){
       updateBossKillCountHud(boss.id);
     } else {
       document.getElementById('hudBoss').classList.remove('visible');
-      const cnt=Math.floor(9+stage*0.8+Math.random()*4);
+      const cnt=Math.floor(8+stage*0.7+Math.random()*4);
       const evoStage=getEvoStage(stage);
-      const evoScale=1+evoStage*0.45;
+      const evoScale=1+evoStage*0.38;
       const spawnPositions=window._mapEnemyPos||[];
 
       for(let i=0;i<cnt;i++){
@@ -1883,8 +1883,8 @@ function initStageMap(stage){
           ex=300+(Math.random()*(mapWidth-600));
         }
         const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
-          baseStats:{hp:(65+Math.random()*50)*evoScale,atk:(55+Math.random()*45)*evoScale,def:35*evoScale,spe:45}};
-        const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.65)),false);
+          baseStats:{hp:(55+Math.random()*45)*evoScale,atk:(45+Math.random()*40)*evoScale,def:32*evoScale,spe:42}};
+        const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.55)),false);
         en.attackStyle=assignAttackStyle(rp.types,false);
         en.attackStyles=[en.attackStyle];  // 기본은 1개 (우두머리/용맹 지정 후 확장)
         // 원거리 스타일이면 선호 거리 설정
@@ -1898,7 +1898,7 @@ function initStageMap(stage){
       for(let li=0;li<leaderCount;li++){
         const leader=shuffled[li];
         leader.isPackLeader=true;
-        leader.hp=Math.floor(leader.maxHp*2.2);
+        leader.hp=Math.floor(leader.maxHp*1.9);
         leader.maxHp=leader.hp;
         leader.w=118; leader.h=118;
         // 우두머리: 확정 2개, 33% 확률로 3개
@@ -2090,7 +2090,7 @@ function updateHealItems(dt){
     if(h.collected){healItems.splice(i,1);continue;}
     h.bobTimer+=dt;
     if(player&&overlap(player,{x:h.x,y:h.y+Math.sin(h.bobTimer*3)*5,w:h.w,h:h.h})){
-      const heal=Math.floor(player.maxHp*0.12);
+      const heal=Math.floor(player.maxHp*0.16);
       player.hp=Math.min(player.maxHp,player.hp+heal);
       playerData.hp=player.hp;
       updateHudHp();
@@ -2159,13 +2159,13 @@ function explodeBomb(b,idx){
 // normal  : 기본 (HP 100%, 도주 30%)
 // timid   : 소심 (HP 70%, 도주 60% — 일찍 도망)
 // brave   : 용맹 (HP 140%, 절대 도주 안 함, 공격적)
-const PERSONALITIES=['normal','normal','timid','brave','brave','brave'];
+const PERSONALITIES=['normal','normal','normal','timid','brave','brave'];
 function pickPersonality(){ return PERSONALITIES[Math.floor(Math.random()*PERSONALITIES.length)]; }
 
 const PERSONALITY_CFG={
   normal:{ hpMul:1.00, fleeAt:0.30, canFlee:true,  spdMul:1.00, atkCdMul:1.00, label:'',      icon:'',   color:'#aaa'    },
   timid: { hpMul:0.70, fleeAt:0.60, canFlee:true,  spdMul:1.10, atkCdMul:1.20, label:'소심',  icon:'😨', color:'#74b9ff' },
-  brave: { hpMul:1.50, fleeAt:0.00, canFlee:false, spdMul:1.10, atkCdMul:0.70, label:'용맹',  icon:'🔥', color:'#ff7675' },
+  brave: { hpMul:1.45, fleeAt:0.00, canFlee:false, spdMul:1.00, atkCdMul:0.78, label:'용맹',  icon:'🔥', color:'#ff7675' },
 };
 
 function makeEnemy(pk,x,y,hp,isBoss){
@@ -2188,7 +2188,7 @@ function makeEnemy(pk,x,y,hp,isBoss){
     leaderRef:null,
     aiState:'chase',
     fleeTimer:0,
-    summonCooldown:6+Math.random()*3,
+    summonCooldown:7+Math.random()*4,
     alertRadius:350,
     preferDist:0,
   };
@@ -2420,16 +2420,16 @@ function updatePlayer(dt){
   // 공격
   if(player.atkCooldown[0]>0) player.atkCooldown[0]-=dt;
   if(player.atkCooldown[1]>0) player.atkCooldown[1]-=dt;
-  if(just.atk1&&player.atkCooldown[0]<=0){fireAtk(0);player.atkCooldown[0]=0.52;}
-  if(just.atk2&&player.atkCooldown[1]<=0&&playerData.types.length>=2){fireAtk(1);player.atkCooldown[1]=0.52;}
+  if(just.atk1&&player.atkCooldown[0]<=0){fireAtk(0);player.atkCooldown[0]=0.44;}
+  if(just.atk2&&player.atkCooldown[1]<=0&&playerData.types.length>=2){fireAtk(1);player.atkCooldown[1]=0.44;}
   // 무적
   if(player.invincible>0) player.invincible-=dt;
   // 적 접촉 데미지
   if(gamePhase==='fight'&&player.invincible<=0){
     for(const e of enemies){
       if(overlap(player,e)){
-        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.18));
-        dmgPlayer(d); player.invincible=0.7; break;
+        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.14));
+        dmgPlayer(d); player.invincible=0.85; break;
       }
     }
   }
@@ -2681,14 +2681,14 @@ function updateEnemies(dt){
       const at=e.types[Math.floor(Math.random()*e.types.length)];
       const cfg=TYPE_ATTACKS[at]||TYPE_ATTACKS['노말'];
       const leaderDmgMul=e.isPackLeader?1.2:1.0;
-      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.6))*cfg.dmgMul*.42*leaderDmgMul));
+      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.55))*cfg.dmgMul*.36*leaderDmgMul));
 
       if(e.isBoss){
         const style=e.attackStyle||'spread';
         if(hpRatio<0.5){
           ATTACK_STYLES['spread'].fire(e,at,cfg,ed);
           if(style!=='spread') ATTACK_STYLES[style]?.fire(e,at,cfg,Math.floor(ed*.6));
-          e.atkCooldown=0.65;
+          e.atkCooldown=0.80;
         } else {
           ATTACK_STYLES[style]?.fire(e,at,cfg,ed);
           if(Math.random()<0.3&&dist<200) e.vx=e.facing*320;
@@ -2834,7 +2834,7 @@ function dmgEnemy(e,d,type){
       }
       showToast('💀 우두머리를 쓰러뜨렸다! 부하들이 도망친다!');
     }
-    if(e.isBoss||Math.random()<0.25) dropHealItem(e.x+e.w/2,e.y+e.h/2);
+    if(e.isBoss||Math.random()<0.33) dropHealItem(e.x+e.w/2,e.y+e.h/2);
     enemies=enemies.filter(en=>en!==e);
   }
 }
@@ -2889,7 +2889,7 @@ function stageClearTransition(){
   const nd=buildPlayerData(selectedPokemon,playerLevel);
   // HP 비율 유지 + 스테이지 클리어 보너스 회복 (최대 HP의 20%)
   const ratio=player?(player.hp/player.maxHp):1;
-  const bonus=Math.floor(nd.maxHp*0.10);
+  const bonus=Math.floor(nd.maxHp*0.15);
   nd.hp=Math.min(nd.maxHp,Math.max(1,Math.floor(nd.maxHp*ratio)+bonus));
   nd.atkStyle=prev.atkStyle||null;  // 기술 스타일 유지
   playerData=nd;
@@ -2903,7 +2903,7 @@ function stageClearTransition(){
     <div class="stat-row"><div class="label">공격력</div><div class="val">${prev.atk}→${nd.atk}</div></div>
     <div class="stat-row"><div class="label">방어력</div><div class="val">${prev.def}→${nd.def}</div></div>
     <div class="stat-row"><div class="label">스피드</div><div class="val">${prev.spe}→${nd.spe}</div></div>
-    <div class="stat-row" style="grid-column:1/-1;border:1px solid rgba(46,213,115,.3)"><div class="label">💚 클리어 회복</div><div class="val" style="color:#2ed573">+${Math.floor(nd.maxHp*0.10)} HP</div></div>`;
+    <div class="stat-row" style="grid-column:1/-1;border:1px solid rgba(46,213,115,.3)"><div class="label">💚 클리어 회복</div><div class="val" style="color:#2ed573">+${Math.floor(nd.maxHp*0.15)} HP</div></div>`;
   transitioning=false;
 }
 

@@ -391,6 +391,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   animation:scr-fade-out .22s ease forwards;
   pointer-events:none;
 }
+
+#stageHint{
   position:fixed;bottom:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 28px);
   left:50%;transform:translateX(-50%);
   color:rgba(255,203,5,.85);font-size:.7rem;z-index:20;
@@ -525,11 +527,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <!-- 격파 기록 패널 (전설 / 일반 탭) -->
     <div id="killRecordPanel" style="width:100%;display:none;">
       <div style="display:flex;gap:0;margin-bottom:.35rem;border-radius:10px;overflow:hidden;border:1px solid rgba(255,203,5,.25);">
-        <button id="killTabLegend" onclick="switchKillTab('legend')"
+        <button id="killTabLegend"
           style="flex:1;background:rgba(255,203,5,.18);color:var(--accent);border:none;padding:.35rem;font-family:Galmuri11,monospace;font-size:.65rem;cursor:pointer;">
           ⚔️ 전설 격파
         </button>
-        <button id="killTabNormal" onclick="switchKillTab('normal')"
+        <button id="killTabNormal"
           style="flex:1;background:transparent;color:var(--muted);border:none;border-left:1px solid rgba(255,203,5,.2);padding:.35rem;font-family:Galmuri11,monospace;font-size:.65rem;cursor:pointer;">
           💥 일반 격파
         </button>
@@ -944,6 +946,8 @@ function switchKillTab(tab){
   document.getElementById('killTabNormal').style.background=tab==='normal'?'rgba(100,150,255,.18)':'transparent';
   document.getElementById('killTabNormal').style.color=tab==='normal'?'#7c9dff':'var(--muted)';
 }
+// module scope → 전역 노출 (HTML 인라인 onclick에서 접근 가능하도록)
+window.switchKillTab=switchKillTab;
 
 async function sendReward(pk){
   if(!currentUser) return false;
@@ -1011,38 +1015,38 @@ const GEN_EVO_STAGES={
   1:[
     [1,4,7,10,13,16,19,21,23,27,29,32,35,37,39,41,43,46,48,50,52,54,56,58,60,63,66,69,72,74,77,79,81,84,86,88,90,92,95,96,98,100,102,104,108,109,111,114,116,118,120,122,123,124,125,126,127,128,129,131,132,133,137,138,140,142,143,147],
     [2,5,8,11,14,17,20,22,24,28,30,33,36,38,40,42,44,47,49,51,53,55,57,59,61,64,67,70,73,75,78,80,82,85,87,89,91,93,97,99,101,103,105,110,112,115,117,119,121,134,135,136,139,141,148],
-    [3,6,9,12,15,18,25,31,34,45,65,68,71,76,83,94,106,107,113,149,150],
-    [150,151],
+    [3,6,9,12,15,18,25,31,34,45,65,68,71,76,83,94,106,107,113,149],
+    [],  // 3차 진화 없음 (전설은 LEGEND_MYTHICAL_IDS로 별도 관리)
   ],
   2:[
     [152,155,158,161,163,165,167,170,172,173,174,175,177,179,183,187,191,193,194,198,200,202,203,204,206,207,209,211,213,214,215,216,218,220,222,223,225,226,227,228,231,234,235,236,238,239,240,241,246],
     [153,156,159,162,164,166,168,169,171,176,178,180,184,188,192,195,199,201,205,208,210,212,217,219,221,224,229,232,237,247],
-    [154,157,160,181,185,186,189,190,196,197,248,249,250],
-    [249,250,251],
+    [154,157,160,181,185,186,189,190,196,197,248],
+    [],  // 3차 진화 없음
   ],
   3:[
-    [252,255,258,261,263,265,270,273,276,278,280,283,285,287,290,293,296,298,299,300,302,303,304,307,309,311,312,313,314,315,316,318,320,322,325,327,328,331,333,335,336,337,338,339,341,343,345,347,349,351,352,353,355,357,358,360,361,363,366,369,370,371,374,374,377,378,379,380,381,384],
+    [252,255,258,261,263,265,270,273,276,278,280,283,285,287,290,293,296,298,299,300,302,303,304,307,309,311,312,313,314,315,316,318,320,322,325,327,328,331,333,335,336,337,338,339,341,343,345,347,349,351,352,353,355,357,358,360,361,363,366,369,370,371,374],
     [253,256,259,262,264,266,271,274,277,279,281,284,286,288,291,294,297,301,305,308,310,317,319,323,326,329,332,334,340,342,344,346,348,350,354,356,362,364,367,372,375],
     [254,257,260,267,268,269,272,275,282,289,292,295,306,372,373,376],
-    [377,378,379,380,381,382,383,384,385,386],
+    [],  // 3차 진화 없음
   ],
   4:[
     [387,390,393,396,399,401,403,406,408,410,412,415,418,420,422,425,427,431,433,434,436,438,439,440,441,442,443,446,447,449,451,453,456,458,459,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493],
     [388,391,394,397,400,402,404,407,409,411,413,419,421,423,426,428,432,435,437,444,448,450,452,454,457,460],
     [389,392,395,398,405,414,416,424,429,430,445],
-    [483,484,485,486,487,491,492,493],
+    [],  // 3차 진화 없음
   ],
   5:[
     [494,495,498,501,504,506,509,511,513,515,517,519,522,524,527,529,532,535,538,539,540,543,546,548,550,551,554,556,557,559,561,562,564,566,568,570,572,574,577,580,582,585,587,588,590,592,595,597,599,602,605,607,610,613,616,618,619,621,622,624,626,627,629,631,632,633,636,638,639,640,641,642,643,644,645,646,647,648,649],
     [496,499,502,505,507,510,512,514,516,518,520,523,525,528,530,533,536,541,544,547,549,552,555,558,560,563,565,567,569,571,573,575,578,581,583,589,591,593,596,598,600,603,606,608,611,614,617,620,623,625,628,630,634,637],
     [497,500,503,508,521,526,531,534,537,542,545,553,576,579,584,594,601,604,609,612,615,635],
-    [638,639,640,641,642,643,644,645,646,647,648,649],
+    [],  // 3차 진화 없음
   ],
   6:[
     [650,653,656,659,661,664,667,669,672,674,676,677,679,682,684,686,688,690,692,694,696,698,700,701,702,703,704,707,708,710,712,714,716,717,718,719,720,721],
     [651,654,657,660,662,665,668,670,673,675,678,680,683,685,687,689,691,693,695,697,699,705,709,711,713,715],
     [652,655,658,663,666,671,681,706],
-    [716,717,718,719,720,721],
+    [],  // 3차 진화 없음
   ],
   7:[
     [722,725,728,731,734,736,739,742,744,746,747,749,751,753,755,757,759,761,764,765,766,767,769,771,772,774,775,776,777,778,779,780,781,782,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,801,802,803,804,805,806,807,808,809],
@@ -1054,13 +1058,13 @@ const GEN_EVO_STAGES={
     [810,813,816,819,821,824,827,829,831,833,835,837,840,843,845,846,848,850,852,854,856,859,862,863,864,865,866,867,868,869,870,871,872,874,875,876,877,878,880,882,884,885,886,887,888,889,890,891,892,893,894,895,896,897,898,899,900,901,902,903,904,905],
     [811,814,817,820,822,825,828,830,832,834,836,838,841,844,849,851,853,855,857,860,873,879,881,883,886],
     [812,815,818,823,826,839,842,847,858,861],
-    [888,889,890,891,892,893,894,895,896,897,898],
+    [],  // 3차 진화 없음
   ],
   9:[
     [906,909,912,915,918,921,924,926,928,930,932,934,936,938,940,942,944,946,948,950,952,954,956,958,960,962,964,966,968,970,972,974,976,978,979,980,981,982,983,984,985,986,987,988,989,990,991,992,993,994,995,996,997,998,999,1000,1001,1002,1003,1004,1005,1006],
     [907,910,913,916,919,922,925,927,929,931,933,935,937,939,941,943,945,947,949,951,953,955,957,959,961,963,965,967,969,971,973,975,977],
     [908,911,914,917,920,923],
-    [1007,1008,1009,1010,1011,1012,1013,1014,1015,1016,1017,1018,1019,1020,1021,1022,1023,1024,1025],
+    [],  // 3차 진화 없음
   ],
 };
 
@@ -1307,19 +1311,19 @@ let healItems=[],bombs=[],jumpPads=[];
 const GRAVITY=1500,JUMP_VEL=-600,MOVE_SPD=230;
 
 function resizeCanvas(){
-  // CSS 표시 크기
+  // CSS 표시 크기 (게임 로직 좌표계 기준)
   const cssW=window.innerWidth, cssH=window.innerHeight;
   const dpr=window.devicePixelRatio||1;
 
   // 캔버스 물리 픽셀 = CSS 크기 × DPR (고해상도 디스플레이 찌그러짐 방지)
-  window.innerWidth =Math.round(cssW*dpr);
-  window.innerHeight=Math.round(cssH*dpr);
+  canvas.width =Math.round(cssW*dpr);
+  canvas.height=Math.round(cssH*dpr);
 
   // CSS 크기는 고정 (브라우저가 늘리지 않도록)
   canvas.style.width =cssW+'px';
   canvas.style.height=cssH+'px';
 
-  // 이후 모든 좌표는 CSS 픽셀 기준으로 유지 — ctx만 스케일
+  // ctx를 DPR만큼 스케일 — 이후 모든 좌표는 CSS 픽셀 기준으로 유지
   ctx.setTransform(dpr,0,0,dpr,0,0);
 
   // 게임 로직 좌표계는 CSS 픽셀 기준
@@ -1827,7 +1831,7 @@ function genDoors(stage){
 // ── 스테이지 초기화 ───────────────────────────────────────────
 function initStageMap(stage){
   resizeCanvas();
-  mapWidth=Math.max(window.innerWidth*2.8,2200);
+  mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
   window._mapEnemyPos=[];
   window._mapBombPos=[];
   platforms=genPlatforms(stage);  // 이 안에서 _mapEnemyPos, _mapBombPos, jumpPads 세팅됨
@@ -1854,7 +1858,7 @@ function initStageMap(stage){
     const isBoss=stage===10||stage===20;
     if(isBoss){
       const boss=stage===10?bosses.mid:bosses.final;
-      const bHp=calcHP(boss.baseStats.hp*2,playerData.level);
+      const bHp=calcHP(boss.baseStats.hp*2.8,playerData.level);
       // 보스: 바닥 위에 정확히 배치 (makeEnemy 내부에서 -h 처리)
       const be=makeEnemy(boss,mapWidth-380,floorY,bHp,true);
       be.attackStyle=assignAttackStyle(boss.types||['드래곤'],true);
@@ -1865,9 +1869,9 @@ function initStageMap(stage){
       updateBossKillCountHud(boss.id);
     } else {
       document.getElementById('hudBoss').classList.remove('visible');
-      const cnt=Math.floor(7+stage*0.6+Math.random()*4);
+      const cnt=Math.floor(9+stage*0.8+Math.random()*4);
       const evoStage=getEvoStage(stage);
-      const evoScale=1+evoStage*0.35;
+      const evoScale=1+evoStage*0.45;
       const spawnPositions=window._mapEnemyPos||[];
 
       for(let i=0;i<cnt;i++){
@@ -1880,8 +1884,8 @@ function initStageMap(stage){
           ex=300+(Math.random()*(mapWidth-600));
         }
         const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
-          baseStats:{hp:(50+Math.random()*40)*evoScale,atk:(40+Math.random()*35)*evoScale,def:30*evoScale,spe:40}};
-        const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.5)),false);
+          baseStats:{hp:(65+Math.random()*50)*evoScale,atk:(55+Math.random()*45)*evoScale,def:35*evoScale,spe:45}};
+        const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.65)),false);
         en.attackStyle=assignAttackStyle(rp.types,false);
         en.attackStyles=[en.attackStyle];  // 기본은 1개 (우두머리/용맹 지정 후 확장)
         // 원거리 스타일이면 선호 거리 설정
@@ -1895,7 +1899,7 @@ function initStageMap(stage){
       for(let li=0;li<leaderCount;li++){
         const leader=shuffled[li];
         leader.isPackLeader=true;
-        leader.hp=Math.floor(leader.maxHp*1.8);
+        leader.hp=Math.floor(leader.maxHp*2.2);
         leader.maxHp=leader.hp;
         leader.w=118; leader.h=118;
         // 우두머리: 확정 2개, 33% 확률로 3개
@@ -2087,7 +2091,7 @@ function updateHealItems(dt){
     if(h.collected){healItems.splice(i,1);continue;}
     h.bobTimer+=dt;
     if(player&&overlap(player,{x:h.x,y:h.y+Math.sin(h.bobTimer*3)*5,w:h.w,h:h.h})){
-      const heal=Math.floor(player.maxHp*0.2);
+      const heal=Math.floor(player.maxHp*0.12);
       player.hp=Math.min(player.maxHp,player.hp+heal);
       playerData.hp=player.hp;
       updateHudHp();
@@ -2156,13 +2160,13 @@ function explodeBomb(b,idx){
 // normal  : 기본 (HP 100%, 도주 30%)
 // timid   : 소심 (HP 70%, 도주 60% — 일찍 도망)
 // brave   : 용맹 (HP 140%, 절대 도주 안 함, 공격적)
-const PERSONALITIES=['normal','normal','normal','timid','timid','brave'];
+const PERSONALITIES=['normal','normal','timid','brave','brave','brave'];
 function pickPersonality(){ return PERSONALITIES[Math.floor(Math.random()*PERSONALITIES.length)]; }
 
 const PERSONALITY_CFG={
   normal:{ hpMul:1.00, fleeAt:0.30, canFlee:true,  spdMul:1.00, atkCdMul:1.00, label:'',      icon:'',   color:'#aaa'    },
   timid: { hpMul:0.70, fleeAt:0.60, canFlee:true,  spdMul:1.10, atkCdMul:1.20, label:'소심',  icon:'😨', color:'#74b9ff' },
-  brave: { hpMul:1.40, fleeAt:0.00, canFlee:false, spdMul:0.95, atkCdMul:0.80, label:'용맹',  icon:'🔥', color:'#ff7675' },
+  brave: { hpMul:1.50, fleeAt:0.00, canFlee:false, spdMul:1.10, atkCdMul:0.70, label:'용맹',  icon:'🔥', color:'#ff7675' },
 };
 
 function makeEnemy(pk,x,y,hp,isBoss){
@@ -2185,7 +2189,7 @@ function makeEnemy(pk,x,y,hp,isBoss){
     leaderRef:null,
     aiState:'chase',
     fleeTimer:0,
-    summonCooldown:8+Math.random()*4,
+    summonCooldown:6+Math.random()*3,
     alertRadius:350,
     preferDist:0,
   };
@@ -2416,16 +2420,16 @@ function updatePlayer(dt){
   // 공격
   if(player.atkCooldown[0]>0) player.atkCooldown[0]-=dt;
   if(player.atkCooldown[1]>0) player.atkCooldown[1]-=dt;
-  if(just.atk1&&player.atkCooldown[0]<=0){fireAtk(0);player.atkCooldown[0]=0.38;}
-  if(just.atk2&&player.atkCooldown[1]<=0&&playerData.types.length>=2){fireAtk(1);player.atkCooldown[1]=0.38;}
+  if(just.atk1&&player.atkCooldown[0]<=0){fireAtk(0);player.atkCooldown[0]=0.52;}
+  if(just.atk2&&player.atkCooldown[1]<=0&&playerData.types.length>=2){fireAtk(1);player.atkCooldown[1]=0.52;}
   // 무적
   if(player.invincible>0) player.invincible-=dt;
   // 적 접촉 데미지
   if(gamePhase==='fight'&&player.invincible<=0){
     for(const e of enemies){
       if(overlap(player,e)){
-        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.12));
-        dmgPlayer(d); player.invincible=1.0; break;
+        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.18));
+        dmgPlayer(d); player.invincible=0.7; break;
       }
     }
   }
@@ -2677,14 +2681,14 @@ function updateEnemies(dt){
       const at=e.types[Math.floor(Math.random()*e.types.length)];
       const cfg=TYPE_ATTACKS[at]||TYPE_ATTACKS['노말'];
       const leaderDmgMul=e.isPackLeader?1.2:1.0;
-      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.5))*cfg.dmgMul*.32*leaderDmgMul));
+      const ed=Math.max(1,Math.floor(calcStat(e.baseAtk,Math.ceil(playerData.level*.6))*cfg.dmgMul*.42*leaderDmgMul));
 
       if(e.isBoss){
         const style=e.attackStyle||'spread';
         if(hpRatio<0.5){
           ATTACK_STYLES['spread'].fire(e,at,cfg,ed);
           if(style!=='spread') ATTACK_STYLES[style]?.fire(e,at,cfg,Math.floor(ed*.6));
-          e.atkCooldown=0.9;
+          e.atkCooldown=0.65;
         } else {
           ATTACK_STYLES[style]?.fire(e,at,cfg,ed);
           if(Math.random()<0.3&&dist<200) e.vx=e.facing*320;
@@ -2773,7 +2777,8 @@ function updateProjectiles(dt){
     } else {
       if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
     }
-    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+window.innerWidth+100||p.y>floorY+20) projectiles.splice(i,1);
+    const _pw=canvas.clientWidth||window.innerWidth;
+    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
   }
 }
 
@@ -2829,7 +2834,7 @@ function dmgEnemy(e,d,type){
       }
       showToast('💀 우두머리를 쓰러뜨렸다! 부하들이 도망친다!');
     }
-    if(e.isBoss||Math.random()<0.4) dropHealItem(e.x+e.w/2,e.y+e.h/2);
+    if(e.isBoss||Math.random()<0.25) dropHealItem(e.x+e.w/2,e.y+e.h/2);
     enemies=enemies.filter(en=>en!==e);
   }
 }
@@ -2884,7 +2889,7 @@ function stageClearTransition(){
   const nd=buildPlayerData(selectedPokemon,playerLevel);
   // HP 비율 유지 + 스테이지 클리어 보너스 회복 (최대 HP의 20%)
   const ratio=player?(player.hp/player.maxHp):1;
-  const bonus=Math.floor(nd.maxHp*0.20);
+  const bonus=Math.floor(nd.maxHp*0.10);
   nd.hp=Math.min(nd.maxHp,Math.max(1,Math.floor(nd.maxHp*ratio)+bonus));
   nd.atkStyle=prev.atkStyle||null;  // 기술 스타일 유지
   playerData=nd;
@@ -2898,7 +2903,7 @@ function stageClearTransition(){
     <div class="stat-row"><div class="label">공격력</div><div class="val">${prev.atk}→${nd.atk}</div></div>
     <div class="stat-row"><div class="label">방어력</div><div class="val">${prev.def}→${nd.def}</div></div>
     <div class="stat-row"><div class="label">스피드</div><div class="val">${prev.spe}→${nd.spe}</div></div>
-    <div class="stat-row" style="grid-column:1/-1;border:1px solid rgba(46,213,115,.3)"><div class="label">💚 클리어 회복</div><div class="val" style="color:#2ed573">+${Math.floor(nd.maxHp*0.20)} HP</div></div>`;
+    <div class="stat-row" style="grid-column:1/-1;border:1px solid rgba(46,213,115,.3)"><div class="label">💚 클리어 회복</div><div class="val" style="color:#2ed573">+${Math.floor(nd.maxHp*0.10)} HP</div></div>`;
   transitioning=false;
 }
 
@@ -2934,8 +2939,9 @@ function checkWin(){
 // ── 카메라 ────────────────────────────────────────────────────
 function updateCamera(){
   if(!player) return;
-  const tx=player.x-window.innerWidth/3;
-  camera.x+=(Math.max(0,Math.min(mapWidth-window.innerWidth,tx))-camera.x)*0.12;
+  const vw=canvas.clientWidth||window.innerWidth;
+  const tx=player.x-vw/3;
+  camera.x+=(Math.max(0,Math.min(mapWidth-vw,tx))-camera.x)*0.12;
 }
 
 // ── HUD ───────────────────────────────────────────────────────
@@ -2992,7 +2998,8 @@ function groundYBelow(ex, ew, footY){
 
 // ── 렌더 ─────────────────────────────────────────────────────
 function render(){
-  ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+  const _vw=canvas.clientWidth||window.innerWidth, _vh=canvas.clientHeight||window.innerHeight;
+  ctx.clearRect(0,0,_vw,_vh);
   const theme=getTheme(currentStage);
 
   // 하늘 — 테마별 색상
@@ -3004,7 +3011,7 @@ function render(){
     skyG.addColorStop(0,s0); skyG.addColorStop(0.55,s1);
     skyG.addColorStop(1,adjustColor(s1,20));
   }
-  ctx.fillStyle=skyG; ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
+  ctx.fillStyle=skyG; ctx.fillRect(0,0,_vw,_vh);
 
   // 배경 구름/장식
   renderBgDecos(theme);
@@ -3080,9 +3087,10 @@ function renderFloor(theme){
   const ft=FLOOR_THEMES[theme.name]||FLOOR_THEMES['숲'];
 
   // 흙층
-  const dirtG=ctx.createLinearGradient(0,floorY+18,0,window.innerHeight);
+  const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.clientHeight||window.innerHeight);
   dirtG.addColorStop(0,ft.dirt[0]); dirtG.addColorStop(1,ft.dirt[1]);
-  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,window.innerHeight-floorY);
+  const _rhv=canvas.clientHeight||window.innerHeight;
+  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,_rhv-floorY);
 
   // 표면층
   const surfG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
@@ -3145,8 +3153,9 @@ function renderBgDecos(theme){
   const isDark=darkThemes.includes(theme.name)||currentStage===0||currentStage>=15;
   if(isDark){
     for(let i=0;i<50;i++){
-      const sx=((i*137+50)%1000)/1000*window.innerWidth;
-      const sy=((i*89+20)%1000)/1000*(window.innerHeight*.7);
+      const _bw=canvas.clientWidth||window.innerWidth, _bh=canvas.clientHeight||window.innerHeight;
+      const sx=((i*137+50)%1000)/1000*_bw;
+      const sy=((i*89+20)%1000)/1000*(_bh*.7);
       ctx.fillStyle=`rgba(255,255,255,${.1+.3*Math.sin(t+i)})`;
       ctx.fillRect(sx,sy,1.5+(i%3===0?1:0),1.5+(i%3===0?1:0));
     }
@@ -3155,15 +3164,16 @@ function renderBgDecos(theme){
   const brightThemes=['숲','로비','설산'];
   if(brightThemes.includes(theme.name)||currentStage<=4){
     ctx.globalAlpha=.65;
+    const _cw=canvas.clientWidth||window.innerWidth, _ch=canvas.clientHeight||window.innerHeight;
     const clouds=[
-      {x:window.innerWidth*.1,y:window.innerHeight*.12,s:1.0},
-      {x:window.innerWidth*.38,y:window.innerHeight*.08,s:0.75},
-      {x:window.innerWidth*.65,y:window.innerHeight*.14,s:1.2},
-      {x:window.innerWidth*.82,y:window.innerHeight*.06,s:0.6},
+      {x:_cw*.1,y:_ch*.12,s:1.0},
+      {x:_cw*.38,y:_ch*.08,s:0.75},
+      {x:_cw*.65,y:_ch*.14,s:1.2},
+      {x:_cw*.82,y:_ch*.06,s:0.6},
     ];
     for(const cl of clouds){
-      const ox=((t*12)%window.innerWidth);
-      const cx=(cl.x-ox*0.04+window.innerWidth)%window.innerWidth;
+      const ox=((t*12)%_cw);
+      const cx=(cl.x-ox*0.04+_cw)%_cw;
       // 설산은 흰 구름, 어두운 테마는 회색 구름
       const cloudColor=theme.name==='설산'?'rgba(200,220,255,.9)':'rgba(255,255,255,.82)';
       drawCloud(cx,cl.y,cl.s,cloudColor);
@@ -3970,15 +3980,16 @@ function renderLobbyOverlay(){
   const t=Date.now()/800;
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,.55)';
-  ctx.fillRect(window.innerWidth/2-130,window.innerHeight*.12,260,68);
-  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(window.innerWidth/2-130,window.innerHeight*.12,260,68);
+  const _lw=canvas.clientWidth||window.innerWidth, _lh=canvas.clientHeight||window.innerHeight;
+  ctx.fillRect(_lw/2-130,_lh*.12,260,68);
+  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(_lw/2-130,_lh*.12,260,68);
   ctx.textAlign='center';
   ctx.fillStyle='#ffcb05'; ctx.font="14px 'Galmuri11',monospace";
-  ctx.fillText('🎮 '+playerData.name, window.innerWidth/2, window.innerHeight*.12+26);
+  ctx.fillText('🎮 '+playerData.name, _lw/2, _lh*.12+26);
   ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font="11px 'Galmuri11',monospace";
-  ctx.fillText('타입: '+playerData.types.join(' / '), window.innerWidth/2, window.innerHeight*.12+46);
+  ctx.fillText('타입: '+playerData.types.join(' / '), _lw/2, _lh*.12+46);
   ctx.fillStyle=`rgba(255,255,255,${.5+.25*Math.sin(t)})`;
-  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', window.innerWidth/2, window.innerHeight*.12+63);
+  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', _lw/2, _lh*.12+63);
   ctx.restore();
 }
 
@@ -4028,7 +4039,7 @@ function launchBonusStage(){
 
   // 맵 초기화 (보스 아레나 재사용)
   resizeCanvas();
-  mapWidth=Math.max(window.innerWidth*3.5,3000);
+  mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*3.5,3000);
   platforms=genPlatforms(20);   // 최종 아레나 맵 사용
   doors=genDoors(20);
   projectiles=[]; particles=[]; camera={x:0,y:0};
@@ -4176,7 +4187,9 @@ function showScreen(id){
   current.forEach(scr=>{
     scr.classList.add('exiting');
     scr.classList.remove('entering');
+    let _done=false;
     const done=()=>{
+      if(_done) return; _done=true;
       scr.classList.add('hidden');
       scr.classList.remove('exiting');
       exited++;
@@ -4246,6 +4259,9 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('btnBonusClearTitle', ()=>backToTitle());
   on('btnGameoverTitle',()=>backToTitle());
   on('btnGameoverRestart',()=>restartGame());
+  // 격파 기록 탭 (module scope 문제로 inline onclick 대신 여기서 연결)
+  on('killTabLegend',   ()=>switchKillTab('legend'));
+  on('killTabNormal',   ()=>switchKillTab('normal'));
   // 검색창
   const srch=document.getElementById('pkSearchInput')||document.getElementById('pkSearch');
   if(srch) srch.addEventListener('input',()=>filterPokemon());

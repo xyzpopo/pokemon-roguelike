@@ -78,6 +78,27 @@
 ║  · 스테이지 수  : MAX_STAGE (현재 20)                                       ║
 ║  · 포켓몬 세대  : gameGen (1~현재 세대)                                     ║
 ║  · 타입 색상   : TYPE_COLORS{}                                              ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  🎛️  그래픽 품질 설정 (GFX QUALITY) — 5단계                                ║
+║  ─────────────────────────────────────────────────────                      ║
+║  · 위치: <script> 최상단, GFX_LEVELS / GFX_PRESETS / GFX / gfxLevel         ║
+║  · localStorage 키 'pkrl_gfx' (0~4)에 저장, loadGfxLevel()로 로드           ║
+║  · 레벨: 0=초저사양 1=저사양 2=중사양(기본) 3=고사양 4=초고사양             ║
+║  · GFX 객체 필드:                                                            ║
+║      maxParticles  — particles[] 최대 개수                                  ║
+║      particleMul   — spawnPtcl() 호출 시 cnt에 곱하는 배율                  ║
+║      bgDecos       — renderBgDecos/renderWorldBgDecos 실행 여부             ║
+║                       (별/구름/화산 불씨/해저 기포/나무/꽃 등)              ║
+║      glow          — 발광 그라디언트 (투사체/적/점프패드/폭탄/힐아이템)     ║
+║      cloudCount    — 표시할 구름 개수 (0~4)                                 ║
+║      starCount     — 표시할 별 개수 (0~80)                                  ║
+║      trail         — 투사체 잔상(trail) 렌더링 여부                         ║
+║  · 새 이펙트 추가 시: 항상 GFX.glow / GFX.bgDecos 등으로 감싸서             ║
+║    저사양에서 자동으로 꺼지도록 작성할 것 (shadowBlur 사용 금지!)           ║
+║  · UI: titleScreen의 '⚙ 그래픽 설정' 버튼 + 인게임 HUD 우상단 ⚙ 버튼       ║
+║    → #settingsModal, .gfx-opt 클릭 시 setGfxLevel(lv) 호출                  ║
+║  · setGfxLevel(lv) → GFX 재할당 + localStorage 저장 + updateGfxUI()          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 -->
 <html lang="ko">
@@ -492,6 +513,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="title-btns">
     <div class="title-user" id="titleUser"></div>
     <button class="btn-start" id="btnTitleStart">▶ 시작하기</button>
+    <button class="btn-outline" id="btnOpenSettings">⚙ 그래픽 설정</button>
     <button class="btn-outline" id="btnTitleLogout"  style="display:none">로그아웃</button>
   </div>
 </div>
@@ -655,6 +677,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
       <div id="hudBossKill" style="font-size:.56rem;color:var(--accent);margin-top:.2rem;text-align:right;letter-spacing:.05em;"></div>
     </div>
   </div>
+  <button id="btnInGameSettings" style="position:fixed;top:.5rem;right:.5rem;pointer-events:all;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:.9rem;z-index:25;">⚙</button>
 </div>
 
 <!-- MOBILE CONTROLS -->
@@ -696,6 +719,42 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+
+// ══════════════════════════════════════════════════════════
+// 그래픽 품질 설정 (GFX QUALITY) ─ 초저사양~초고사양 5단계
+// ══════════════════════════════════════════════════════════
+// 레벨: 0=초저사양, 1=저사양, 2=중사양, 3=고사양, 4=초고사양
+const GFX_LEVELS=['초저사양','저사양','중사양','고사양','초고사양'];
+const GFX_PRESETS=[
+  // 0: 초저사양 — 파티클/배경 장식/발광 효과 전부 제거. 저성능 태블릿용.
+  {maxParticles:0,  particleMul:0,   bgDecos:false, glow:false, cloudCount:0, starCount:0,  shadowEnt:false, trail:false},
+  // 1: 저사양 — 파티클 소량, 배경 장식/발광 제거
+  {maxParticles:40, particleMul:.3,  bgDecos:false, glow:false, cloudCount:0, starCount:0,  shadowEnt:false, trail:false},
+  // 2: 중사양 — 기본값, 적당한 파티클/배경/발광
+  {maxParticles:120,particleMul:.6,  bgDecos:true,  glow:true,  cloudCount:2, starCount:25, shadowEnt:true,  trail:false},
+  // 3: 고사양 — 풍부한 파티클/배경/발광/트레일
+  {maxParticles:250,particleMul:1,   bgDecos:true,  glow:true,  cloudCount:4, starCount:50, shadowEnt:true,  trail:true},
+  // 4: 초고사양 — 최대치, 모든 효과 + 여유 파티클
+  {maxParticles:400,particleMul:1.5, bgDecos:true,  glow:true,  cloudCount:4, starCount:80, shadowEnt:true,  trail:true},
+];
+function loadGfxLevel(){
+  const v=parseInt(localStorage.getItem('pkrl_gfx')??'2',10);
+  return (v>=0&&v<=4)?v:2;
+}
+let gfxLevel=loadGfxLevel();
+let GFX=GFX_PRESETS[gfxLevel];
+function setGfxLevel(lv){
+  gfxLevel=Math.max(0,Math.min(4,lv));
+  GFX=GFX_PRESETS[gfxLevel];
+  localStorage.setItem('pkrl_gfx',String(gfxLevel));
+  updateGfxUI();
+}
+function updateGfxUI(){
+  document.querySelectorAll('.gfx-opt').forEach(el=>{
+    el.classList.toggle('active', parseInt(el.dataset.gfx,10)===gfxLevel);
+  });
+  document.querySelectorAll('.gfx-current-label').forEach(el=>el.textContent=GFX_LEVELS[gfxLevel]);
+}
 
 // ═══════════════════════════════════════
 // AUTH
@@ -1363,7 +1422,38 @@ function buildMap(blueprint, W, H){
 }
 
 // ── 20개 수제 맵 블루프린트 ──────────────────────────────────
-// plats: [x비율, y비율(바닥에서 위), w비율]  (y는 floorY 기준 비율)
+// ══════════════════════════════════════════════════════════════
+// 🆕 신버전 맵 시스템: "단차(terrace)" 기반
+// ─────────────────────────────────────────────────────
+// - 기존: 바닥(floorY) 고정 + 공중에 뜬 발판(platforms)
+// - 신버전: 바닥 자체의 높이가 구간별로 달라짐 ("단차")
+//   · terraces: [{x1,x2,h}, ...]  x1~x2 구간의 바닥 높이(h, 0~1 비율, 0=최하단)
+//   · 단차 사이의 수직 연결부 = "반벽"(half-wall) → 기존 platforms와 동일하게
+//     동작 (아래→위 점프로 올라가기 가능, 조이스틱 아래로 내려가기 가능)
+//   · 맵 전체 최하단(검은 사각형 = floorY)보다 아래로는 떨어질 수 없음
+//   · entrance/exit: {x, terraceIdx} — 해당 단차의 바닥 위에 배치
+//   · enemyPos/jumpPads/bombPos: {x, terraceIdx} — 해당 단차 바닥 기준 배치
+// ══════════════════════════════════════════════════════════════
+function getTerraceMaps(W,H){
+  const f=H; // floorY (최하단)
+  return [
+    // ── 테스트 맵: 입구(낮은 단)→반벽→높은 단(점핑패드,출구) ──
+    { name:'단차테스트',
+      // 단차 구간: x비율 [x1,x2], h비율(0~1, 바닥에서 위로)
+      terraces:[
+        {x1:0.00, x2:0.40, h:0.00},   // 낮은 구간 (입구)
+        {x1:0.40, x2:1.00, h:0.22},   // 높은 구간 (출구, 점핑패드)
+      ],
+      entrance:{x:0.04, terraceIdx:0},
+      exit:{x:0.94, terraceIdx:1},
+      jumpPads:[ {x:0.70, terraceIdx:1, power:1.8} ],
+      enemyPos:[ {x:0.20, terraceIdx:0}, {x:0.50, terraceIdx:1}, {x:0.80, terraceIdx:1} ],
+      bombPos:[ {x:0.58, terraceIdx:1} ],
+    },
+  ];
+}
+
+
 // 좌표계: x=0(왼쪽)~1(오른쪽W), y=0(바닥)~1(꼭대기)
 // 실제변환: realY = floorY - y*floorY
 function getMapBlueprints(W, H){
@@ -1761,6 +1851,7 @@ function genPlatforms(stage){
 
   if(stage===0){
     // 로비: 고정 레이아웃
+    window._terraceData=null;
     return [
       {x:200,y:H-150,w:130,h:16},{x:440,y:H-230,w:140,h:16},
       {x:680,y:H-170,w:110,h:16},{x:900,y:H-270,w:130,h:16},
@@ -1769,51 +1860,73 @@ function genPlatforms(stage){
     ];
   }
 
-  const blueprints=getMapBlueprints(W,H);
-
-  // 스테이지 10, 20은 보스 아레나 고정
-  let bp;
-  if(stage===10) bp=blueprints[8];       // 보스아레나A
-  else if(stage===20) bp=blueprints[18]; // 최종아레나
-  else {
-    // 일반 스테이지: 시드 기반으로 20개 중 랜덤 선택 (보스맵 제외)
-    const rnd=seededRand(stage*73856+12345);
-    const pool=blueprints.filter((_,i)=>i!==8&&i!==18);
-    bp=pool[Math.floor(rnd()*pool.length)];
+  // 보스 스테이지(10,20)는 기존 평탄 아레나 유지
+  if(stage===10||stage===20){
+    const blueprints=getMapBlueprints(W,H);
+    const bp=stage===10?blueprints[8]:blueprints[18];
+    window._currentMapName=bp.name;
+    window._terraceData=null;
+    const scaleY=H*0.85;
+    const plats=bp.plats.map(pl=>({
+      x:Math.floor(pl[0]*W), y:Math.floor(H - pl[1]*scaleY),
+      w:Math.max(50,Math.floor(pl[2]*W)), h:16
+    }));
+    jumpPads=(bp.jumpPads||[]).map(jp=>({
+      x:Math.floor(jp[0]*W), y:floorY - Math.max(14, Math.floor(jp[1]*scaleY)),
+      w:Math.max(40,Math.floor(jp[2]*W)), h:14, power:jp[3]||1.8, animTick:0
+    }));
+    window._mapEnemyPos=(bp.enemyPos||[]).map(ep=>({
+      x:Math.floor(ep[0]*W), y:Math.floor(H - ep[1]*scaleY)-80
+    }));
+    window._mapBombPos=(bp.bombPos||[]).map(bp2=>({
+      x:Math.floor(bp2[0]*W)-14, y:Math.floor(H - bp2[1]*scaleY)-28
+    }));
+    return plats;
   }
-  window._currentMapName=bp.name;
 
-  // 블루프린트 → 실제 좌표 변환
-  // y비율: 0=바닥, 1=높음 → realY = H - ratio*H*0.85 (화면 85%까지 사용)
-  const scaleY=H*0.85;
-  const plats=bp.plats.map(pl=>({
-    x:Math.floor(pl[0]*W),
-    y:Math.floor(H - pl[1]*scaleY),
-    w:Math.max(50,Math.floor(pl[2]*W)),
-    h:16
-  }));
+  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 1종 고정 사용) ──
+  const tmaps=getTerraceMaps(W,H);
+  const tm=tmaps[0];
+  window._currentMapName=tm.name;
 
-  // 점프패드 등록 (y비율 0=바닥 위, scaleY로 변환)
-  jumpPads=(bp.jumpPads||[]).map(jp=>({
-    x:Math.floor(jp[0]*W),
-    y:floorY - Math.max(14, Math.floor(jp[1]*scaleY)),  // 최소 바닥 위 14px
-    w:Math.max(40,Math.floor(jp[2]*W)),
-    h:14,
-    power:jp[3]||1.8,
-    animTick:0
-  }));
+  const scaleY=H*0.85; // 단차 높이 비율 → 실제 픽셀
 
-  // 적 스폰 위치 저장 (initStageMap에서 사용)
-  window._mapEnemyPos=(bp.enemyPos||[]).map(ep=>({
-    x:Math.floor(ep[0]*W),
-    y:Math.floor(H - ep[1]*scaleY)-80
+  // 각 단차의 실제 y(바닥면 y좌표, floorY 기준 위로)와 x범위 계산
+  const terraceReal=tm.terraces.map(t=>({
+    x1:Math.floor(t.x1*W), x2:Math.floor(t.x2*W),
+    y:Math.floor(H - t.h*scaleY)
   }));
+  window._terraceData={terraceReal};
 
-  // 폭탄 위치 저장
-  window._mapBombPos=(bp.bombPos||[]).map(bp2=>({
-    x:Math.floor(bp2[0]*W)-14,
-    y:Math.floor(H - bp2[1]*scaleY)-28
-  }));
+  // 단차마다 "발판(반벽 포함)" 생성: 단차 구간 전체를 platform으로 깔아서
+  // 그 위에서 착지/통과(아래로 내려가기)가 기존 platforms 로직으로 동작
+  const plats=[];
+  for(const t of terraceReal){
+    if(t.y>=H) continue; // 최하단(floorY)은 별도 platform 불필요 (기본 바닥)
+    plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16});
+  }
+
+  // 점프패드
+  jumpPads=(tm.jumpPads||[]).map(jp=>{
+    const tr=terraceReal[jp.terraceIdx];
+    return {
+      x:Math.floor(jp.x*W), y:tr.y-14,
+      w:Math.max(40,Math.floor((jp.w||0.06)*W)), h:14,
+      power:jp.power||1.8, animTick:0
+    };
+  });
+
+  // 적 스폰 위치 (해당 단차 바닥 기준)
+  window._mapEnemyPos=(tm.enemyPos||[]).map(ep=>{
+    const tr=terraceReal[ep.terraceIdx];
+    return {x:Math.floor(ep.x*W), y:tr.y};
+  });
+
+  // 폭탄 위치 (해당 단차 바닥 기준)
+  window._mapBombPos=(tm.bombPos||[]).map(bp2=>{
+    const tr=terraceReal[bp2.terraceIdx];
+    return {x:Math.floor(bp2.x*W)-14, y:tr.y-28};
+  });
 
   return plats;
 }
@@ -1821,6 +1934,15 @@ function genPlatforms(stage){
 // ── 문(입구/출구) ─────────────────────────────────────────────
 function genDoors(stage){
   const H=floorY;
+  if(window._terraceData&&stage!==10&&stage!==20){
+    const W=mapWidth;
+    const tm=getTerraceMaps(W,H)[0];
+    const tr=window._terraceData.terraceReal;
+    const eTr=tr[tm.entrance.terraceIdx], xTr=tr[tm.exit.terraceIdx];
+    const entrance={x:Math.floor(tm.entrance.x*W), y:eTr.y-130, w:80, h:130, type:'entrance', label:'입구'};
+    const exit={x:Math.floor(tm.exit.x*W), y:xTr.y-130, w:80, h:130, type:'exit', label:'출구', locked:stage>0};
+    return [entrance,exit];
+  }
   const entrance={x:40,y:H-130,w:80,h:130,type:'entrance',label:'입구'};
   // 출구: 스테이지 길이에 따라 맵 끝 고정
   const exit={x:mapWidth-130,y:H-130,w:80,h:130,type:'exit',label:'출구',locked:stage>0};
@@ -1839,10 +1961,13 @@ function initStageMap(stage){
   healItems=[]; bombs=[]; jumpPads=jumpPads||[];
   gamePhase=stage===0?'lobby':'fight';
 
-  // 플레이어 배치: 입구 오른쪽
+  // 플레이어 배치: 입구 오른쪽 (단차 맵이면 입구 단차의 바닥 기준)
   const ph=playerData.hp, pmh=playerData.maxHp;
+  const _playerFloorY=(window._terraceData&&stage!==10&&stage!==20)
+    ? window._terraceData.terraceReal[getTerraceMaps(mapWidth,floorY)[0].entrance.terraceIdx].y
+    : floorY;
   player={
-    x:doors[0].x+doors[0].w+20, y:floorY-100,
+    x:doors[0].x+doors[0].w+20, y:_playerFloorY-100,
     w:100, h:100, vx:0, vy:0, onGround:false, facing:1,
     img:Object.assign(new Image(),{src:playerData.sprite}),
     atkCooldown:[0,0], invincible:0,
@@ -1875,16 +2000,17 @@ function initStageMap(stage){
 
       for(let i=0;i<cnt;i++){
         const id=pickEnemyId(gameGen, evoStage);
-        let ex;
+        let ex, ey=floorY;
         if(i<spawnPositions.length){
           ex=spawnPositions[i].x;
+          ey=spawnPositions[i].y||floorY;
         } else {
           // 블루프린트 위치 초과분: 맵 전체에 균등 분포
           ex=300+(Math.random()*(mapWidth-600));
         }
         const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
           baseStats:{hp:(55+Math.random()*45)*evoScale,atk:(45+Math.random()*40)*evoScale,def:32*evoScale,spe:42}};
-        const en=makeEnemy(rp,ex,floorY,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.55)),false);
+        const en=makeEnemy(rp,ex,ey,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.55)),false);
         en.attackStyle=assignAttackStyle(rp.types,false);
         en.attackStyles=[en.attackStyle];  // 기본은 1개 (우두머리/용맹 지정 후 확장)
         // 원거리 스타일이면 선호 거리 설정
@@ -2792,10 +2918,13 @@ function updateParticles(dt){
   if(particles.some(p=>p.life<=0)) particles=particles.filter(p=>p.life>0);
 }
 
-const MAX_PARTICLES=250;
 function spawnPtcl(x,y,color,cnt,type='burst'){
-  if(particles.length>=MAX_PARTICLES) return;
-  const add=Math.min(cnt, MAX_PARTICLES-particles.length);
+  const maxP=GFX.maxParticles;
+  if(maxP<=0) return;
+  cnt=Math.max(0,Math.round(cnt*GFX.particleMul));
+  if(cnt<=0) return;
+  if(particles.length>=maxP) return;
+  const add=Math.min(cnt, maxP-particles.length);
   for(let i=0;i<add;i++){
     const a=(Math.PI*2*i/cnt)+Math.random()*.6;
     const sp=type==='dust'?30+Math.random()*60:60+Math.random()*130;
@@ -3014,7 +3143,7 @@ function render(){
   ctx.fillStyle=skyG; ctx.fillRect(0,0,_vw,_vh);
 
   // 배경 구름/장식
-  renderBgDecos(theme);
+  if(GFX.bgDecos) renderBgDecos(theme);
 
   ctx.save(); ctx.translate(-camera.x,0);
 
@@ -3022,10 +3151,10 @@ function render(){
   renderFloor(theme);
 
   // 배경 나무/꽃 (바닥 뒤 레이어)
-  renderWorldBgDecos(theme);
+  if(GFX.bgDecos) renderWorldBgDecos(theme);
 
-  // 플랫폼
-  for(const p of platforms) renderPlatform(p,theme);
+  // 플랫폼 (단차 맵이면 반벽 포함 솔리드 렌더)
+  for(const p of platforms) (window._terraceData?renderTerrace:renderPlatform)(p,theme);
 
   // 점프패드
   for(const jp of jumpPads) renderJumpPad(jp);
@@ -3151,8 +3280,8 @@ function renderBgDecos(theme){
   // 어두운 테마: 별
   const darkThemes=['동굴','유적','고스트','유령숲','우주','최후의 성'];
   const isDark=darkThemes.includes(theme.name)||currentStage===0||currentStage>=15;
-  if(isDark){
-    for(let i=0;i<50;i++){
+  if(isDark&&GFX.starCount>0){
+    for(let i=0;i<GFX.starCount;i++){
       const _bw=canvas.clientWidth||window.innerWidth, _bh=canvas.clientHeight||window.innerHeight;
       const sx=((i*137+50)%1000)/1000*_bw;
       const sy=((i*89+20)%1000)/1000*(_bh*.7);
@@ -3162,15 +3291,16 @@ function renderBgDecos(theme){
   }
   // 밝은 테마: 구름
   const brightThemes=['숲','로비','설산'];
-  if(brightThemes.includes(theme.name)||currentStage<=4){
+  if((brightThemes.includes(theme.name)||currentStage<=4)&&GFX.cloudCount>0){
     ctx.globalAlpha=.65;
     const _cw=canvas.clientWidth||window.innerWidth, _ch=canvas.clientHeight||window.innerHeight;
-    const clouds=[
+    const allClouds=[
       {x:_cw*.1,y:_ch*.12,s:1.0},
       {x:_cw*.38,y:_ch*.08,s:0.75},
       {x:_cw*.65,y:_ch*.14,s:1.2},
       {x:_cw*.82,y:_ch*.06,s:0.6},
     ];
+    const clouds=allClouds.slice(0,GFX.cloudCount);
     for(const cl of clouds){
       const ox=((t*12)%_cw);
       const cx=(cl.x-ox*0.04+_cw)%_cw;
@@ -3181,7 +3311,7 @@ function renderBgDecos(theme){
     ctx.globalAlpha=1;
   }
   // 화산: 불씨 파티클 효과 (배경)
-  if(theme.name==='화산'){
+  if(theme.name==='화산'&&GFX.bgDecos){
     for(let i=0;i<8;i++){
       const fx=((i*271+t*30)%window.innerWidth);
       const fy=window.innerHeight*.4+Math.sin(t*2+i)*(window.innerHeight*.2);
@@ -3190,7 +3320,7 @@ function renderBgDecos(theme){
     }
   }
   // 해저: 기포
-  if(theme.name==='해저'){
+  if(theme.name==='해저'&&GFX.bgDecos){
     for(let i=0;i<10;i++){
       const bx=((i*193+t*15)%window.innerWidth);
       const by=window.innerHeight-((t*25+i*50)%window.innerHeight);
@@ -3421,6 +3551,74 @@ function renderPlatform(p,theme){
   }
 }
 
+// 단차(terrace) 렌더: 윗면(top) + 바닥까지 이어지는 벽면(반벽)을 한 덩어리로 그림
+function renderTerrace(p,theme){
+  const tn=theme?theme.name:'숲';
+  const PAL={
+    '로비': {top:'#5aad2a',topL:'#6ec832',body:'#7a4f28',bodyD:'#5a3010',flower:true},
+    '숲':   {top:'#4a9a20',topL:'#5aba28',body:'#6a4020',bodyD:'#4a2810',flower:true},
+    '동굴': {top:'#5a5040',topL:'#6a6050',body:'#4a4030',bodyD:'#3a3020',flower:false,rock:true},
+    '해저': {top:'#0a6a7a',topL:'#1a8a9a',body:'#0a3a4a',bodyD:'#052830',flower:false},
+    '사막': {top:'#8a7020',topL:'#aa9030',body:'#6a5010',bodyD:'#4a3808',flower:false},
+    '유적': {top:'#6a6040',topL:'#7a7050',body:'#5a5030',bodyD:'#3a3820',flower:false},
+    '화산': {top:'#5a1a0a',topL:'#7a2a10',body:'#3a0a05',bodyD:'#200503',flower:false,lava:true},
+    '설산': {top:'#8ab0d8',topL:'#aad0f8',body:'#4a6888',bodyD:'#2a4858',flower:false,snow:true},
+    '유령숲':{top:'#3a1a5a',topL:'#4a2a6a',body:'#2a0a3a',bodyD:'#180525',flower:false},
+    '우주': {top:'#2a2a5a',topL:'#3a3a6a',body:'#1a1a3a',bodyD:'#0d0d20',flower:false},
+    '최후의 성':{top:'#4a0808',topL:'#6a1010',body:'#2a0505',bodyD:'#150303',flower:false},
+  };
+  const pal=PAL[tn]||PAL['숲'];
+  const wallH=floorY-p.y; // 단차 바닥까지의 벽면 높이 (반벽)
+
+  // 몸통(반벽) — 단차 top부터 floorY까지 꽉 채움
+  const dg=ctx.createLinearGradient(0,p.y+8,0,p.y+wallH);
+  dg.addColorStop(0,pal.body); dg.addColorStop(1,pal.bodyD);
+  ctx.fillStyle=dg;
+  ctx.fillRect(p.x,p.y+8,p.w,wallH-8);
+
+  // 벽면 무늬
+  ctx.fillStyle='rgba(0,0,0,.15)';
+  for(let rx=p.x+12;rx<p.x+p.w-10;rx+=24+((rx*7)%12)){
+    for(let ry=p.y+24;ry<p.y+wallH-8;ry+=30){
+      ctx.beginPath(); ctx.ellipse(rx,ry,6,3,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // 윗면
+  const gg=ctx.createLinearGradient(0,p.y,0,p.y+12);
+  gg.addColorStop(0,pal.topL); gg.addColorStop(1,pal.top);
+  ctx.fillStyle=gg;
+  ctx.beginPath(); ctx.roundRect(p.x,p.y,p.w,12,[4,4,0,0]); ctx.fill();
+
+  if(pal.snow){
+    ctx.fillStyle='rgba(220,240,255,0.7)';
+    for(let gx=p.x+4;gx<p.x+p.w-4;gx+=10){
+      const h=3+((gx*19)%5);
+      ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+4,p.y-h); ctx.lineTo(gx+9,p.y); ctx.fill();
+    }
+  } else if(pal.lava){
+    const t=Date.now()/600;
+    ctx.strokeStyle=`rgba(255,${100+50*Math.sin(t+p.x/100)},0,0.5)`; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(p.x+p.w*.2,p.y+6); ctx.lineTo(p.x+p.w*.5,p.y+10); ctx.lineTo(p.x+p.w*.8,p.y+6); ctx.stroke();
+  } else if(pal.flower){
+    ctx.fillStyle=pal.topL;
+    for(let gx=p.x+4;gx<p.x+p.w-4;gx+=8){
+      const h=3+((gx*31)%5);
+      ctx.beginPath(); ctx.moveTo(gx,p.y); ctx.lineTo(gx+3,p.y-h); ctx.lineTo(gx+6,p.y); ctx.fill();
+    }
+    if(((p.x*3+p.y)%5)===0){
+      const fx=p.x+p.w*0.25;
+      ctx.fillStyle='#fff176'; ctx.beginPath(); ctx.arc(fx,p.y-6,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ffcc02'; ctx.beginPath(); ctx.arc(fx,p.y-6,1.5,0,Math.PI*2); ctx.fill();
+    }
+    if(((p.x*7+p.y)%4)===0){
+      const fx=p.x+p.w*0.7;
+      ctx.fillStyle='#ff8fb1'; ctx.beginPath(); ctx.arc(fx,p.y-5,2.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(fx,p.y-5,1,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
 function renderDoor(d){
   const t=Date.now()/1000;
   const cx=d.x+d.w/2;
@@ -3617,7 +3815,6 @@ function renderPlayer(){
   const scaleY=onG&&Math.abs(player.vx)>20?0.92:1;
   const scaleX=onG&&Math.abs(player.vx)>20?1.06:1;
   ctx.scale(scaleX,scaleY);
-  ctx.shadowColor=TYPE_ATTACKS[playerData.types[0]]?.glow||'#fff'; ctx.shadowBlur=18;
   if(player.img.complete&&player.img.naturalWidth>0){
     const iw=player.img.naturalWidth, ih=player.img.naturalHeight;
     const scale=player.w/iw;
@@ -3661,8 +3858,7 @@ function renderEnemy(e){
   const t=Date.now()/1000;
 
   // ── 우두머리 오라 (아래 레이어) ──
-  if(e.isPackLeader){
-    const pulse=0.5+0.5*Math.sin(t*3);
+  if(e.isPackLeader&&GFX.glow){
     ctx.save();
     ctx.globalAlpha=0.18+0.12*pulse;
     const aura=ctx.createRadialGradient(cx,cy,0,cx,cy,e.w*0.85);
@@ -3682,14 +3878,23 @@ function renderEnemy(e){
     ctx.restore();
   }
 
+  let _eGlow=null;
+  if(e.isBoss) _eGlow='#ff4757';
+  else if(e.isPackLeader) _eGlow='#ffcb05';
+  else if(e.personality==='brave') _eGlow='#ff7675';
+  else if(e.personality==='timid') _eGlow='#74b9ff';
+  if(_eGlow&&GFX.glow){
+    const gr=(e.isBoss?22:e.isPackLeader?14:8)+10;
+    const eg=ctx.createRadialGradient(cx,cy,0,cx,cy,gr);
+    eg.addColorStop(0,_eGlow); eg.addColorStop(1,'transparent');
+    ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle=eg;
+    ctx.beginPath(); ctx.arc(cx,cy,gr,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+
   // ── 스프라이트 ──
   ctx.save();
   ctx.translate(cx, cy);
   if(e.facing>0) ctx.scale(-1,1);
-  if(e.isBoss){ctx.shadowColor='#ff4757';ctx.shadowBlur=22;}
-  else if(e.isPackLeader){ctx.shadowColor='#ffcb05';ctx.shadowBlur=14;}
-  else if(e.personality==='brave'){ctx.shadowColor='#ff7675';ctx.shadowBlur=8;}
-  else if(e.personality==='timid'){ctx.shadowColor='#74b9ff';ctx.shadowBlur=6;}
 
   const bobY=Math.sin(e.animTick*2.2+(e.x*0.01))*5+(e.isBoss?Math.sin(e.animTick*1.3)*3:0);
 
@@ -3778,7 +3983,6 @@ function renderEnemy(e){
   if(e.isBoss||e.isPackLeader){
     ctx.save();
     ctx.textAlign='center';
-    ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=5;
     if(e.isBoss){
       ctx.fillStyle='#ff6b7a';
       ctx.font="bold 12px 'Galmuri11',monospace";
@@ -3825,7 +4029,7 @@ function renderEnemy(e){
 function renderProj(p){
   const alpha=Math.max(0,1-p.age/p.life);
   // 트레일
-  if(p.trail&&p.trail.length>1){
+  if(GFX.trail&&p.trail&&p.trail.length>1){
     for(let i=1;i<p.trail.length;i++){
       const ta=alpha*(i/p.trail.length)*.4;
       ctx.save(); ctx.globalAlpha=ta; ctx.fillStyle=p.color;
@@ -3833,7 +4037,12 @@ function renderProj(p){
       ctx.restore();
     }
   }
-  ctx.save(); ctx.globalAlpha=alpha; ctx.shadowColor=p.glow; ctx.shadowBlur=14;
+  ctx.save(); ctx.globalAlpha=alpha;
+  if(GFX.glow){
+    const pg=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*2.2);
+    pg.addColorStop(0,p.glow); pg.addColorStop(1,'transparent');
+    ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*2.2,0,Math.PI*2); ctx.fill();
+  }
   ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*.35,0,Math.PI*2); ctx.fill();
   ctx.restore();
@@ -3846,8 +4055,12 @@ function renderJumpPad(jp){
   const cy=jp.y+jp.h/2;
 
   ctx.save();
-  // 발광 효과
-  ctx.shadowColor='#ffcb05'; ctx.shadowBlur=10+8*pulse;
+  // 발광 효과 (그라디언트로 대체, shadowBlur 제거)
+  if(GFX.glow){
+    const jpg=ctx.createRadialGradient(cx,cy,0,cx,cy,jp.w*0.9);
+    jpg.addColorStop(0,`rgba(255,203,5,${0.35+0.15*pulse})`); jpg.addColorStop(1,'transparent');
+    ctx.fillStyle=jpg; ctx.beginPath(); ctx.arc(cx,cy,jp.w*0.9,0,Math.PI*2); ctx.fill();
+  }
 
   // 본체 (노란 스프링판)
   const grad=ctx.createLinearGradient(jp.x,jp.y,jp.x,jp.y+jp.h);
@@ -3863,7 +4076,6 @@ function renderJumpPad(jp){
 
   // 화살표 ↑ 아이콘
   ctx.fillStyle=`rgba(255,255,255,${0.7+0.3*pulse})`;
-  ctx.shadowBlur=0;
   const ax=cx, ay=jp.y+jp.h/2 - 2*pulse; // 위아래 펄스
   ctx.beginPath();
   ctx.moveTo(ax, ay-4);
@@ -3884,11 +4096,11 @@ function renderBomb(b){
   const cx=b.x+b.w/2, cy=b.y+b.h/2+bobY;
 
   ctx.save();
-  if(b.fuse){
-    // 점화 중: 빨간 깜빡임
-    const flash=Math.sin(t*20*(2-b.fuseTimer))>0;
-    ctx.shadowColor=flash?'#ff4757':'#ff8040';
-    ctx.shadowBlur=flash?20:8;
+  if(b.fuse&&GFX.glow){
+    const bg=ctx.createRadialGradient(cx,cy,0,cx,cy,28);
+    bg.addColorStop(0, flash?'rgba(255,71,87,.5)':'rgba(255,128,64,.35)');
+    bg.addColorStop(1,'transparent');
+    ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(cx,cy,28,0,Math.PI*2); ctx.fill();
   }
 
   // 몸통
@@ -3941,7 +4153,12 @@ function renderHealItem(h){
   const cx=h.x+h.w/2, cy=h.y+h.h/2+bobY;
 
   ctx.save();
-  ctx.shadowColor='#2ed573'; ctx.shadowBlur=14+6*Math.sin(t*3);
+  if(GFX.glow){
+    const hgr=14+6*Math.sin(t*3);
+    const hg=ctx.createRadialGradient(cx,cy,0,cx,cy,13+hgr);
+    hg.addColorStop(0,'rgba(46,213,115,.5)'); hg.addColorStop(1,'transparent');
+    ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(cx,cy,13+hgr,0,Math.PI*2); ctx.fill();
+  }
 
   // 빛나는 구슬
   const grad=ctx.createRadialGradient(cx-3,cy-3,1,cx,cy,13);
@@ -3959,7 +4176,6 @@ function renderHealItem(h){
   ctx.fillStyle='#fff';
   ctx.font="bold 12px monospace";
   ctx.textAlign='center';
-  ctx.shadowBlur=0;
   ctx.fillText('♥',cx,cy+5);
 
   // 반짝임 파티클 효과
@@ -4248,6 +4464,13 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener('click',fn); };
   on('btnTitleStart',   ()=>onTitleStart());
   on('btnTitleLogout',  ()=>doLogout());
+  on('btnOpenSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
+  on('btnInGameSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
+  on('btnCloseSettings', ()=>document.getElementById('settingsModal').classList.add('hidden'));
+  document.querySelectorAll('.gfx-opt').forEach(el=>{
+    el.addEventListener('click',()=>setGfxLevel(parseInt(el.dataset.gfx,10)));
+  });
+  updateGfxUI();
   on('tabLogin',        ()=>switchTab('login'));
   on('tabSignup',       ()=>switchTab('signup'));
   on('btnLoginAction',  ()=>doAuth());
@@ -4267,5 +4490,38 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   if(srch) srch.addEventListener('input',()=>filterPokemon());
 })();
 </script>
+<!-- GRAPHICS SETTINGS MODAL -->
+<div class="screen hidden" id="settingsModal" style="z-index:50;background:rgba(0,0,0,.6);">
+  <div class="levelup-box" style="max-width:340px;">
+    <h2>⚙ 그래픽 설정</h2>
+    <p style="font-size:.7rem;color:var(--muted);margin-bottom:.8rem;line-height:1.5;">
+      기기 성능에 맞춰 그래픽 품질을 선택하세요.<br>
+      렉이 심하면 낮은 단계를 선택하세요.
+    </p>
+    <div id="gfxOptions" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;">
+      <button class="gfx-opt" data-gfx="0">초저사양 <span class="gfx-desc">— 효과 전부 끔, 최고 성능</span></button>
+      <button class="gfx-opt" data-gfx="1">저사양 <span class="gfx-desc">— 파티클 최소화</span></button>
+      <button class="gfx-opt" data-gfx="2">중사양 <span class="gfx-desc">— 기본값</span></button>
+      <button class="gfx-opt" data-gfx="3">고사양 <span class="gfx-desc">— 풍부한 효과</span></button>
+      <button class="gfx-opt" data-gfx="4">초고사양 <span class="gfx-desc">— 최대 효과</span></button>
+    </div>
+    <p style="font-size:.65rem;color:var(--muted);margin-bottom:.8rem;">
+      현재: <span class="gfx-current-label" style="color:var(--accent);"></span>
+    </p>
+    <button class="stage-btn" id="btnCloseSettings" style="width:100%;">닫기</button>
+  </div>
+</div>
+
+<style>
+.gfx-opt{
+  display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;
+  padding:.6rem .8rem;border-radius:10px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  color:var(--text);font-size:.78rem;font-family:inherit;text-align:left;cursor:pointer;
+}
+.gfx-opt .gfx-desc{font-size:.62rem;color:var(--muted);}
+.gfx-opt.active{border-color:var(--accent);background:rgba(255,203,5,.08);color:var(--accent);}
+.gfx-opt.active .gfx-desc{color:var(--accent);opacity:.8;}
+</style>
 </body>
 </html>

@@ -1237,7 +1237,7 @@ async function loadPokemonList(){
 
 async function loadBasicNames(){
   const cache=getNameCache();
-  if(Object.keys(cache).length>900){applyNameCache(cache);return;}
+  if(Object.keys(cache).length>900){applyNameCache(cache);}
   try{
     const r=await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025&offset=0');
     const d=await r.json();
@@ -1247,6 +1247,35 @@ async function loadBasicNames(){
     }
     saveNameCache(cache); applyNameCache(cache);
   }catch(e){}
+  loadKoreanNames();
+}
+
+// 한국어 이름 일괄 조회 (캐시에 ko가 없는 포켓몬만, 배치로 백그라운드 로딩)
+let _koLoading=false;
+async function loadKoreanNames(){
+  if(_koLoading) return;
+  _koLoading=true;
+  const cache=getNameCache();
+  const todo=allPokemon.map(p=>p.id).filter(id=>!cache[id]||!cache[id].ko);
+  const CONCURRENCY=15;
+  let batchIdx=0;
+  for(let i=0;i<todo.length;i+=CONCURRENCY){
+    const batch=todo.slice(i,i+CONCURRENCY);
+    await Promise.all(batch.map(async id=>{
+      try{
+        const r=await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+        const d=await r.json();
+        const ko=d.names.find(n=>n.language.name==='ko');
+        if(!cache[id]) cache[id]={name:d.name,ko:null};
+        if(ko) cache[id].ko=ko.name;
+      }catch(e){}
+    }));
+    batchIdx++;
+    saveNameCache(cache);
+    if(batchIdx%4===0) applyNameCache(cache);
+  }
+  applyNameCache(cache);
+  _koLoading=false;
 }
 
 function fmtName(n){return n.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());}
@@ -1442,21 +1471,106 @@ function buildMap(blueprint, W, H){
   };
 }
 
-// ── 20개 수제 맵 블루프린트 ──────────────────────────────────
 // ══════════════════════════════════════════════════════════════
-// 🆕 신버전 맵 시스템: "단차(terrace)" 기반
-// ─────────────────────────────────────────────────────
-// - 기존: 바닥(floorY) 고정 + 공중에 뜬 발판(platforms)
-// - 신버전: 바닥 자체의 높이가 구간별로 달라짐 ("단차")
-//   · terraces: [{x1,x2,h}, ...]  x1~x2 구간의 바닥 높이(h, 0~1 비율, 0=최하단)
-//   · 단차 사이의 수직 연결부 = "반벽"(half-wall) → 기존 platforms와 동일하게
-//     동작 (아래→위 점프로 올라가기 가능, 조이스틱 아래로 내려가기 가능)
-//   · 맵 전체 최하단(검은 사각형 = floorY)보다 아래로는 떨어질 수 없음
-//   · entrance/exit: {x, terraceIdx} — 해당 단차의 바닥 위에 배치
-//   · enemyPos/jumpPads/bombPos: {x, terraceIdx} — 해당 단차 바닥 기준 배치
+// 🆕 신버전 맵 시스템: "단차(terrace)" 기반 — 상세 가이드
+// ══════════════════════════════════════════════════════════════
+//
+// ▣ 전체 구조
+//   getTerraceMaps(W,H)는 맵 객체들의 "리스트"를 반환한다.
+//   각 맵 객체 = { name, terraces, halfWalls, entrance, exit,
+//                  jumpPads, enemyPos, bombPos }
+//   현재는 genPlatforms()가 항상 tmaps[0]만 사용 (테스트 단계).
+//   여러 맵을 늘려서 스테이지마다 다른 맵을 고를 수 있게 확장 가능.
+//
+// ▣ 좌표계 (전부 "비율" 기준, 실제 픽셀 아님!)
+//   x: 0(맵 왼쪽 끝) ~ 1(맵 오른쪽 끝) → 실제 x = 비율 * mapWidth(W)
+//   h: 0(최하단 바닥=floorY) ~ 1(화면 최상단 쪽) → 실제 y = H - h*scaleY
+//      (scaleY = H*0.85, 즉 h=1이어도 화면을 다 채우진 않고 85%까지만)
+//   ※ y(화면좌표)는 위로 갈수록 작아짐 ↔ h(비율)는 위로 갈수록 커짐 → 방향이 반대이니 주의!
+//
+// ▣ terraces: [{x1,x2,h,jumpPad?}, ...] — "바닥(땅)" 블록 리스트
+//   - 각 항목은 x1~x2 구간에 높이 h인 "땅 덩어리"를 깐다.
+//   - 이미지 가이드의 검은 사각형(맵=바닥)에 대응. platforms[]에
+//     isTerrace:true로 들어가서 충돌(착지)도 처리됨.
+//   - h:0 구간은 floorY와 같은 높이이므로 별도 platform을 만들지 않고
+//     (genPlatforms 내부에서 t.y>=H면 skip) 화면 최하단 바닥 그대로 사용.
+//
+//   ⚠ 같은 x구간에 여러 블록을 "쌓을" 수 있음 (예: 0.40~1.00 위에
+//      0.55~0.68을 추가로 얹기). 이 경우:
+//        · 가장 위(=h가 큰, 즉 y가 작은) 블록에만 풀(grass)이 그려짐
+//        · 그 아래 깔린 블록들은 흙 단면만 보이고, 자기 바로 위 블록의
+//          y까지만 몸통을 채움 (renderTerrace의 coverDownTo)
+//        · 이 계산은 render() 루프에서 매 프레임 x구간 겹침을 비교해서
+//          자동으로 처리하므로, 데이터에는 그냥 겹치는 블록을 추가하면 됨.
+//
+//   ⚠ 플레이어 이동 가능 여부는 "점프로 닿을 수 있는 높이 차"를 직접
+//      고려해서 h 값을 정해야 한다 (자동 검증 없음). 너무 큰 h 차이를
+//      이웃 블록과 두면 점프로 못 올라가는 막힌 구간이 생길 수 있음.
+//
+//   jumpPad:true 플래그:
+//      - 이 블록의 윗면을 점핑패드로 만든다 (풀 대신 패드, hasGrass=false 처리).
+//      - 같은 y(높이)에서 가로로 맞닿거나 살짝 겹치는(x1<=이전블록.x2+2)
+//        jumpPad 블록들은 genPlatforms에서 자동으로 "하나의 점핑패드"로
+//        병합됨 (jumpPads[] 배열에 합쳐진 x1~x2 범위로 추가).
+//      - 즉 점핑패드를 길게 만들고 싶으면 같은 h값의 jumpPad:true
+//        블록을 여러 개 가로로 이어붙이면 됨. 높이(h)가 다르면 병합 안 됨.
+//
+// ▣ halfWalls: [{x,y,w}, ...] — "반벽" (기존 방식의 공중 발판)
+//   - terraces와 달리 바닥이 아니라 공중에 떠 있는 발판.
+//   - x,w는 비율(x*W, w*W), y는 "floorY 기준 위로 떨어진 높이" 비율
+//     (실제 y = H - y비율*scaleY) — terraces의 h와 같은 변환식.
+//   - platforms[]에 isTerrace:false로 들어가서 renderPlatform(기존 발판
+//     그래픽, 아래에 흙/풀 그대로 보임)으로 그려짐.
+//   - 충돌은 terraces와 동일(위에서 착지 가능, 아래로 내려가기 가능).
+//
+// ▣ entrance / exit: {x, terraceIdx}
+//   - x: 비율 좌표. terraceIdx: terraces 배열의 인덱스(0부터) — 그 블록의
+//     y(바닥면)를 기준으로 문이 배치됨.
+//   - ⚠ 입구(entrance)는 genDoors에서 항상 floorY 기준(H-130)으로 단순화되어
+//     있음 — 즉 입구는 항상 h:0(최하단) 구간에 둬야 자연스럽다.
+//     (entrance.terraceIdx 값 자체는 현재 player 스폰 위치 계산에는
+//      쓰이지 않음. floorY 고정.)
+//   - 출구(exit)는 terraceIdx로 지정한 블록의 y-130 위치에 배치되므로,
+//     출구는 어떤 높이의 단차에든 둘 수 있다.
+//
+// ▣ jumpPads: [{x, terraceIdx, power?, w?}, ...] — "점(point)" 형태 추가 점핑패드
+//   - terraces의 jumpPad:true와는 별개로, 특정 한 지점에만 따로
+//     점핑패드를 놓고 싶을 때 사용 (예: 좁은 발판 위 하나만).
+//   - x: 비율, terraceIdx: 그 점프패드가 놓일 블록의 y 기준.
+//   - power: 점프 배율(기본 1.8), w: 패드 너비 비율(기본 0.06).
+//   - 이 배열로 만든 패드는 자동 병합 대상이 아님 (개별 추가됨).
+//
+// ▣ enemyPos: [{x, terraceIdx}, ...] — 적 스폰 위치
+//   - x: 비율, terraceIdx로 지정한 블록의 바닥(y) 위에 적의 발이 닿도록 배치.
+//   - 배열 길이만큼 적이 생성되고, 부족하면(스테이지 적 수 cnt가 더 많으면)
+//     나머지는 맵 전체에 랜덤 x로 흩어짐 (initStageMap 참고).
+//
+// ▣ bombPos: [{x, terraceIdx}, ...] — 폭탄 기믹 위치
+//   - x: 비율, terraceIdx로 지정한 블록의 y-28 위치에 폭탄을 둠
+//     (폭탄 스프라이트 높이만큼 위로 띄움).
+//
+// ▣ 적용 범위 / 예외
+//   - 스테이지 0(로비)과 10/20(보스 아레나)은 이 시스템을 쓰지 않음
+//     (genPlatforms에서 따로 window._terraceData=null, window._terraceMap=null
+//      처리하고 기존 getMapBlueprints() 방식 사용).
+//   - 그 외 일반 스테이지(1~9, 11~19)는 전부 tmaps[0]을 동일하게 사용
+//     (테스트 단계 — 추후 스테이지별로 다른 맵 인덱스를 고르도록 확장 가능).
+//
+// ▣ 흔한 실수 체크리스트
+//   1) h값과 y(화면좌표) 방향이 반대다 — h 클수록 화면에서는 위(y 작음).
+//   2) terraceIdx는 "이 맵의 terraces 배열" 인덱스다. 다른 맵의 인덱스를
+//      섞어 쓰면 undefined 참조 에러가 난다 (과거에 이 버그로 게임이
+//      멈춘 적 있음 — window._terraceMap을 genPlatforms/genDoors가
+//      동일하게 참조하도록 통일되어 있으니, 새 맵 추가 시에도 같은
+//      tm 객체 안에서만 인덱스를 참조할 것).
+//   3) jumpPad 병합은 "같은 y" + "가로로 맞닿음(겹침 허용 오차 2px)"
+//      조건이 모두 맞아야 한다. h값이 살짝만 달라도(예: 0.45 vs 0.4501)
+//      y가 미세하게 달라져 병합되지 않을 수 있으니 동일한 h 리터럴을 쓸 것.
+//   4) 쌓인 블록의 풀/흙 처리는 x구간이 "조금이라도" 겹치면 적용된다
+//      (o.x<p.x+p.w && o.x+o.w>p.x). 의도치 않게 끝점이 겹치면 풀이
+//      안 그려질 수 있으니 경계값(x1,x2)을 신중히 정할 것.
 // ══════════════════════════════════════════════════════════════
 function getTerraceMaps(W,H){
-  const f=H; // floorY (최하단)
   return [
     // ── 테스트 맵: 바닥 확장(맵) + 반벽(공중 발판) ──
     { name:'단차테스트',
@@ -1464,12 +1578,14 @@ function getTerraceMaps(W,H){
       terraces:[
         {x1:0.00, x2:0.40, h:0.00},   // 낮은 구간 (입구)
         {x1:0.40, x2:1.00, h:0.22},   // 높은 구간 (출구, 점핑패드)
+        {x1:0.55, x2:0.68, h:0.45, jumpPad:true},  // 한 층 더 쌓인 블록 (점핑패드)
+        {x1:0.68, x2:0.75, h:0.45, jumpPad:true},  // 위와 같은 높이로 이어짐 → 점핑패드도 자동 연결
       ],
       // 반벽: 기존 platforms 방식의 공중 발판 (x비율, y비율-floorY 기준 위, w비율)
       halfWalls:[ {x:0.15, y:0.30, w:0.10} ],
       entrance:{x:0.04, terraceIdx:0},
       exit:{x:0.94, terraceIdx:1},
-      jumpPads:[ {x:0.70, terraceIdx:1, power:1.8} ],
+      jumpPads:[],
       enemyPos:[ {x:0.20, terraceIdx:0}, {x:0.50, terraceIdx:1}, {x:0.80, terraceIdx:1} ],
       bombPos:[ {x:0.58, terraceIdx:1} ],
     },
@@ -1917,7 +2033,8 @@ function genPlatforms(stage){
   // 각 단차의 실제 y(바닥면 y좌표, floorY 기준 위로)와 x범위 계산
   const terraceReal=tm.terraces.map(t=>({
     x1:Math.floor(t.x1*W), x2:Math.floor(t.x2*W),
-    y:Math.floor(H - t.h*scaleY)
+    y:Math.floor(H - t.h*scaleY),
+    jumpPad:!!t.jumpPad
   }));
   window._terraceData={terraceReal};
   window._terraceMap=tm;
@@ -1927,7 +2044,7 @@ function genPlatforms(stage){
   const plats=[];
   for(const t of terraceReal){
     if(t.y>=H) continue; // 최하단(floorY)은 별도 platform 불필요 (기본 바닥)
-    plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16, isTerrace:true});
+    plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16, isTerrace:true, jumpPad:t.jumpPad});
   }
 
   // 반벽(halfWalls): 기존 방식의 공중에 뜬 발판 — y비율은 floorY 기준 위쪽 높이
@@ -1938,16 +2055,33 @@ function genPlatforms(stage){
     });
   }
 
+  // 점프패드: ① jumpPad:true가 지정된 단차 블록 위에 자동 배치
+  //          → 같은 높이(y)에서 가로로 인접/겹치는 블록끼리는 점프패드도 하나로 이어붙임
+  jumpPads=[];
+  const jpBlocks=terraceReal.filter(t=>t.jumpPad).sort((a,b)=>a.x1-b.x1);
+  let cur=null;
+  for(const t of jpBlocks){
+    if(cur&&cur.y===t.y&&t.x1<=cur.x2+2){ // 같은 높이 + 가로로 이어짐(살짝 겹침/맞닿음 허용)
+      cur.x2=Math.max(cur.x2,t.x2);
+    } else {
+      if(cur) jumpPads.push(cur);
+      cur={x1:t.x1,x2:t.x2,y:t.y};
+    }
+  }
+  if(cur) jumpPads.push(cur);
+  jumpPads=jumpPads.map(j=>({
+    x:j.x1, y:j.y-14, w:j.x2-j.x1, h:14, power:1.8, animTick:0
+  }));
 
-  // 점프패드
-  jumpPads=(tm.jumpPads||[]).map(jp=>{
+  // ② 점(point) 형태로 명시된 추가 점프패드 (terraceIdx + x좌표)
+  for(const jp of (tm.jumpPads||[])){
     const tr=terraceReal[jp.terraceIdx];
-    return {
+    jumpPads.push({
       x:Math.floor(jp.x*W), y:tr.y-14,
       w:Math.max(40,Math.floor((jp.w||0.06)*W)), h:14,
       power:jp.power||1.8, animTick:0
-    };
-  });
+    });
+  }
 
   // 적 스폰 위치 (해당 단차 바닥 기준)
   window._mapEnemyPos=(tm.enemyPos||[]).map(ep=>{
@@ -3188,7 +3322,24 @@ function render(){
   if(GFX.bgDecos) renderWorldBgDecos(theme);
 
   // 플랫폼 (바닥 확장은 솔리드 렌더, 반벽은 기존 발판 렌더)
-  for(const p of platforms) (p.isTerrace?renderTerrace:renderPlatform)(p,theme);
+  // 바닥 확장(terrace) 블록: 같은 가로구간에 여러 층이 쌓일 수 있음
+  // → 각 블록마다 "바로 아래에 있는 블록의 y"까지만 몸통을 채우고,
+  //   그 구간에서 자신보다 위(작은 y)에 다른 블록이 없을 때만 풀(맨 위면)을 그림
+  const terraces=platforms.filter(p=>p.isTerrace);
+  for(const p of platforms){
+    if(!p.isTerrace){ renderPlatform(p,theme); continue; }
+    let coverDownTo=floorY;
+    let hasGrass=true;
+    for(const o of terraces){
+      if(o===p) continue;
+      if(o.x<p.x+p.w&&o.x+o.w>p.x){ // x구간 겹침
+        if(o.y>p.y&&o.y<coverDownTo) coverDownTo=o.y;      // 바로 아래 블록
+        if(o.y<p.y) hasGrass=false;                          // 위에 다른 블록 있음
+      }
+    }
+    if(p.jumpPad) hasGrass=false; // 점핑패드 블록은 풀 대신 패드가 덮음
+    renderTerrace(p,theme,coverDownTo,hasGrass);
+  }
 
   // 점프패드
   for(const jp of jumpPads) renderJumpPad(jp);
@@ -3606,7 +3757,9 @@ function renderPlatform(p,theme){
 
 // 단차(terrace) 렌더: 윗면(top) + 바닥까지 이어지는 벽면(반벽)을 한 덩어리로 그림
 // 막힌 벽 (점프로도 통과 불가)
-function renderTerrace(p,theme){
+function renderTerrace(p,theme,coverDownTo,hasGrass){
+  if(coverDownTo===undefined) coverDownTo=floorY;
+  if(hasGrass===undefined) hasGrass=true;
   const tn=theme?theme.name:'숲';
   const PAL={
     '로비': {top:'#5aad2a',topL:'#6ec832',body:'#7a4f28',bodyD:'#5a3010',flower:true},
@@ -3622,13 +3775,13 @@ function renderTerrace(p,theme){
     '최후의 성':{top:'#4a0808',topL:'#6a1010',body:'#2a0505',bodyD:'#150303',flower:false},
   };
   const pal=PAL[tn]||PAL['숲'];
-  const wallH=floorY-p.y; // 단차 바닥까지의 벽면 높이 (반벽)
+  const wallH=coverDownTo-p.y; // 단차 바닥(또는 아래 블록)까지의 벽면 높이
 
-  // 몸통(반벽) — 단차 top부터 floorY까지 꽉 채움
+  // 몸통 — 단차 top부터 coverDownTo까지 꽉 채움
   const dg=ctx.createLinearGradient(0,p.y+8,0,p.y+wallH);
   dg.addColorStop(0,pal.body); dg.addColorStop(1,pal.bodyD);
   ctx.fillStyle=dg;
-  ctx.fillRect(p.x,p.y+8,p.w,wallH-8);
+  ctx.fillRect(p.x,p.y+8,p.w,Math.max(0,wallH-8));
 
   // 벽면 무늬
   ctx.fillStyle='rgba(0,0,0,.15)';
@@ -3638,7 +3791,8 @@ function renderTerrace(p,theme){
     }
   }
 
-  // 윗면
+  // 윗면 (맨 위 블록일 때만 풀/표면 디테일)
+  if(!hasGrass) return;
   const gg=ctx.createLinearGradient(0,p.y,0,p.y+12);
   gg.addColorStop(0,pal.topL); gg.addColorStop(1,pal.top);
   ctx.fillStyle=gg;

@@ -720,6 +720,27 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// 구형 모바일 브라우저(iOS 15 이하 등) CanvasRenderingContext2D.roundRect 폴리필
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    let tl,tr,br,bl;
+    if(typeof r==='number'){ tl=tr=br=bl=r; }
+    else if(Array.isArray(r)){
+      tl=r[0]??0; tr=r[1]??tl; br=r[2]??tl; bl=r[3]??tr;
+    } else { tl=tr=br=bl=0; }
+    this.moveTo(x+tl,y);
+    this.lineTo(x+w-tr,y);
+    this.arcTo(x+w,y,x+w,y+tr,tr);
+    this.lineTo(x+w,y+h-br);
+    this.arcTo(x+w,y+h,x+w-br,y+h,br);
+    this.lineTo(x+bl,y+h);
+    this.arcTo(x,y+h,x,y+h-bl,bl);
+    this.lineTo(x,y+tl);
+    this.arcTo(x,y,x+tl,y,tl);
+    return this;
+  };
+}
+
 // ══════════════════════════════════════════════════════════
 // 그래픽 품질 설정 (GFX QUALITY) ─ 초저사양~초고사양 5단계
 // ══════════════════════════════════════════════════════════
@@ -1450,6 +1471,21 @@ function getTerraceMaps(W,H){
       enemyPos:[ {x:0.20, terraceIdx:0}, {x:0.50, terraceIdx:1}, {x:0.80, terraceIdx:1} ],
       bombPos:[ {x:0.58, terraceIdx:1} ],
     },
+    // ── 테스트 맵2: 막힌 벽 (반벽이 아닌 완전히 가로막는 벽) ──
+    // 평지(단일 단차) + 중간에 통과 불가능한 벽(walls) 1개.
+    // 벽은 점프로도 넘을 수 없는 높이(화면 끝까지)로, 우회 경로(반벽 위 통로)로만 지나갈 수 있음.
+    { name:'벽막힘테스트',
+      terraces:[
+        {x1:0.00, x2:1.00, h:0.00},   // 평지 전체
+      ],
+      // walls: {x, w, terraceIdx} — 해당 단차 바닥에서 화면 위까지 솔리드 벽
+      walls:[ {x:0.50, w:0.03} ],
+      entrance:{x:0.04, terraceIdx:0},
+      exit:{x:0.94, terraceIdx:0},
+      jumpPads:[],
+      enemyPos:[ {x:0.25, terraceIdx:0}, {x:0.75, terraceIdx:0} ],
+      bombPos:[ {x:0.62, terraceIdx:0} ],
+    },
   ];
 }
 
@@ -1851,7 +1887,8 @@ function genPlatforms(stage){
 
   if(stage===0){
     // 로비: 고정 레이아웃
-    window._terraceData=null;
+    window._terraceData=null; window._terraceMap=null;
+    window._walls=[];
     return [
       {x:200,y:H-150,w:130,h:16},{x:440,y:H-230,w:140,h:16},
       {x:680,y:H-170,w:110,h:16},{x:900,y:H-270,w:130,h:16},
@@ -1865,7 +1902,8 @@ function genPlatforms(stage){
     const blueprints=getMapBlueprints(W,H);
     const bp=stage===10?blueprints[8]:blueprints[18];
     window._currentMapName=bp.name;
-    window._terraceData=null;
+    window._terraceData=null; window._terraceMap=null;
+    window._walls=[];
     const scaleY=H*0.85;
     const plats=bp.plats.map(pl=>({
       x:Math.floor(pl[0]*W), y:Math.floor(H - pl[1]*scaleY),
@@ -1884,9 +1922,9 @@ function genPlatforms(stage){
     return plats;
   }
 
-  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 1종 고정 사용) ──
+  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 스테이지 홀짝으로 2종 전환) ──
   const tmaps=getTerraceMaps(W,H);
-  const tm=tmaps[0];
+  const tm=tmaps[stage%2];
   window._currentMapName=tm.name;
 
   const scaleY=H*0.85; // 단차 높이 비율 → 실제 픽셀
@@ -1897,6 +1935,7 @@ function genPlatforms(stage){
     y:Math.floor(H - t.h*scaleY)
   }));
   window._terraceData={terraceReal};
+  window._terraceMap=tm;
 
   // 단차마다 "발판(반벽 포함)" 생성: 단차 구간 전체를 platform으로 깔아서
   // 그 위에서 착지/통과(아래로 내려가기)가 기존 platforms 로직으로 동작
@@ -1905,6 +1944,12 @@ function genPlatforms(stage){
     if(t.y>=H) continue; // 최하단(floorY)은 별도 platform 불필요 (기본 바닥)
     plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16});
   }
+
+  // 막힌 벽(walls): 점프로 넘을 수 없는 완전 차단 벽 (좌우 이동 막음)
+  window._walls=(tm.walls||[]).map(w=>{
+    const tr=terraceReal[w.terraceIdx??0];
+    return {x:Math.floor(w.x*W), w:Math.max(20,Math.floor(w.w*W)), top:0, bottom:tr.y};
+  });
 
   // 점프패드
   jumpPads=(tm.jumpPads||[]).map(jp=>{
@@ -1936,10 +1981,10 @@ function genDoors(stage){
   const H=floorY;
   if(window._terraceData&&stage!==10&&stage!==20){
     const W=mapWidth;
-    const tm=getTerraceMaps(W,H)[0];
+    const tm=window._terraceMap;
     const tr=window._terraceData.terraceReal;
-    const eTr=tr[tm.entrance.terraceIdx], xTr=tr[tm.exit.terraceIdx];
-    const entrance={x:Math.floor(tm.entrance.x*W), y:eTr.y-130, w:80, h:130, type:'entrance', label:'입구'};
+    const xTr=tr[tm.exit.terraceIdx];
+    const entrance={x:Math.floor(tm.entrance.x*W), y:H-130, w:80, h:130, type:'entrance', label:'입구'};
     const exit={x:Math.floor(tm.exit.x*W), y:xTr.y-130, w:80, h:130, type:'exit', label:'출구', locked:stage>0};
     return [entrance,exit];
   }
@@ -1961,13 +2006,10 @@ function initStageMap(stage){
   healItems=[]; bombs=[]; jumpPads=jumpPads||[];
   gamePhase=stage===0?'lobby':'fight';
 
-  // 플레이어 배치: 입구 오른쪽 (단차 맵이면 입구 단차의 바닥 기준)
+  // 플레이어 배치: 입구 오른쪽 (입구는 항상 h:0 단차 = floorY 기준)
   const ph=playerData.hp, pmh=playerData.maxHp;
-  const _playerFloorY=(window._terraceData&&stage!==10&&stage!==20)
-    ? window._terraceData.terraceReal[getTerraceMaps(mapWidth,floorY)[0].entrance.terraceIdx].y
-    : floorY;
   player={
-    x:doors[0].x+doors[0].w+20, y:_playerFloorY-100,
+    x:doors[0].x+doors[0].w+20, y:floorY-100,
     w:100, h:100, vx:0, vy:0, onGround:false, facing:1,
     img:Object.assign(new Image(),{src:playerData.sprite}),
     atkCooldown:[0,0], invincible:0,
@@ -2478,7 +2520,11 @@ function gameLoop(ts){
   if(!gameRunning) return;
   if(lastTime===0){ lastTime=ts; animFrame=requestAnimationFrame(gameLoop); return; }
   const dt=Math.min((ts-lastTime)/1000,.05); lastTime=ts;
-  update(dt); render();
+  try{
+    update(dt); render();
+  }catch(err){
+    console.error('gameLoop error:',err);
+  }
   just.jump=false; just.atk1=false; just.atk2=false;
   animFrame=requestAnimationFrame(gameLoop);
 }
@@ -2513,6 +2559,20 @@ function updatePlayer(dt){
   player.vy=Math.min(player.vy+GRAVITY*dt,900);
   player.x+=player.vx*dt; player.y+=player.vy*dt;
   player.animTick+=dt;
+  // 막힌 벽(walls): 좌우 이동 완전 차단
+  if(window._walls&&window._walls.length){
+    for(const w of window._walls){
+      if(player.y+player.h>w.top&&player.y<w.bottom){
+        if(player.x+player.w>w.x&&player.x<w.x+w.w){
+          if(player.vx>0) player.x=w.x-player.w;
+          else if(player.vx<0) player.x=w.x+w.w;
+          else if(player.facing>0) player.x=w.x-player.w;
+          else player.x=w.x+w.w;
+          player.vx=0;
+        }
+      }
+    }
+  }
   // 플랫폼 충돌
   player.onGround=false;
   // 바닥
@@ -2621,6 +2681,17 @@ function updateEnemies(dt){
   for(const e of enemies){
     // 물리
     e.vy=Math.min(e.vy+GRAVITY*dt,900); e.x+=e.vx*dt; e.y+=e.vy*dt; e.animTick+=dt;
+    // 막힌 벽: 적도 통과 불가
+    if(window._walls&&window._walls.length){
+      for(const w of window._walls){
+        if(e.y+e.h>w.top&&e.y<w.bottom){
+          if(e.x+e.w>w.x&&e.x<w.x+w.w){
+            if(e.vx>0) e.x=w.x-e.w; else if(e.vx<0) e.x=w.x+w.w;
+            e.vx*=-1; e.facing*=-1;
+          }
+        }
+      }
+    }
     e.onGround=false;
     if(e.y+e.h>=floorY){e.y=floorY-e.h; e.vy=0; e.onGround=true;}
     for(const p of platforms){
@@ -2904,7 +2975,13 @@ function updateProjectiles(dt){
       if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
     }
     const _pw=canvas.clientWidth||window.innerWidth;
-    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
+    let wallHit=false;
+    if(window._walls&&window._walls.length){
+      for(const w of window._walls){
+        if(p.y>w.top&&p.y<w.bottom&&p.x>w.x&&p.x<w.x+w.w){ wallHit=true; spawnPtcl(p.x,p.y,p.color,4,'burst'); break; }
+      }
+    }
+    if(hit||wallHit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
   }
 }
 
@@ -3156,6 +3233,9 @@ function render(){
   // 플랫폼 (단차 맵이면 반벽 포함 솔리드 렌더)
   for(const p of platforms) (window._terraceData?renderTerrace:renderPlatform)(p,theme);
 
+  // 막힌 벽
+  if(window._walls) for(const w of window._walls) renderWall(w,theme);
+
   // 점프패드
   for(const jp of jumpPads) renderJumpPad(jp);
 
@@ -3215,22 +3295,36 @@ function renderFloor(theme){
   };
   const ft=FLOOR_THEMES[theme.name]||FLOOR_THEMES['숲'];
 
-  // 흙층
+  // 흙층 + 표면층 (단차 맵은 반벽이 덮는 구간 제외하고 그림)
   const dirtG=ctx.createLinearGradient(0,floorY+18,0,canvas.clientHeight||window.innerHeight);
   dirtG.addColorStop(0,ft.dirt[0]); dirtG.addColorStop(1,ft.dirt[1]);
-  const _rhv=canvas.clientHeight||window.innerHeight;
-  ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,_rhv-floorY);
-
-  // 표면층
   const surfG=ctx.createLinearGradient(0,floorY-4,0,floorY+22);
   surfG.addColorStop(0,ft.grass); surfG.addColorStop(1,ft.dirt[0]);
-  ctx.fillStyle=surfG; ctx.fillRect(0,floorY-4,mapWidth,26);
+  const _rhv=canvas.clientHeight||window.innerHeight;
 
-  // 표면 디테일
+  if(window._terraceData){
+    // 반벽이 차지하는 x구간을 제외한 나머지에만 흙/표면 렌더
+    const covered=platforms.map(p=>[p.x,p.x+p.w]).concat((window._walls||[]).map(w=>[w.x,w.x+w.w])).sort((a,b)=>a[0]-b[0]);
+    let cx=0;
+    for(const [x1,x2] of covered){
+      if(x1>cx){ ctx.fillStyle=dirtG; ctx.fillRect(cx,floorY+18,x1-cx,_rhv-floorY); ctx.fillStyle=surfG; ctx.fillRect(cx,floorY-4,x1-cx,26); }
+      cx=Math.max(cx,x2);
+    }
+    if(cx<mapWidth){ ctx.fillStyle=dirtG; ctx.fillRect(cx,floorY+18,mapWidth-cx,_rhv-floorY); ctx.fillStyle=surfG; ctx.fillRect(cx,floorY-4,mapWidth-cx,26); }
+  } else {
+    ctx.fillStyle=dirtG; ctx.fillRect(0,floorY+18,mapWidth,_rhv-floorY);
+    ctx.fillStyle=surfG; ctx.fillRect(0,floorY-4,mapWidth,26);
+  }
+
+  // 표면 디테일 (단차 맵은 반벽 구간 제외)
+  const covX=window._terraceData?platforms.map(p=>[p.x,p.x+p.w]).concat((window._walls||[]).map(w=>[w.x,w.x+w.w])):null;
+  const isCovered=x=>covX&&covX.some(([x1,x2])=>x>=x1&&x<x2);
+
   if(ft.snow){
     // 눈 질감
     ctx.fillStyle='rgba(220,240,255,0.6)';
     for(let gx=0;gx<mapWidth;gx+=12){
+      if(isCovered(gx)) continue;
       const h=3+((gx*29)%6);
       ctx.beginPath(); ctx.moveTo(gx,floorY-4); ctx.lineTo(gx+5,floorY-4-h); ctx.lineTo(gx+11,floorY-4); ctx.fill();
     }
@@ -3239,6 +3333,7 @@ function renderFloor(theme){
     const t=Date.now()/500;
     ctx.strokeStyle=`rgba(255,${80+40*Math.sin(t)},0,0.7)`; ctx.lineWidth=2;
     for(let cx=50;cx<mapWidth;cx+=200+((cx*11)%100)){
+      if(isCovered(cx)) continue;
       ctx.beginPath(); ctx.moveTo(cx,floorY-4);
       ctx.bezierCurveTo(cx+30,floorY+8,cx+50,floorY+5,cx+90,floorY-4); ctx.stroke();
     }
@@ -3247,6 +3342,7 @@ function renderFloor(theme){
     const t=Date.now()/800;
     ctx.strokeStyle='rgba(100,200,255,0.4)'; ctx.lineWidth=2;
     for(let wx=0;wx<mapWidth;wx+=80){
+      if(isCovered(wx)) continue;
       ctx.beginPath();
       ctx.moveTo(wx,floorY-2);
       ctx.quadraticCurveTo(wx+20,floorY-8+3*Math.sin(t+wx/80),wx+40,floorY-2);
@@ -3256,12 +3352,14 @@ function renderFloor(theme){
     // 바위 표면 무늬
     ctx.fillStyle='rgba(0,0,0,0.2)';
     for(let rx=20;rx<mapWidth;rx+=90+((rx*17)%40)){
+      if(isCovered(rx)) continue;
       ctx.fillRect(rx,floorY-2,40+((rx*7)%30),3);
     }
   } else if(ft.flowers){
     // 풀 날
     ctx.fillStyle=ft.grassLight;
     for(let gx=0;gx<mapWidth;gx+=9){
+      if(isCovered(gx)) continue;
       const h=4+((gx*37+42)%7);
       ctx.beginPath(); ctx.moveTo(gx,floorY-4); ctx.lineTo(gx+4,floorY-4-h); ctx.lineTo(gx+8,floorY-4); ctx.fill();
     }
@@ -3270,6 +3368,7 @@ function renderFloor(theme){
   // 바닥 무늬
   ctx.fillStyle='rgba(0,0,0,.1)';
   for(let rx=20;rx<mapWidth;rx+=120+((rx*13)%60)){
+    if(isCovered(rx)) continue;
     ctx.beginPath(); ctx.ellipse(rx,floorY+10,18+((rx*7)%14),6,0,0,Math.PI*2); ctx.fill();
   }
 }
@@ -3552,6 +3651,22 @@ function renderPlatform(p,theme){
 }
 
 // 단차(terrace) 렌더: 윗면(top) + 바닥까지 이어지는 벽면(반벽)을 한 덩어리로 그림
+// 막힌 벽 (점프로도 통과 불가)
+function renderWall(w,theme){
+  const _rhv=canvas.clientHeight||window.innerHeight;
+  const g=ctx.createLinearGradient(w.x,0,w.x+w.w,0);
+  g.addColorStop(0,'#3a3a3a'); g.addColorStop(0.5,'#5a5a5a'); g.addColorStop(1,'#2a2a2a');
+  ctx.fillStyle=g;
+  ctx.fillRect(w.x,w.top,w.w,w.bottom-w.top);
+  // 빗금 패턴 (위험/차단 표시)
+  ctx.strokeStyle='rgba(255,203,5,.35)'; ctx.lineWidth=4;
+  for(let yy=w.top-40;yy<w.bottom+40;yy+=28){
+    ctx.beginPath(); ctx.moveTo(w.x-4,yy+40); ctx.lineTo(w.x+w.w+4,yy); ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2;
+  ctx.strokeRect(w.x,w.top,w.w,w.bottom-w.top);
+}
+
 function renderTerrace(p,theme){
   const tn=theme?theme.name:'숲';
   const PAL={

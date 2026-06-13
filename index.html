@@ -1576,18 +1576,18 @@ function getTerraceMaps(W,H){
     { name:'단차테스트',
       // 맵 구간: x비율 [x1,x2], h비율(0~1, 바닥에서 위로) — 바닥 자체가 확장되는 구간
       terraces:[
-        {x1:0.00, x2:0.40, h:0.00},   // 낮은 구간 (입구)
-        {x1:0.40, x2:1.00, h:0.22},   // 높은 구간 (출구, 점핑패드)
-        {x1:0.55, x2:0.68, h:0.45, jumpPad:true},  // 한 층 더 쌓인 블록 (점핑패드)
-        {x1:0.68, x2:0.75, h:0.45, jumpPad:true},  // 위와 같은 높이로 이어짐 → 점핑패드도 자동 연결
+        {x1:0.00, x2:0.28, h:0.62},   // 좌상단 떠있는 블록 (또 다른 출구/통로)
+        {x1:0.62, x2:0.75, h:0.00, jumpPad:true}, // 입구쪽 바닥 위 점핑패드
+        {x1:0.00, x2:0.62, h:0.00},   // 낮은 구간 (입구, 점핑패드 앞까지)
+        {x1:0.75, x2:1.00, h:0.45},   // 높은 구간 (출구) — 화면 끝까지 솔리드 벽
       ],
       // 반벽: 기존 platforms 방식의 공중 발판 (x비율, y비율-floorY 기준 위, w비율)
-      halfWalls:[ {x:0.15, y:0.30, w:0.10} ],
-      entrance:{x:0.04, terraceIdx:0},
-      exit:{x:0.94, terraceIdx:1},
+      halfWalls:[ {x:0.37, y:0.32, w:0.14} ],
+      entrance:{x:0.04, terraceIdx:2},
+      exit:{x:0.90, terraceIdx:3},
       jumpPads:[],
-      enemyPos:[ {x:0.20, terraceIdx:0}, {x:0.50, terraceIdx:1}, {x:0.80, terraceIdx:1} ],
-      bombPos:[ {x:0.58, terraceIdx:1} ],
+      enemyPos:[ {x:0.18, terraceIdx:2}, {x:0.50, terraceIdx:2}, {x:0.85, terraceIdx:3} ],
+      bombPos:[ {x:0.85, terraceIdx:3} ],
     },
   ];
 }
@@ -2691,12 +2691,37 @@ function updatePlayer(dt){
   if(player._dropTimer>0) player._dropTimer-=dt;
   const dropping=player._dropTimer>0;
   for(const p of platforms){
-    if(dropping) continue; // 통과 중엔 모든 플랫폼 무시
+    if(dropping&&!p.isTerrace) continue; // 통과 중엔 반벽(공중 발판)만 무시, 바닥 확장은 통과 불가
     if(player.x+player.w>p.x+4&&player.x<p.x+p.w-4){
       const foot=player.y+player.h;
       if(foot>p.y&&foot<p.y+p.h+Math.max(18,Math.abs(player.vy)*dt+4)&&player.vy>=0){
         player.y=p.y-player.h; player.vy=0; player.onGround=true; player._dblJumpUsed=false;
       }
+    }
+  }
+  // 바닥 확장(terrace): 옆/아래에서도 통과 불가능한 "벽"으로 취급
+  // 블록 영역 = [p.x, p.x+p.w] x [p.y, floorY] (몸통 전체)
+  for(const p of platforms){
+    if(!p.isTerrace) continue;
+    const blockBottom=floorY;
+    const overlapY=player.y+player.h>p.y&&player.y<blockBottom;
+    const overlapX=player.x+player.w>p.x&&player.x<p.x+p.w;
+    if(!overlapX||!overlapY) continue;
+    // 위에서 착지(이미 위 루프에서 처리됨)는 player.y+player.h<=p.y+여유 인 경우이므로 제외
+    if(player.y+player.h<=p.y+2) continue;
+    // 침투 깊이 계산해서 더 얕은 축으로 밀어내기
+    const overlapLeft=(player.x+player.w)-p.x;     // 왼쪽에서 진입
+    const overlapRight=(p.x+p.w)-player.x;          // 오른쪽에서 진입
+    const overlapTop=(player.y+player.h)-p.y;       // 위에서 진입(아래로 박힌 깊이)
+    const overlapBottom=blockBottom-player.y;       // 아래에서 진입(위로 박힌 깊이) — 사실상 바닥이라 거의 발생 안함
+    const minX=Math.min(overlapLeft,overlapRight);
+    const minY=Math.min(overlapTop,overlapBottom);
+    if(minX<minY){
+      if(overlapLeft<overlapRight){ player.x=p.x-player.w; if(player.vx>0) player.vx=0; }
+      else { player.x=p.x+p.w; if(player.vx<0) player.vx=0; }
+    } else {
+      if(overlapTop<overlapBottom){ player.y=p.y-player.h; player.vy=0; player.onGround=true; player._dblJumpUsed=false; }
+      else { player.y=blockBottom; if(player.vy<0) player.vy=0; }
     }
   }
   // 맵 경계
@@ -2797,6 +2822,20 @@ function updateEnemies(dt){
         if(foot>p.y&&foot<p.y+p.h+Math.max(18,Math.abs(e.vy)*dt+4)&&e.vy>=0){
           e.y=p.y-e.h; e.vy=0; e.onGround=true;
         }
+      }
+    }
+    // 바닥 확장(terrace): 적도 옆에서 통과 불가 (벽으로 취급, 방향 전환)
+    for(const p of platforms){
+      if(!p.isTerrace) continue;
+      const blockBottom=floorY;
+      const overlapY=e.y+e.h>p.y&&e.y<blockBottom;
+      const overlapX=e.x+e.w>p.x&&e.x<p.x+p.w;
+      if(!overlapX||!overlapY) continue;
+      if(e.y+e.h<=p.y+2) continue; // 위에 착지한 경우는 제외
+      const overlapLeft=(e.x+e.w)-p.x, overlapRight=(p.x+p.w)-e.x;
+      if(Math.min(overlapLeft,overlapRight)<((e.y+e.h)-p.y)){
+        if(overlapLeft<overlapRight){ e.x=p.x-e.w; if(e.vx>0){e.vx*=-1; e.facing*=-1;} }
+        else { e.x=p.x+p.w; if(e.vx<0){e.vx*=-1; e.facing*=-1;} }
       }
     }
     for(const jp of jumpPads){
@@ -3072,7 +3111,14 @@ function updateProjectiles(dt){
       if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
     }
     const _pw=canvas.clientWidth||window.innerWidth;
-    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
+    let wallHit=false;
+    if(!hit){
+      for(const pl of platforms){
+        if(!pl.isTerrace) continue;
+        if(p.x>pl.x&&p.x<pl.x+pl.w&&p.y>pl.y&&p.y<floorY){ wallHit=true; spawnPtcl(p.x,p.y,p.color,4,'burst'); break; }
+      }
+    }
+    if(hit||wallHit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
   }
 }
 
@@ -3329,16 +3375,19 @@ function render(){
   for(const p of platforms){
     if(!p.isTerrace){ renderPlatform(p,theme); continue; }
     let coverDownTo=floorY;
-    let hasGrass=true;
+    // 풀을 그리지 않을 x구간들 (이 블록보다 위에 다른 블록이 덮는 부분)
+    let noGrassSegs=[];
     for(const o of terraces){
       if(o===p) continue;
       if(o.x<p.x+p.w&&o.x+o.w>p.x){ // x구간 겹침
         if(o.y>p.y&&o.y<coverDownTo) coverDownTo=o.y;      // 바로 아래 블록
-        if(o.y<p.y) hasGrass=false;                          // 위에 다른 블록 있음
+        if(o.y<p.y){                                         // 위에 다른 블록 있음 → 겹치는 부분만 풀 제외
+          noGrassSegs.push([Math.max(o.x,p.x), Math.min(o.x+o.w,p.x+p.w)]);
+        }
       }
     }
-    if(p.jumpPad) hasGrass=false; // 점핑패드 블록은 풀 대신 패드가 덮음
-    renderTerrace(p,theme,coverDownTo,hasGrass);
+    if(p.jumpPad) noGrassSegs.push([p.x,p.x+p.w]); // 점핑패드 블록은 풀 대신 패드가 덮음
+    renderTerrace(p,theme,coverDownTo,noGrassSegs);
   }
 
   // 점프패드
@@ -3757,9 +3806,9 @@ function renderPlatform(p,theme){
 
 // 단차(terrace) 렌더: 윗면(top) + 바닥까지 이어지는 벽면(반벽)을 한 덩어리로 그림
 // 막힌 벽 (점프로도 통과 불가)
-function renderTerrace(p,theme,coverDownTo,hasGrass){
+function renderTerrace(p,theme,coverDownTo,noGrassSegs){
   if(coverDownTo===undefined) coverDownTo=floorY;
-  if(hasGrass===undefined) hasGrass=true;
+  if(noGrassSegs===undefined) noGrassSegs=[];
   const tn=theme?theme.name:'숲';
   const PAL={
     '로비': {top:'#5aad2a',topL:'#6ec832',body:'#7a4f28',bodyD:'#5a3010',flower:true},
@@ -3775,9 +3824,12 @@ function renderTerrace(p,theme,coverDownTo,hasGrass){
     '최후의 성':{top:'#4a0808',topL:'#6a1010',body:'#2a0505',bodyD:'#150303',flower:false},
   };
   const pal=PAL[tn]||PAL['숲'];
-  const wallH=coverDownTo-p.y; // 단차 바닥(또는 아래 블록)까지의 벽면 높이
+  const _rhv=canvas.clientHeight||window.innerHeight;
+  // 이 블록이 해당 x구간의 최하단(아래에 다른 블록 없음)이면 화면 끝까지 채움
+  const fillBottom = coverDownTo>=floorY ? Math.max(_rhv,floorY+40) : coverDownTo;
+  const wallH=fillBottom-p.y; // 단차 바닥(또는 아래 블록/화면 끝)까지의 벽면 높이
 
-  // 몸통 — 단차 top부터 coverDownTo까지 꽉 채움
+  // 몸통 — 단차 top부터 fillBottom까지 꽉 채움
   const dg=ctx.createLinearGradient(0,p.y+8,0,p.y+wallH);
   dg.addColorStop(0,pal.body); dg.addColorStop(1,pal.bodyD);
   ctx.fillStyle=dg;
@@ -3791,8 +3843,39 @@ function renderTerrace(p,theme,coverDownTo,hasGrass){
     }
   }
 
-  // 윗면 (맨 위 블록일 때만 풀/표면 디테일)
-  if(!hasGrass) return;
+  // 윗면 (풀/표면 디테일) — noGrassSegs로 가려진 x구간은 제외하고
+  // 나머지 구간(allowedSegs)에만 클리핑해서 그림
+  const blockX1=p.x, blockX2=p.x+p.w;
+  // noGrassSegs를 블록 범위로 클램프 + 정렬 + 병합
+  const blocked=noGrassSegs
+    .map(([a,b])=>[Math.max(a,blockX1),Math.min(b,blockX2)])
+    .filter(([a,b])=>b>a)
+    .sort((a,b)=>a[0]-b[0]);
+  const merged=[];
+  for(const seg of blocked){
+    if(merged.length&&seg[0]<=merged[merged.length-1][1]) merged[merged.length-1][1]=Math.max(merged[merged.length-1][1],seg[1]);
+    else merged.push([...seg]);
+  }
+  // 가려지지 않은 구간(allowedSegs) 계산
+  const allowedSegs=[];
+  let cx=blockX1;
+  for(const [a,b] of merged){
+    if(a>cx) allowedSegs.push([cx,a]);
+    cx=Math.max(cx,b);
+  }
+  if(cx<blockX2) allowedSegs.push([cx,blockX2]);
+
+  for(const [sx1,sx2] of allowedSegs){
+    if(sx2-sx1<=0.5) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(sx1,p.y-14,sx2-sx1,26); ctx.clip();
+    renderTerraceTop(p,pal,sx1,sx2);
+    ctx.restore();
+  }
+}
+
+// 단차 윗면(풀/표면 디테일)을 지정된 x구간([sx1,sx2])에만 그림 (클리핑은 호출측에서 처리)
+function renderTerraceTop(p,pal,sx1,sx2){
   const gg=ctx.createLinearGradient(0,p.y,0,p.y+12);
   gg.addColorStop(0,pal.topL); gg.addColorStop(1,pal.top);
   ctx.fillStyle=gg;

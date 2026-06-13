@@ -1458,33 +1458,20 @@ function buildMap(blueprint, W, H){
 function getTerraceMaps(W,H){
   const f=H; // floorY (최하단)
   return [
-    // ── 테스트 맵: 입구(낮은 단)→반벽→높은 단(점핑패드,출구) ──
+    // ── 테스트 맵: 바닥 확장(맵) + 반벽(공중 발판) ──
     { name:'단차테스트',
-      // 단차 구간: x비율 [x1,x2], h비율(0~1, 바닥에서 위로)
+      // 맵 구간: x비율 [x1,x2], h비율(0~1, 바닥에서 위로) — 바닥 자체가 확장되는 구간
       terraces:[
         {x1:0.00, x2:0.40, h:0.00},   // 낮은 구간 (입구)
         {x1:0.40, x2:1.00, h:0.22},   // 높은 구간 (출구, 점핑패드)
       ],
+      // 반벽: 기존 platforms 방식의 공중 발판 (x비율, y비율-floorY 기준 위, w비율)
+      halfWalls:[ {x:0.15, y:0.30, w:0.10} ],
       entrance:{x:0.04, terraceIdx:0},
       exit:{x:0.94, terraceIdx:1},
       jumpPads:[ {x:0.70, terraceIdx:1, power:1.8} ],
       enemyPos:[ {x:0.20, terraceIdx:0}, {x:0.50, terraceIdx:1}, {x:0.80, terraceIdx:1} ],
       bombPos:[ {x:0.58, terraceIdx:1} ],
-    },
-    // ── 테스트 맵2: 막힌 벽 (반벽이 아닌 완전히 가로막는 벽) ──
-    // 평지(단일 단차) + 중간에 통과 불가능한 벽(walls) 1개.
-    // 벽은 점프로도 넘을 수 없는 높이(화면 끝까지)로, 우회 경로(반벽 위 통로)로만 지나갈 수 있음.
-    { name:'벽막힘테스트',
-      terraces:[
-        {x1:0.00, x2:1.00, h:0.00},   // 평지 전체
-      ],
-      // walls: {x, w, terraceIdx} — 해당 단차 바닥에서 화면 위까지 솔리드 벽
-      walls:[ {x:0.50, w:0.03} ],
-      entrance:{x:0.04, terraceIdx:0},
-      exit:{x:0.94, terraceIdx:0},
-      jumpPads:[],
-      enemyPos:[ {x:0.25, terraceIdx:0}, {x:0.75, terraceIdx:0} ],
-      bombPos:[ {x:0.62, terraceIdx:0} ],
     },
   ];
 }
@@ -1888,7 +1875,6 @@ function genPlatforms(stage){
   if(stage===0){
     // 로비: 고정 레이아웃
     window._terraceData=null; window._terraceMap=null;
-    window._walls=[];
     return [
       {x:200,y:H-150,w:130,h:16},{x:440,y:H-230,w:140,h:16},
       {x:680,y:H-170,w:110,h:16},{x:900,y:H-270,w:130,h:16},
@@ -1903,7 +1889,6 @@ function genPlatforms(stage){
     const bp=stage===10?blueprints[8]:blueprints[18];
     window._currentMapName=bp.name;
     window._terraceData=null; window._terraceMap=null;
-    window._walls=[];
     const scaleY=H*0.85;
     const plats=bp.plats.map(pl=>({
       x:Math.floor(pl[0]*W), y:Math.floor(H - pl[1]*scaleY),
@@ -1922,9 +1907,9 @@ function genPlatforms(stage){
     return plats;
   }
 
-  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 스테이지 홀짝으로 2종 전환) ──
+  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 1종 고정 사용) ──
   const tmaps=getTerraceMaps(W,H);
-  const tm=tmaps[stage%2];
+  const tm=tmaps[0];
   window._currentMapName=tm.name;
 
   const scaleY=H*0.85; // 단차 높이 비율 → 실제 픽셀
@@ -1937,19 +1922,22 @@ function genPlatforms(stage){
   window._terraceData={terraceReal};
   window._terraceMap=tm;
 
-  // 단차마다 "발판(반벽 포함)" 생성: 단차 구간 전체를 platform으로 깔아서
+  // 단차마다 "바닥 확장" 생성: 단차 구간 전체를 platform으로 깔아서
   // 그 위에서 착지/통과(아래로 내려가기)가 기존 platforms 로직으로 동작
   const plats=[];
   for(const t of terraceReal){
     if(t.y>=H) continue; // 최하단(floorY)은 별도 platform 불필요 (기본 바닥)
-    plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16});
+    plats.push({x:t.x1, y:t.y, w:t.x2-t.x1, h:16, isTerrace:true});
   }
 
-  // 막힌 벽(walls): 점프로 넘을 수 없는 완전 차단 벽 (좌우 이동 막음)
-  window._walls=(tm.walls||[]).map(w=>{
-    const tr=terraceReal[w.terraceIdx??0];
-    return {x:Math.floor(w.x*W), w:Math.max(20,Math.floor(w.w*W)), top:0, bottom:tr.y};
-  });
+  // 반벽(halfWalls): 기존 방식의 공중에 뜬 발판 — y비율은 floorY 기준 위쪽 높이
+  for(const hw of (tm.halfWalls||[])){
+    plats.push({
+      x:Math.floor(hw.x*W), y:Math.floor(H-hw.y*scaleY),
+      w:Math.max(50,Math.floor(hw.w*W)), h:16, isTerrace:false
+    });
+  }
+
 
   // 점프패드
   jumpPads=(tm.jumpPads||[]).map(jp=>{
@@ -2559,20 +2547,6 @@ function updatePlayer(dt){
   player.vy=Math.min(player.vy+GRAVITY*dt,900);
   player.x+=player.vx*dt; player.y+=player.vy*dt;
   player.animTick+=dt;
-  // 막힌 벽(walls): 좌우 이동 완전 차단
-  if(window._walls&&window._walls.length){
-    for(const w of window._walls){
-      if(player.y+player.h>w.top&&player.y<w.bottom){
-        if(player.x+player.w>w.x&&player.x<w.x+w.w){
-          if(player.vx>0) player.x=w.x-player.w;
-          else if(player.vx<0) player.x=w.x+w.w;
-          else if(player.facing>0) player.x=w.x-player.w;
-          else player.x=w.x+w.w;
-          player.vx=0;
-        }
-      }
-    }
-  }
   // 플랫폼 충돌
   player.onGround=false;
   // 바닥
@@ -2681,17 +2655,6 @@ function updateEnemies(dt){
   for(const e of enemies){
     // 물리
     e.vy=Math.min(e.vy+GRAVITY*dt,900); e.x+=e.vx*dt; e.y+=e.vy*dt; e.animTick+=dt;
-    // 막힌 벽: 적도 통과 불가
-    if(window._walls&&window._walls.length){
-      for(const w of window._walls){
-        if(e.y+e.h>w.top&&e.y<w.bottom){
-          if(e.x+e.w>w.x&&e.x<w.x+w.w){
-            if(e.vx>0) e.x=w.x-e.w; else if(e.vx<0) e.x=w.x+w.w;
-            e.vx*=-1; e.facing*=-1;
-          }
-        }
-      }
-    }
     e.onGround=false;
     if(e.y+e.h>=floorY){e.y=floorY-e.h; e.vy=0; e.onGround=true;}
     for(const p of platforms){
@@ -2975,13 +2938,7 @@ function updateProjectiles(dt){
       if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
     }
     const _pw=canvas.clientWidth||window.innerWidth;
-    let wallHit=false;
-    if(window._walls&&window._walls.length){
-      for(const w of window._walls){
-        if(p.y>w.top&&p.y<w.bottom&&p.x>w.x&&p.x<w.x+w.w){ wallHit=true; spawnPtcl(p.x,p.y,p.color,4,'burst'); break; }
-      }
-    }
-    if(hit||wallHit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
+    if(hit||p.age>p.life||p.x<camera.x-100||p.x>camera.x+_pw+100||p.y>floorY+20) projectiles.splice(i,1);
   }
 }
 
@@ -3230,11 +3187,8 @@ function render(){
   // 배경 나무/꽃 (바닥 뒤 레이어)
   if(GFX.bgDecos) renderWorldBgDecos(theme);
 
-  // 플랫폼 (단차 맵이면 반벽 포함 솔리드 렌더)
-  for(const p of platforms) (window._terraceData?renderTerrace:renderPlatform)(p,theme);
-
-  // 막힌 벽
-  if(window._walls) for(const w of window._walls) renderWall(w,theme);
+  // 플랫폼 (바닥 확장은 솔리드 렌더, 반벽은 기존 발판 렌더)
+  for(const p of platforms) (p.isTerrace?renderTerrace:renderPlatform)(p,theme);
 
   // 점프패드
   for(const jp of jumpPads) renderJumpPad(jp);
@@ -3303,8 +3257,8 @@ function renderFloor(theme){
   const _rhv=canvas.clientHeight||window.innerHeight;
 
   if(window._terraceData){
-    // 반벽이 차지하는 x구간을 제외한 나머지에만 흙/표면 렌더
-    const covered=platforms.map(p=>[p.x,p.x+p.w]).concat((window._walls||[]).map(w=>[w.x,w.x+w.w])).sort((a,b)=>a[0]-b[0]);
+    // 바닥 확장(terrace)이 차지하는 x구간을 제외한 나머지에만 흙/표면 렌더
+    const covered=platforms.filter(p=>p.isTerrace).map(p=>[p.x,p.x+p.w]).sort((a,b)=>a[0]-b[0]);
     let cx=0;
     for(const [x1,x2] of covered){
       if(x1>cx){ ctx.fillStyle=dirtG; ctx.fillRect(cx,floorY+18,x1-cx,_rhv-floorY); ctx.fillStyle=surfG; ctx.fillRect(cx,floorY-4,x1-cx,26); }
@@ -3316,8 +3270,8 @@ function renderFloor(theme){
     ctx.fillStyle=surfG; ctx.fillRect(0,floorY-4,mapWidth,26);
   }
 
-  // 표면 디테일 (단차 맵은 반벽 구간 제외)
-  const covX=window._terraceData?platforms.map(p=>[p.x,p.x+p.w]).concat((window._walls||[]).map(w=>[w.x,w.x+w.w])):null;
+  // 표면 디테일 (단차 맵은 바닥 확장 구간 제외)
+  const covX=window._terraceData?platforms.filter(p=>p.isTerrace).map(p=>[p.x,p.x+p.w]):null;
   const isCovered=x=>covX&&covX.some(([x1,x2])=>x>=x1&&x<x2);
 
   if(ft.snow){
@@ -3652,21 +3606,6 @@ function renderPlatform(p,theme){
 
 // 단차(terrace) 렌더: 윗면(top) + 바닥까지 이어지는 벽면(반벽)을 한 덩어리로 그림
 // 막힌 벽 (점프로도 통과 불가)
-function renderWall(w,theme){
-  const _rhv=canvas.clientHeight||window.innerHeight;
-  const g=ctx.createLinearGradient(w.x,0,w.x+w.w,0);
-  g.addColorStop(0,'#3a3a3a'); g.addColorStop(0.5,'#5a5a5a'); g.addColorStop(1,'#2a2a2a');
-  ctx.fillStyle=g;
-  ctx.fillRect(w.x,w.top,w.w,w.bottom-w.top);
-  // 빗금 패턴 (위험/차단 표시)
-  ctx.strokeStyle='rgba(255,203,5,.35)'; ctx.lineWidth=4;
-  for(let yy=w.top-40;yy<w.bottom+40;yy+=28){
-    ctx.beginPath(); ctx.moveTo(w.x-4,yy+40); ctx.lineTo(w.x+w.w+4,yy); ctx.stroke();
-  }
-  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2;
-  ctx.strokeRect(w.x,w.top,w.w,w.bottom-w.top);
-}
-
 function renderTerrace(p,theme){
   const tn=theme?theme.name:'숲';
   const PAL={

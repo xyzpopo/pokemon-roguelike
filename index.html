@@ -327,7 +327,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   padding:0 2px;
 }
 
-/* ── TOAST ── */
+/* ── 컨트롤 레이아웃 편집 모드 ── */
+#ctrlEditOverlay{
+  position:fixed;inset:0;z-index:100;pointer-events:none;
+  background:rgba(0,0,0,.35);display:none;
+}
+#ctrlEditOverlay.active{display:block;pointer-events:all;}
+.ctrl-edit-handle{
+  position:absolute;box-sizing:border-box;
+  border:2.5px dashed rgba(255,203,5,.85);
+  border-radius:50%;cursor:grab;touch-action:none;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,203,5,.12);
+  user-select:none;-webkit-user-select:none;
+  font-size:.55rem;color:rgba(255,203,5,.9);text-align:center;line-height:1.2;
+}
+.ctrl-edit-handle:active{cursor:grabbing;background:rgba(255,203,5,.28);}
+.ctrl-edit-handle.rect{border-radius:12px;}
+#ctrlEditBar{
+  position:fixed;top:0;left:0;right:0;z-index:101;
+  background:rgba(10,10,20,.92);padding:.5rem .8rem;
+  display:none;align-items:center;gap:.6rem;flex-wrap:wrap;
+  border-bottom:1px solid rgba(255,203,5,.3);
+}
+#ctrlEditBar.active{display:flex;}
+#ctrlEditBar button{
+  background:rgba(255,203,5,.15);border:1px solid rgba(255,203,5,.4);
+  color:var(--accent);border-radius:8px;padding:.3rem .7rem;
+  font-family:'Galmuri11',monospace;font-size:.65rem;cursor:pointer;
+}
+#ctrlEditBar button.primary{background:rgba(255,203,5,.35);}
+#ctrlEditBar .size-ctrl{
+  display:flex;align-items:center;gap:.3rem;font-size:.62rem;color:var(--muted);
+}
+#ctrlEditBar .size-ctrl span{color:var(--text);min-width:2.5em;text-align:center;}
+#ctrlSizeSlider{width:90px;accent-color:var(--accent);}
+#jsSizeSlider{width:90px;accent-color:var(--accent);}
+ */
 #toast{
   position:fixed;top:68px;left:50%;transform:translateX(-50%);
   background:var(--card);border:1px solid var(--border);
@@ -659,8 +695,71 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   </div>
 </div>
 
-<!-- HUD -->
-<div id="hud" style="display:none">
+<!-- ── 멀티 로비 ── -->
+<div class="screen hidden" id="multiLobbyScreen">
+  <div class="levelup-box" style="max-width:360px;width:92%;">
+    <h2>⚔️ 멀티 배틀</h2>
+    <div style="display:flex;gap:.5rem;margin-bottom:.8rem;">
+      <button class="stage-btn" id="btnCreatePublic" style="flex:1;font-size:.7rem;padding:.5rem;">🌐 공개방 만들기</button>
+      <button class="stage-btn" id="btnCreatePrivate" style="flex:1;font-size:.7rem;padding:.5rem;background:var(--accent2);color:#fff;">🔒 비밀방 만들기</button>
+    </div>
+    <div style="display:flex;gap:.4rem;margin-bottom:.8rem;">
+      <input id="multiCodeInput" placeholder="방 코드 입력" style="flex:1;padding:.45rem .6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.72rem;">
+      <button class="stage-btn" id="btnJoinCode" style="padding:.45rem .8rem;font-size:.7rem;">입장</button>
+    </div>
+    <div id="publicRoomList" style="max-height:180px;overflow-y:auto;margin-bottom:.8rem;"></div>
+    <button class="btn-outline" id="btnMultiLobbyBack" style="width:100%;font-size:.72rem;padding:.45rem;">← 뒤로</button>
+  </div>
+</div>
+
+<!-- ── 멀티 방 대기실 ── -->
+<div class="screen hidden" id="multiRoomScreen">
+  <div class="levelup-box" style="max-width:380px;width:92%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+      <h2 style="margin:0">🎮 대기실</h2>
+      <span id="multiRoomCode" style="font-size:.65rem;color:var(--accent);letter-spacing:.1em;"></span>
+    </div>
+    <!-- 모드 선택 -->
+    <div id="multiModeSelect" style="display:flex;gap:.4rem;margin-bottom:.7rem;">
+      <button class="multi-mode-btn active" data-mode="pvp" style="flex:1;padding:.4rem;border-radius:8px;border:1px solid var(--accent);background:rgba(255,203,5,.1);color:var(--accent);font-family:'Galmuri11',monospace;font-size:.68rem;cursor:pointer;">⚔️ PvP</button>
+      <button class="multi-mode-btn" data-mode="hunt" style="flex:1;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Galmuri11',monospace;font-size:.68rem;cursor:pointer;">🏆 포켓몬 사냥</button>
+    </div>
+    <!-- 공격 형식 선택 -->
+    <div style="margin-bottom:.7rem;">
+      <p style="font-size:.62rem;color:var(--muted);margin-bottom:.3rem;">공격 형식 선택</p>
+      <select id="multiAtkStyle" style="width:100%;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.7rem;">
+        <option value="ranged">원거리 (분사형)</option>
+        <option value="melee">근접</option>
+        <option value="spread">확산 (스프레드)</option>
+        <option value="snipe">저격</option>
+        <option value="wave">파동</option>
+        <option value="lob">포물선 (로브)</option>
+        <option value="burst">근접 폭발</option>
+      </select>
+    </div>
+    <!-- 참가자 목록 -->
+    <div id="multiPlayerList" style="margin-bottom:.7rem;max-height:140px;overflow-y:auto;"></div>
+    <!-- 버튼 -->
+    <button class="stage-btn" id="btnMultiStart" style="width:100%;margin-bottom:.4rem;display:none;">▶ 게임 시작</button>
+    <button class="btn-outline" id="btnMultiRoomBack" style="width:100%;font-size:.7rem;padding:.4rem;">← 나가기</button>
+  </div>
+</div>
+
+<!-- ── 멀티 배틀 HUD 오버레이 ── -->
+<div id="multiHud" style="display:none;position:fixed;top:0;left:0;right:0;z-index:22;pointer-events:none;">
+  <div id="multiScoreboard" style="display:flex;gap:.4rem;padding:.3rem .5rem;flex-wrap:wrap;justify-content:center;"></div>
+</div>
+
+<!-- ── 멀티 결과 화면 ── -->
+<div class="screen hidden" id="multiResultScreen">
+  <div class="levelup-box" style="max-width:340px;text-align:center;">
+    <h2 id="multiResultTitle">결과</h2>
+    <div id="multiResultList" style="margin:1rem 0;"></div>
+    <button class="stage-btn" id="btnMultiResultBack">타이틀로</button>
+  </div>
+</div>
+
+
   <div class="hud-inner">
     <div class="hud-panel">
       <div class="hud-name" id="hudName">-</div>
@@ -697,16 +796,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   </div>
 </div>
 
+<!-- 컨트롤 레이아웃 편집 모드 -->
+<div id="ctrlEditBar">
+  <button class="primary" id="btnCtrlEditSave">💾 저장</button>
+  <button id="btnCtrlEditReset">↩ 초기화</button>
+  <button id="btnCtrlEditCancel">✕ 취소</button>
+  <div class="size-ctrl">버튼<input type="range" id="ctrlSizeSlider" min="44" max="120" step="2"><span id="ctrlSizeVal">64</span>px</div>
+  <div class="size-ctrl">조이스틱<input type="range" id="jsSizeSlider" min="80" max="200" step="4"><span id="jsSizeVal">110</span>px</div>
+</div>
+<div id="ctrlEditOverlay">
+  <div class="ctrl-edit-handle" id="editHandleJS" title="조이스틱">조이스틱</div>
+  <div class="ctrl-edit-handle" id="editHandleJump" title="점프">점프</div>
+  <div class="ctrl-edit-handle" id="editHandleAtk1" title="공격1">공격1</div>
+  <div class="ctrl-edit-handle" id="editHandleAtk2" title="공격2">공격2</div>
+</div>
+
 <!-- HINT -->
 <div id="stageHint"></div>
-
 <div id="toast"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp }
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
+  onSnapshot, updateDoc, deleteDoc, query, where, orderBy, limit, getDocs, deleteField }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -789,8 +903,10 @@ onAuthStateChanged(auth, async user=>{
     currentUser=user;
     await loadUserData(user.uid);
     updateTitleUser(user.email?.replace('@pkdex.com','')||'트레이너');
+    initCtrlLayout(); // 로그인 후 기기별 컨트롤 레이아웃 로드
   } else {
     currentUser=null; metPokemonIds=new Set(); legendKills={}; normalKills={}; updateTitleUser(null);
+    initCtrlLayout(); // 비로그인 시 로컬 스토리지에서 로드
   }
 });
 
@@ -1569,27 +1685,178 @@ function buildMap(blueprint, W, H){
 //   4) 쌓인 블록의 풀/흙 처리는 x구간이 "조금이라도" 겹치면 적용된다
 //      (o.x<p.x+p.w && o.x+o.w>p.x). 의도치 않게 끝점이 겹치면 풀이
 //      안 그려질 수 있으니 경계값(x1,x2)을 신중히 정할 것.
+//   5) ⚠⚠ 입구(entrance)와 적 스폰 위치(enemyPos)는 절대로 "벽(다른
+//      terrace 블록)의 내부"에 좌표가 들어가면 안 된다.
+//      - terrace 블록은 이제 옆/위/아래 모두 통과 불가능한 솔리드 벽이라,
+//        입구나 적이 벽 내부 좌표에 스폰되면 그 자리에 그대로 끼여서
+//        못 움직이거나(입구) 즉시 벽에 박혀버린다(적).
+//      - 입구는 항상 h:0 구간(최하단 바닥) 위, 그리고 그 x좌표가
+//        h:0이 아닌 다른 terrace 블록의 x1~x2 범위와 겹치지 않는지 확인할 것.
+//      - enemyPos의 {x, terraceIdx}는 "그 terraceIdx 블록의 윗면"에
+//        놓이는 좌표인데, 같은 x에 더 높은(위에 쌓인) 블록이 있으면
+//        그 블록 내부에 적이 생성되어 버린다. x를 정할 때 그 칸 바로
+//        위에 다른 terrace 블록이 없는지(또는 충분히 높이 차가 있는지)
+//        반드시 확인할 것.
 // ══════════════════════════════════════════════════════════════
-function getTerraceMaps(W,H){
-  return [
-    // ── 테스트 맵: 바닥 확장(맵) + 반벽(공중 발판) ──
-    { name:'단차테스트',
-      // 맵 구간: x비율 [x1,x2], h비율(0~1, 바닥에서 위로) — 바닥 자체가 확장되는 구간
-      terraces:[
-        {x1:0.00, x2:0.28, h:0.62},   // 좌상단 떠있는 블록 (또 다른 출구/통로)
-        {x1:0.62, x2:0.75, h:0.00, jumpPad:true}, // 입구쪽 바닥 위 점핑패드
-        {x1:0.00, x2:0.62, h:0.00},   // 낮은 구간 (입구, 점핑패드 앞까지)
-        {x1:0.75, x2:1.00, h:0.45},   // 높은 구간 (출구) — 화면 끝까지 솔리드 벽
-      ],
-      // 반벽: 기존 platforms 방식의 공중 발판 (x비율, y비율-floorY 기준 위, w비율)
-      halfWalls:[ {x:0.37, y:0.32, w:0.14} ],
-      entrance:{x:0.04, terraceIdx:2},
-      exit:{x:0.90, terraceIdx:3},
-      jumpPads:[],
-      enemyPos:[ {x:0.18, terraceIdx:2}, {x:0.50, terraceIdx:2}, {x:0.85, terraceIdx:3} ],
-      bombPos:[ {x:0.85, terraceIdx:3} ],
-    },
-  ];
+// ▣ 절차적 생성기 (50~60개 맵 자동 생성)
+//   - 손으로 50개 이상 직접 좌표를 짜면 "입구/적이 벽 안에 끼는" 실수가
+//     나기 쉬워서, 규칙 기반 생성기로 안전하게 생성한다.
+//   - 핵심 안전 규칙:
+//     · 인접한 지면(terrace) 간 높이 차(h)는 MAX_STEP(0.18) 이하로 제한
+//       → 플레이어 최대 점프 높이(약 120px ≈ h 0.20~0.25, 여유 확보)
+//         이내이므로 항상 점프로 이동 가능.
+//     · 입구는 항상 첫 번째 지면(x1=0, h=0) 위에 배치.
+//     · 출구는 항상 마지막 지면 위에 배치.
+//     · 2층(쌓인 블록)은 항상 폭이 좁아서(stackW) 그 양옆에 같은 지면의
+//       "빈 윗면"이 남도록 만들고, 적/점핑패드/입출구는 그 빈 윗면에만 배치
+//       → 절대 2층 블록 내부에 좌표가 들어가지 않음.
+//     · halfWalls(반벽)은 항상 "공중 구간"(두 지면 사이의 빈 공간 위)에만
+//       배치하고, 어떤 terrace의 x범위와도 겹치지 않게 함 → 벽 충돌과
+//       무관하게 순수 발판으로만 동작.
+function genTerraceMap(seed, difficulty){
+  // difficulty: 0.0(쉬움)~1.0(어려움)
+  const rnd=seededRand(seed);
+  const d=Math.max(0,Math.min(1,difficulty||0));
+
+  const MAX_STEP=0.14;          // 일반 점프 최대 높이차 (안전 마진 포함, 실측 ~0.20이지만 0.14로 제한)
+  const JP_STEP=0.42;           // 점핑패드 점프 최대 높이차 (power:1.8 기준, 안전 마진 포함)
+
+  // 구간 수: 난이도에 따라 2~5개
+  const N=2+Math.floor(d*3+rnd()*1.5);
+
+  // 1) 지면(terrace) 구간 x분할
+  //    첫 구간: 입구 + 충분한 폭 (0.18~0.28)
+  //    마지막 구간: 출구 + 충분한 폭 (0.18~0.28)
+  //    중간 구간: 0.12~0.25
+  const bounds=[0];
+  for(let i=1;i<N;i++){
+    const isFirst=i===1, isLast=i===N-1;
+    const minW=isFirst||isLast?0.18:0.12;
+    const maxW=isFirst||isLast?0.28:0.25;
+    const w=minW+rnd()*(maxW-minW);
+    bounds.push(Math.min(0.99,bounds[i-1]+w));
+  }
+  bounds.push(1.0);
+  // 경계 겹침 보정
+  for(let i=1;i<bounds.length;i++) if(bounds[i]<=bounds[i-1]+0.06) bounds[i]=bounds[i-1]+0.06;
+  bounds[bounds.length-1]=1.0;
+
+  // 2) 높이 생성 — 인접 구간 높이차는 MAX_STEP 이하로만 (점핑패드 없이 오를 수 있게)
+  //    단, 일부 구간은 의도적으로 MAX_STEP 초과시켜 점핑패드 필요 구간 만들기 (난이도 높을 때)
+  const heights=[0]; // 첫 구간 항상 h:0 (입구)
+  const needsJP=[false]; // 이 구간 오르려면 점핑패드 필요?
+  for(let i=1;i<N;i++){
+    const prev=heights[i-1];
+    const forceJP=d>0.4&&rnd()<d*0.3&&i<N-1; // 난이도 높을수록 점핑패드 필요 구간 증가
+    if(forceJP){
+      const step=MAX_STEP+0.01+rnd()*0.12;
+      const h=Math.max(0,Math.min(0.55,prev+(rnd()<0.6?step:-step*0.5)));
+      heights.push(h); needsJP.push(h-prev>MAX_STEP);
+    } else {
+      const dir=rnd()<0.55?1:-1;
+      const step=0.04+rnd()*MAX_STEP*0.85;
+      const h=Math.max(0,Math.min(0.55,prev+dir*step));
+      heights.push(h); needsJP.push(false);
+    }
+  }
+
+  const terraces=[];
+  const enemyPos=[];
+  const halfWalls=[];
+  const jpFromTerrace=[]; // 점핑패드 필요 구간에서 자동 생성할 패드 정보
+
+  for(let i=0;i<N;i++){
+    const x1=bounds[i], x2=bounds[i+1];
+    const h=heights[i];
+    const tIdx=terraces.length;
+    terraces.push({x1,x2,h});
+
+    // 3) 점핑패드 필요 구간: 이전 구간 끝에 점핑패드 블록 추가
+    //    h:이전구간 높이에서 jumpPad:true 블록 → 자동 병합으로 넓은 패드 생성
+    if(i>0&&needsJP[i]){
+      const prevH=heights[i-1];
+      const padX1=bounds[i-1]+(bounds[i]-bounds[i-1])*0.55;
+      const padX2=Math.min(bounds[i]-0.01,padX1+0.08);
+      if(padX2>padX1+0.02) terraces.push({x1:padX1,x2:padX2,h:prevH,jumpPad:true});
+    }
+
+    // 4) 2층 블록(쌓인 블록): 첫/마지막 구간 제외, 35% 확률, 구간이 충분히 넓을 때
+    let stackRange=null;
+    if(i>0&&i<N-1&&rnd()<0.3+d*0.15&&(x2-x1)>0.16){
+      const stackW=(x2-x1)*(0.28+rnd()*0.16);
+      const margin=(x2-x1-stackW)*(0.1+rnd()*0.8);
+      const sx1=x1+margin, sx2=Math.min(x2-0.02,sx1+stackW);
+      if(sx2>sx1+0.04){
+        const sh=Math.min(0.58,h+0.08+rnd()*0.12);
+        const wantsJP=rnd()<0.35;
+        terraces.push({x1:sx1,x2:sx2,h:sh,jumpPad:wantsJP});
+        stackRange=[sx1,sx2];
+      }
+    }
+
+    // 5) 이 구간의 "빈 윗면"에 적 배치 (2층 블록이 없는 부분만)
+    const segs=stackRange
+      ?[ [x1+0.01,stackRange[0]-0.01],[stackRange[1]+0.01,x2-0.01] ]
+      :[ [x1+0.01,x2-0.01] ];
+    for(const [a,b] of segs){
+      if(b-a<0.05) continue;
+      // 구간 크기에 따라 적 1~2명
+      const cnt=b-a>0.15&&rnd()<0.5+d*0.2?2:1;
+      for(let k=0;k<cnt;k++){
+        if(rnd()<0.6+d*0.2){
+          const spawnX=a+(b-a)*(k===0?0.25+rnd()*0.3:0.55+rnd()*0.3);
+          enemyPos.push({x:Math.max(a+0.01,Math.min(b-0.01,spawnX)),terraceIdx:tIdx});
+        }
+      }
+    }
+
+    // 6) 반벽: 공중이 넓은 구간 위에만, terrace x범위와 절대 안 겹치게
+    //    (구간 내부 공중에만 배치 — 어떤 terrace와도 x가 겹치지 않는 위치)
+    if(i>0&&i<N-1&&!stackRange&&rnd()<0.2+d*0.1&&(x2-x1)>0.20){
+      const hwW=0.06+rnd()*0.08;
+      const hwX=x1+0.02+rnd()*Math.max(0,(x2-x1-hwW-0.04));
+      const hwY=Math.min(0.62,h+0.16+rnd()*0.14);
+      halfWalls.push({x:hwX,y:hwY,w:hwW});
+    }
+  }
+
+  // 입구: 첫 지면(idx 0, h:0) 위 왼쪽
+  const entrance={x:0.04,terraceIdx:0};
+
+  // 출구: 마지막 "기본" 구간(i=N-1) 위 오른쪽
+  //       terraces 배열에서 x2===1.0인 블록 찾기
+  let exitIdx=terraces.findIndex(t=>Math.abs(t.x2-1.0)<0.001&&!t.jumpPad);
+  if(exitIdx<0) exitIdx=0;
+  const exit={x:0.92,terraceIdx:exitIdx};
+
+  // 폭탄: 난이도에 따라 0~2개, 마지막 구간 근처 (입출구에서 충분히 떨어진 위치)
+  const bombPos=[];
+  const bombCount=rnd()<d*0.5?1:0;
+  for(let b=0;b<bombCount;b++){
+    const bi=1+Math.floor(rnd()*(N-2));
+    const tgt=terraces.find(t=>t.x1===bounds[bi]&&!t.jumpPad);
+    if(tgt){
+      const bx=tgt.x1+(tgt.x2-tgt.x1)*0.4;
+      bombPos.push({x:bx,terraceIdx:terraces.indexOf(tgt)});
+    }
+  }
+
+  return {
+    name:`맵${seed%10000}`,
+    terraces, halfWalls, entrance, exit,
+    jumpPads:[], enemyPos, bombPos
+  };
+}
+
+function getTerraceMaps(){
+  // 총 55개 맵, 스테이지 1~55 (56 이상은 순환)
+  // 난이도: 스테이지 1~10 (0.0~0.4), 11~20 (0.3~0.7), 21~55 (0.5~1.0)
+  const maps=[];
+  for(let i=0;i<55;i++){
+    const d=i<10 ? i/25 : i<20 ? 0.3+(i-10)/25 : 0.5+(i-20)/70;
+    maps.push(genTerraceMap(900000+i*7919, d));
+  }
+  return maps;
 }
 
 
@@ -2023,9 +2290,9 @@ function genPlatforms(stage){
     return plats;
   }
 
-  // ── 신버전: 단차(terrace) 기반 맵 (테스트용, 1종 고정 사용) ──
-  const tmaps=getTerraceMaps(W,H);
-  const tm=tmaps[0];
+  // ── 신버전: 단차(terrace) 기반 맵, 스테이지별로 다른 맵 사용 ──
+  const tmaps=getTerraceMaps();
+  const tm=tmaps[(stage-1)%tmaps.length];
   window._currentMapName=tm.name;
 
   const scaleY=H*0.85; // 단차 높이 비율 → 실제 픽셀
@@ -2105,13 +2372,18 @@ function genDoors(stage){
     const W=mapWidth;
     const tm=window._terraceMap;
     const tr=window._terraceData.terraceReal;
-    const xTr=tr[tm.exit.terraceIdx];
+    const xTr=tr[tm.exit.terraceIdx]||tr[0];
     const entrance={x:Math.floor(tm.entrance.x*W), y:H-130, w:80, h:130, type:'entrance', label:'입구'};
     const exit={x:Math.floor(tm.exit.x*W), y:xTr.y-130, w:80, h:130, type:'exit', label:'출구', locked:stage>0};
     return [entrance,exit];
   }
+  if(stage===0){
+    // 로비: 왼쪽=로그라이크 입구, 오른쪽=멀티 입구, 중앙에 플레이어 스폰
+    const entrance={x:60, y:H-130, w:80, h:130, type:'entrance', label:'로그라이크'};
+    const multi={x:mapWidth-160, y:H-130, w:80, h:130, type:'multi', label:'멀티플레이'};
+    return [entrance, multi];
+  }
   const entrance={x:40,y:H-130,w:80,h:130,type:'entrance',label:'입구'};
-  // 출구: 스테이지 길이에 따라 맵 끝 고정
   const exit={x:mapWidth-130,y:H-130,w:80,h:130,type:'exit',label:'출구',locked:stage>0};
   return [entrance,exit];
 }
@@ -2128,12 +2400,13 @@ function initStageMap(stage){
   healItems=[]; bombs=[]; jumpPads=jumpPads||[];
   gamePhase=stage===0?'lobby':'fight';
 
-  // 플레이어 배치: 입구 오른쪽 (입구는 항상 h:0 단차 = floorY 기준)
+  // 플레이어 배치: 로비는 맵 중앙, 스테이지는 입구 오른쪽
   const ph=playerData.hp, pmh=playerData.maxHp;
+  const spawnX = stage===0 ? mapWidth/2-50 : doors[0].x+doors[0].w+20;
   player={
-    x:doors[0].x+doors[0].w+20, y:floorY-100,
+    x:spawnX, y:floorY-100,
     w:100, h:100, vx:0, vy:0, onGround:false, facing:1,
-    img:Object.assign(new Image(),{src:playerData.sprite}),
+    img:getCachedImg(playerData.sprite),
     atkCooldown:[0,0], invincible:0,
     hp:ph, maxHp:pmh,
     animTick:0,
@@ -2459,7 +2732,7 @@ const PERSONALITY_CFG={
 };
 
 function makeEnemy(pk,x,y,hp,isBoss){
-  const img=new Image(); img.src=pk.sprite||spriteUrl(pk.id);
+  const img=getCachedImg(pk.sprite||spriteUrl(pk.id));
   const w=isBoss?150:100, h=isBoss?150:100;
   // 보스는 성격 없음 (normal 고정)
   const personality=isBoss?'normal':pickPersonality();
@@ -2499,11 +2772,58 @@ function startLobby(){
 }
 
 // ── 스테이지 시작 ─────────────────────────────────────────────
+// ── 이미지 사전 로드 캐시 ────────────────────────────────────
+// 한 번 로드한 이미지는 캐시에 보관 → 재사용 (재로드 없음)
+const _imgCache={};
+function getCachedImg(src){
+  if(!_imgCache[src]){
+    const img=new Image();
+    img.src=src;
+    _imgCache[src]=img;
+  }
+  return _imgCache[src];
+}
+
+// 스테이지 시작 전 필요한 이미지를 전부 로드하고, 완료되면 콜백 호출
+function preloadStageImages(stage, cb){
+  const ids=new Set();
+
+  // 플레이어
+  if(playerData?.sprite) ids.add(playerData.sprite);
+
+  // 보스
+  if(stage===10&&bosses.mid) ids.add(spriteUrl(bosses.mid.id));
+  if(stage===20&&bosses.final) ids.add(spriteUrl(bosses.final.id));
+
+  // 일반 적: 해당 스테이지의 evoStage/gameGen으로 뽑을 수 있는 풀 전체 preload
+  if(stage!==10&&stage!==20){
+    const evoStage=getEvoStage(stage);
+    let pool=(evoData[evoStage]||[]).filter(id=>!LEGEND_MYTHICAL_IDS.has(id));
+    if(pool.length===0) for(let fb=evoStage-1;fb>=0;fb--){ pool=(evoData[fb]||[]).filter(id=>!LEGEND_MYTHICAL_IDS.has(id)); if(pool.length) break; }
+    // 세대 필터
+    const genRanges=[[1,151],[152,251],[252,386],[387,493],[494,649],[650,721],[722,809],[810,898],[899,1025]];
+    const [gMin,gMax]=genRanges[(gameGen-1)%9]||[1,1025];
+    pool=pool.filter(id=>id>=gMin&&id<=gMax);
+    if(pool.length===0) pool=evoData[evoStage]||[];
+    // 풀 전체 preload (최대 60개로 제한)
+    pool.slice(0,60).forEach(id=>ids.add(spriteUrl(id)));
+  }
+
+  const srcs=[...ids];
+  if(srcs.length===0){ cb(); return; }
+
+  let loaded=0;
+  const done=()=>{ if(++loaded>=srcs.length) cb(); };
+  srcs.forEach(src=>{
+    const img=getCachedImg(src);
+    if(img.complete&&img.naturalWidth>0){ done(); }
+    else{ img.onload=done; img.onerror=done; }
+  });
+}
+
 function launchStage(stage){
   currentStage=stage;
   playerLevel=Math.max(1,stage);
-  // stageClearTransition이 이미 playerData(HP 보너스 포함)를 갱신한 경우 재계산하지 않음
-  // transitionToStage(1) 최초 진입이나 리트라이 시에만 재계산
   if(!playerData||playerData.level!==playerLevel){
     const prev=playerData;
     const nd=buildPlayerData(selectedPokemon,playerLevel);
@@ -2512,20 +2832,24 @@ function launchStage(stage){
     nd.atkStyle=prev?.atkStyle||null;
     playerData=nd;
   }
-  initStageMap(stage);
-  updateHUD();
-  const isBoss=stage===10||stage===20;
-  const evoLabels=['미진화체','1차 진화체','2차 진화체','3차 진화체'];
-  if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
-  else{
-    const leaderCount=enemies.filter(e=>e.isPackLeader).length;
-    const leaderHint=leaderCount>0?` · 👑 우두머리 ${leaderCount}마리 출현!`:'';
-    setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!${leaderHint}`);
-  }
-  setTimeout(()=>setHint(''),3000);
-  gameRunning=true; lastTime=0;
-  if(animFrame) cancelAnimationFrame(animFrame);
-  animFrame=requestAnimationFrame(gameLoop);
+  // 이미지 preload 완료 후 스테이지 시작
+  setHint('🔄 스테이지 로딩 중...');
+  preloadStageImages(stage, ()=>{
+    initStageMap(stage);
+    updateHUD();
+    const isBoss=stage===10||stage===20;
+    const evoLabels=['미진화체','1차 진화체','2차 진화체','3차 진화체'];
+    if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
+    else{
+      const leaderCount=enemies.filter(e=>e.isPackLeader).length;
+      const leaderHint=leaderCount>0?` · 👑 우두머리 ${leaderCount}마리 출현!`:'';
+      setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!${leaderHint}`);
+    }
+    setTimeout(()=>setHint(''),3000);
+    gameRunning=true; lastTime=0;
+    if(animFrame) cancelAnimationFrame(animFrame);
+    animFrame=requestAnimationFrame(gameLoop);
+  });
 }
 
 // ── 컨트롤 셋업 ───────────────────────────────────────────────
@@ -2634,6 +2958,7 @@ function showControls(show){
 // 화면 크기 변화 시 컨트롤 재조정
 window.addEventListener('resize', ()=>{
   resizeCanvas();
+  if(ctrlLayout) applyCtrlLayout(ctrlLayout);
   if(gameRunning) showControls(true);
 });
 
@@ -3188,8 +3513,15 @@ function checkDoors(){
   for(const door of doors){
     if(!overlap(player,door)) continue;
     if(door.type==='entrance'&&gamePhase==='lobby'){
-      // 입구로 들어가면 1스테이지 시작
+      // 로그라이크 입구
       transitionToStage(1);
+    } else if(door.type==='multi'&&gamePhase==='lobby'){
+      // 멀티플레이 입구
+      if(!door._hintShown){
+        door._hintShown=true;
+        openMultiLobby();
+        setTimeout(()=>{door._hintShown=false;},2000);
+      }
     } else if(door.type==='exit'&&gamePhase==='clear'&&!door.locked){
       stageClearTransition();
     } else if(door.type==='exit'&&door.locked&&gamePhase==='fight'){
@@ -3342,7 +3674,14 @@ function groundYBelow(ex, ew, footY){
 // ── 렌더 ─────────────────────────────────────────────────────
 function render(){
   const _vw=canvas.clientWidth||window.innerWidth, _vh=canvas.clientHeight||window.innerHeight;
-  ctx.clearRect(0,0,_vw,_vh);
+  const dpr=window.devicePixelRatio||1;
+  // 물리 픽셀 전체를 확실히 지움 (transform 무관하게)
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+  // CSS 픽셀 좌표계로 재설정
+  ctx.setTransform(dpr,0,0,dpr,0,0);
   const theme=getTheme(currentStage);
 
   // 하늘 — 테마별 색상
@@ -3918,7 +4257,6 @@ function renderDoor(d){
     // ── 입구: 돌 아치 ──────────────────────────────────────────
     const w=d.w, h=d.h, bx=d.x, by=d.y;
     const archR=w/2;
-
     ctx.fillStyle='#5a4a3a';
     ctx.fillRect(bx-6, by+h*0.7, w+12, h*0.3+4);
 
@@ -3969,7 +4307,57 @@ function renderDoor(d){
     ctx.fillStyle='#ffe082';
     ctx.font="bold 11px 'Galmuri11',monospace";
     ctx.textAlign='center';
-    ctx.fillText('입구',cx,by+h*0.72);
+    ctx.fillText(d.label||'입구',cx,by+h*0.72);
+    ctx.restore();
+
+  } else if(d.type==='multi'){
+    // ── 멀티플레이 입구: 보라/파랑 포털 ──────────────────────
+    const w=d.w, h=d.h, bx=d.x, by=d.y;
+    const archR=w/2;
+    ctx.fillStyle='#1a0a2a';
+    ctx.fillRect(bx-6, by+h*0.7, w+12, h*0.3+4);
+    const pg1=ctx.createLinearGradient(bx-8,0,bx+10,0);
+    pg1.addColorStop(0,'#3a2060'); pg1.addColorStop(1,'#5a3090');
+    ctx.fillStyle=pg1; ctx.fillRect(bx-8,by+archR,18,h-archR);
+    const pg2=ctx.createLinearGradient(bx+w-10,0,bx+w+8,0);
+    pg2.addColorStop(0,'#5a3090'); pg2.addColorStop(1,'#3a2060');
+    ctx.fillStyle=pg2; ctx.fillRect(bx+w-10,by+archR,18,h-archR);
+    ctx.fillStyle='#060010';
+    ctx.beginPath(); ctx.arc(cx,by+archR,archR-2,Math.PI,0);
+    ctx.rect(bx+2,by+archR,w-4,h-archR-2); ctx.fill();
+    const ns=14;
+    for(let i=0;i<=ns;i++){
+      const a=Math.PI-(Math.PI*i/ns), a2=Math.PI-(Math.PI*(i+1)/ns);
+      const r1=archR,r2=archR+14;
+      ctx.fillStyle=i%2===0?'#5a3080':'#4a2070';
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*r1,by+archR+Math.sin(a)*r1);
+      ctx.lineTo(cx+Math.cos(a)*r2,by+archR+Math.sin(a)*r2);
+      ctx.lineTo(cx+Math.cos(a2)*r2,by+archR+Math.sin(a2)*r2);
+      ctx.lineTo(cx+Math.cos(a2)*r1,by+archR+Math.sin(a2)*r1);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#2a1040'; ctx.lineWidth=1; ctx.stroke();
+    }
+    if(GFX.glow){
+      const glowA=0.35+0.2*Math.sin(t*2.2);
+      const glowG=ctx.createRadialGradient(cx,by+h*0.55,0,cx,by+h*0.55,archR);
+      glowG.addColorStop(0,`rgba(160,80,255,${glowA})`);
+      glowG.addColorStop(0.5,`rgba(80,120,255,${glowA*0.5})`);
+      glowG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glowG;
+      ctx.beginPath(); ctx.arc(cx,by+archR,archR-2,Math.PI,0);
+      ctx.rect(bx+2,by+archR,w-4,h-archR-2); ctx.fill();
+    }
+    for(let i=0;i<5;i++){
+      const sa=t*2.5+i*Math.PI*2/5;
+      const sx=cx+Math.cos(sa)*archR*0.55, sy=by+archR*0.7+Math.sin(sa)*archR*0.35;
+      ctx.fillStyle=`rgba(${160+Math.sin(t+i)*60},${80+Math.cos(t+i)*40},255,${0.5+0.3*Math.sin(t*3+i)})`;
+      ctx.beginPath(); ctx.arc(sx,sy,1.5+Math.sin(t*4+i),0,Math.PI*2); ctx.fill();
+    }
+    ctx.save(); ctx.globalAlpha=0.85+0.1*Math.sin(t*1.8);
+    ctx.fillStyle='#c084fc'; ctx.font="bold 10px 'Galmuri11',monospace";
+    ctx.textAlign='center';
+    ctx.fillText('⚔️멀티',cx,by+h*0.72);
     ctx.restore();
 
   } else {
@@ -4483,20 +4871,38 @@ function renderHealItem(h){
 }
 
 function renderLobbyOverlay(){
-  // 포켓몬 이름/타입 표시
   const t=Date.now()/800;
-  ctx.save();
-  ctx.fillStyle='rgba(0,0,0,.55)';
   const _lw=canvas.clientWidth||window.innerWidth, _lh=canvas.clientHeight||window.innerHeight;
-  ctx.fillRect(_lw/2-130,_lh*.12,260,68);
-  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1; ctx.strokeRect(_lw/2-130,_lh*.12,260,68);
+  ctx.save();
+
+  // 포켓몬 이름/타입 패널 (화면 상단 중앙)
+  ctx.fillStyle='rgba(0,0,0,.55)';
+  ctx.beginPath(); ctx.roundRect(_lw/2-130,_lh*.10,260,58,[10]); ctx.fill();
+  ctx.strokeStyle='rgba(255,203,5,.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(_lw/2-130,_lh*.10,260,58,[10]); ctx.stroke();
   ctx.textAlign='center';
   ctx.fillStyle='#ffcb05'; ctx.font="14px 'Galmuri11',monospace";
-  ctx.fillText('🎮 '+playerData.name, _lw/2, _lh*.12+26);
-  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font="11px 'Galmuri11',monospace";
-  ctx.fillText('타입: '+playerData.types.join(' / '), _lw/2, _lh*.12+46);
-  ctx.fillStyle=`rgba(255,255,255,${.5+.25*Math.sin(t)})`;
-  ctx.fillText('→ 입구로 들어가 모험을 시작하세요!', _lw/2, _lh*.12+63);
+  ctx.fillText('🎮 '+playerData.name, _lw/2, _lh*.10+22);
+  ctx.fillStyle='rgba(255,255,255,.65)'; ctx.font="11px 'Galmuri11',monospace";
+  ctx.fillText('타입: '+playerData.types.join(' / '), _lw/2, _lh*.10+40);
+
+  // 왼쪽 안내 (로그라이크 입구)
+  const pulse=0.6+0.3*Math.sin(t);
+  ctx.globalAlpha=pulse;
+  ctx.fillStyle='rgba(0,0,0,.5)';
+  ctx.beginPath(); ctx.roundRect(20, _lh-200, 120, 38,[8]); ctx.fill();
+  ctx.fillStyle='#ffe082'; ctx.font="10px 'Galmuri11',monospace"; ctx.globalAlpha=1;
+  ctx.textAlign='center';
+  ctx.fillStyle=`rgba(255,224,130,${pulse})`;
+  ctx.fillText('← 싱글 플레이', 80, _lh-176);
+
+  // 오른쪽 안내 (멀티 입구)
+  ctx.fillStyle='rgba(0,0,0,.5)'; ctx.globalAlpha=pulse;
+  ctx.beginPath(); ctx.roundRect(_lw-140, _lh-200, 120, 38,[8]); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.fillStyle=`rgba(192,132,252,${pulse})`;
+  ctx.fillText('멀티플레이 →', _lw-80, _lh-176);
+
   ctx.restore();
 }
 
@@ -4558,7 +4964,7 @@ function launchBonusStage(){
   player={
     x:doors[0].x+doors[0].w+20, y:floorY-100,
     w:100, h:100, vx:0, vy:0, onGround:false, facing:1,
-    img:Object.assign(new Image(),{src:playerData.sprite}),
+    img:getCachedImg(playerData.sprite),
     atkCooldown:[0,0], invincible:0,
     hp:ph, maxHp:pmh, animTick:0,
   };
@@ -4777,9 +5183,655 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('killTabLegend',   ()=>switchKillTab('legend'));
   on('killTabNormal',   ()=>switchKillTab('normal'));
   // 검색창
+  on('btnOpenCtrlEdit', ()=>{
+    document.getElementById('settingsModal').classList.add('hidden');
+    startCtrlEdit();
+  });
+  on('btnCtrlEditSave',   ()=>saveCtrlLayout());
+  on('btnCtrlEditReset',  ()=>resetCtrlLayout());
+  on('btnCtrlEditCancel', ()=>endCtrlEdit(false));
+  document.getElementById('ctrlSizeSlider').addEventListener('input', e=>{
+    ctrlEditDraft.btnSize=parseInt(e.target.value);
+    document.getElementById('ctrlSizeVal').textContent=ctrlEditDraft.btnSize;
+    applyCtrlLayoutDraft();
+  });
+  document.getElementById('jsSizeSlider').addEventListener('input', e=>{
+    ctrlEditDraft.jsSize=parseInt(e.target.value);
+    document.getElementById('jsSizeVal').textContent=ctrlEditDraft.jsSize;
+    applyCtrlLayoutDraft();
+  });
+  on('btnTitleMulti',       ()=>openMultiLobby());
+  on('btnMultiLobbyBack',   ()=>showScreen('titleScreen'));
+  on('btnCreatePublic',     ()=>createRoom(false));
+  on('btnCreatePrivate',    ()=>createRoom(true));
+  on('btnJoinCode',         ()=>joinRoomByCode());
+  on('btnMultiRoomBack',    ()=>leaveRoom());
+  on('btnMultiStart',       ()=>startMultiBattle());
+  on('btnMultiResultBack',  ()=>{ multiCleanup(); showScreen('titleScreen'); });
+  document.querySelectorAll('.multi-mode-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.multi-mode-btn').forEach(b=>{
+        b.classList.remove('active');
+        b.style.borderColor='var(--border)'; b.style.background='transparent'; b.style.color='var(--muted)';
+      });
+      btn.classList.add('active');
+      btn.style.borderColor='var(--accent)'; btn.style.background='rgba(255,203,5,.1)'; btn.style.color='var(--accent)';
+      multiRoomMode=btn.dataset.mode;
+      if(multiRoomId) updateDoc(doc(db,'multiRooms',multiRoomId),{mode:multiRoomMode}).catch(()=>{});
+    });
+  });
   const srch=document.getElementById('pkSearchInput')||document.getElementById('pkSearch');
   if(srch) srch.addEventListener('input',()=>filterPokemon());
 })();
+
+// ══════════════════════════════════════════════════════════════
+// ⚔️  멀티 배틀 시스템
+// ══════════════════════════════════════════════════════════════
+//
+// Firestore 구조:
+//   multiRooms/{roomId}
+//     - mode: 'pvp'|'hunt'
+//     - status: 'waiting'|'playing'|'ended'
+//     - hostUid, isPublic, mapIdx, createdAt, roomCode
+//   multiRooms/{roomId}/players/{uid}
+//     - name, sprite, types, atkStyle
+//     - x, y, hp, maxHp, facing, alive, kills(hunt)
+//     - lastSeen (서버 타임스탬프)
+//
+// 동기화: 플레이어 자신의 위치/HP만 write, 타인 것은 onSnapshot으로 read
+// 공격: 자신의 투사체는 로컬에서 계산, 히트 시 상대 HP를 Firestore에 write
+// 60fps 대신 10~15fps로 위치 동기화 (네트워크 부하 최소화)
+// ══════════════════════════════════════════════════════════════
+
+let multiRoomId=null, multiRoomCode=null, multiRoomMode='pvp';
+let multiIsHost=false, multiStatus='idle';
+let multiPlayers={};          // uid → 원격 플레이어 데이터
+let multiRemoteSprites={};    // uid → Image 객체
+let multiUnsubs=[];           // onSnapshot 구독 해제 함수 목록
+let multiSyncInterval=null;   // 위치 sync 인터벌
+let multiRespawnTimer=0;      // 부활 카운트다운 (PvP)
+let multiHuntTimer=0;         // 사냥 남은 시간
+let multiMyKills=0;           // 사냥 내 킬수
+const HUNT_DURATION=120;      // 사냥 모드 2분
+const MULTI_SYNC_MS=80;       // 위치 동기화 간격 (ms) → ~12fps
+
+// ── 공개방 목록 ─────────────────────────────────────────────
+async function openMultiLobby(){
+  if(!currentUser){ showToast('로그인이 필요합니다'); return; }
+  showScreen('multiLobbyScreen');
+  loadPublicRooms();
+}
+
+async function loadPublicRooms(){
+  const el=document.getElementById('publicRoomList');
+  el.innerHTML='<p style="font-size:.65rem;color:var(--muted);text-align:center;">로딩 중...</p>';
+  try{
+    const q=query(collection(db,'multiRooms'),
+      where('isPublic','==',true), where('status','==','waiting'),
+      orderBy('createdAt','desc'), limit(10));
+    const snap=await getDocs(q);
+    if(snap.empty){ el.innerHTML='<p style="font-size:.65rem;color:var(--muted);text-align:center;">공개방 없음</p>'; return; }
+    el.innerHTML='';
+    snap.forEach(d=>{
+      const r=d.data(); const cnt=Object.keys(r.playerCount||{}).length||1;
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:.4rem .6rem;margin-bottom:.3rem;background:rgba(255,255,255,.04);border-radius:8px;cursor:pointer;';
+      div.innerHTML=`<span style="font-size:.7rem;">${r.hostName||'방'}</span><span style="font-size:.62rem;color:var(--muted);">${r.mode==='pvp'?'⚔️PvP':'🏆사냥'} · ${cnt}명</span><button style="font-size:.6rem;padding:.2rem .5rem;border-radius:6px;background:var(--accent);color:#000;border:none;font-family:'Galmuri11',monospace;cursor:pointer;">입장</button>`;
+      div.querySelector('button').addEventListener('click',()=>joinRoomById(d.id));
+      el.appendChild(div);
+    });
+  }catch(e){ el.innerHTML='<p style="font-size:.65rem;color:var(--red);">불러오기 실패</p>'; }
+}
+
+// ── 방 생성 ─────────────────────────────────────────────────
+async function createRoom(isPrivate){
+  if(!currentUser) return;
+  const mapIdx=Math.floor(Math.random()*55);
+  const code=isPrivate ? Math.random().toString(36).slice(2,7).toUpperCase() : null;
+  try{
+    const ref=await addDoc(collection(db,'multiRooms'),{
+      mode:'pvp', status:'waiting', hostUid:currentUser.uid,
+      hostName:currentUser.email?.replace('@pkdex.com','')||'트레이너',
+      isPublic:!isPrivate, mapIdx, roomCode:code||null,
+      playerCount:{[currentUser.uid]:true}, createdAt:serverTimestamp()
+    });
+    multiRoomId=ref.id; multiRoomCode=code; multiIsHost=true; multiRoomMode='pvp';
+    await joinRoomById(ref.id, true);
+  }catch(e){ showToast('방 생성 실패: '+e.message); }
+}
+
+// ── 코드로 입장 ─────────────────────────────────────────────
+async function joinRoomByCode(){
+  const code=document.getElementById('multiCodeInput').value.trim().toUpperCase();
+  if(!code){ showToast('방 코드를 입력하세요'); return; }
+  try{
+    const q=query(collection(db,'multiRooms'),where('roomCode','==',code),where('status','==','waiting'),limit(1));
+    const snap=await getDocs(q);
+    if(snap.empty){ showToast('방을 찾을 수 없습니다'); return; }
+    await joinRoomById(snap.docs[0].id);
+  }catch(e){ showToast('입장 실패: '+e.message); }
+}
+
+// ── 방 ID로 입장 ────────────────────────────────────────────
+async function joinRoomById(roomId, isCreator=false){
+  if(!currentUser||!playerData) return;
+  multiRoomId=roomId;
+  // 내 플레이어 데이터 등록
+  const uid=currentUser.uid;
+  const pName=currentUser.email?.replace('@pkdex.com','')||'트레이너';
+  const atkStyle=document.getElementById('multiAtkStyle')?.value||'ranged';
+  await setDoc(doc(db,'multiRooms',roomId,'players',uid),{
+    name:pName, sprite:playerData.sprite,
+    types:playerData.types||['normal'],
+    atkStyle, x:300, y:500, hp:playerData.maxHp, maxHp:playerData.maxHp,
+    facing:-1, alive:true, kills:0, lastSeen:serverTimestamp()
+  });
+  // playerCount 업데이트
+  await updateDoc(doc(db,'multiRooms',roomId),{[`playerCount.${uid}`]:true});
+
+  showScreen('multiRoomScreen');
+  // 방 코드 표시
+  const codeEl=document.getElementById('multiRoomCode');
+  if(!isCreator){
+    const snap=await getDoc(doc(db,'multiRooms',roomId));
+    const d=snap.data();
+    multiRoomMode=d.mode||'pvp';
+    multiIsHost=d.hostUid===uid;
+    codeEl.textContent=d.roomCode?`코드: ${d.roomCode}`:'공개방';
+  } else {
+    codeEl.textContent=multiRoomCode?`코드: ${multiRoomCode}`:'공개방';
+  }
+
+  // 방장만 시작 버튼 표시
+  document.getElementById('btnMultiStart').style.display=multiIsHost?'block':'none';
+
+  // 참가자 목록 실시간 구독
+  const playerUnsub=onSnapshot(collection(db,'multiRooms',roomId,'players'), snap=>{
+    multiPlayers={};
+    snap.forEach(d=>{ if(d.id!==uid) multiPlayers[d.id]=d.data(); });
+    renderMultiPlayerList(uid, snap);
+  });
+  // 방 상태 구독 (시작 신호 수신)
+  const roomUnsub=onSnapshot(doc(db,'multiRooms',roomId), snap=>{
+    if(!snap.exists()) return;
+    const d=snap.data();
+    multiRoomMode=d.mode||'pvp';
+    if(d.status==='playing'&&multiStatus==='idle'){
+      multiStatus='playing';
+      beginMultiBattle(d.mapIdx||0);
+    }
+  });
+  multiUnsubs.push(playerUnsub, roomUnsub);
+}
+
+function renderMultiPlayerList(myUid, snap){
+  const el=document.getElementById('multiPlayerList');
+  el.innerHTML='';
+  snap.forEach(d=>{
+    const p=d.data();
+    const isMe=d.id===myUid;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:.3rem;';
+    div.innerHTML=`<img src="${p.sprite}" style="width:28px;height:28px;image-rendering:pixelated;"><span style="font-size:.7rem;flex:1;">${p.name}${isMe?' (나)':''}</span><span style="font-size:.6rem;color:var(--muted);">${ATTACK_STYLES[p.atkStyle]?.label||p.atkStyle}</span>`;
+    el.appendChild(div);
+  });
+}
+
+// ── 방장이 시작 ─────────────────────────────────────────────
+async function startMultiBattle(){
+  if(!multiIsHost||!multiRoomId) return;
+  const mapIdx=Math.floor(Math.random()*55);
+  await updateDoc(doc(db,'multiRooms',multiRoomId),{status:'playing', mapIdx, mode:multiRoomMode});
+}
+
+// ── 배틀 시작 (모든 플레이어 공통) ─────────────────────────
+function beginMultiBattle(mapIdx){
+  showScreen('gameScreen');
+  showControls(true);
+  resizeCanvas();
+  // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
+  currentStage=1;
+  mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+  window._mapEnemyPos=[];window._mapBombPos=[];
+  const tmaps=getTerraceMaps();
+  const tm=tmaps[mapIdx%tmaps.length];
+  window._terraceMap=tm; window._currentMapName=tm.name;
+  platforms=genPlatforms(1);
+  doors=genDoors(1);
+  projectiles=[];particles=[];camera={x:0,y:0};
+  healItems=[];bombs=[];
+  // 플레이어 스폰
+  player={
+    x:doors[0].x+doors[0].w+20+Math.random()*80, y:floorY-100,
+    w:80, h:80, vx:0, vy:0, onGround:false, facing:-1,
+    animTick:0, invincible:0, _dropTimer:0, _dblJumpUsed:false,
+    img:getCachedImg(playerData.sprite)
+  };
+  playerData.hp=playerData.maxHp;
+  // 멀티 전용 적 스폰 (사냥 모드)
+  enemies=[];
+  if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
+  gamePhase='fight';
+  multiHuntTimer=HUNT_DURATION;
+  multiMyKills=0;
+  multiRespawnTimer=0;
+  updateHUD();
+  // HUD 오버레이
+  document.getElementById('multiHud').style.display='block';
+  // 위치 동기화 시작
+  multiSyncInterval=setInterval(syncMyPosition, MULTI_SYNC_MS);
+  // 원격 플레이어 스프라이트 로드
+  Object.entries(multiPlayers).forEach(([uid,p])=>{
+    multiRemoteSprites[uid]=getCachedImg(p.sprite);
+  });
+  // 게임 루프
+  gameRunning=true; lastTime=0;
+  if(animFrame) cancelAnimationFrame(animFrame);
+  animFrame=requestAnimationFrame(multiGameLoop);
+}
+
+// ── 사냥 모드 적 스폰 ───────────────────────────────────────
+function spawnMultiHuntEnemies(){
+  const cnt=6+Math.floor(Object.keys(multiPlayers).length*2);
+  for(let i=0;i<cnt;i++){
+    const id=pickEnemyId(gameGen,1);
+    const x=200+Math.random()*(mapWidth-400);
+    const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
+      baseStats:{hp:80,atk:40,def:25,spe:40}};
+    enemies.push(makeEnemy(rp,x,floorY,calcHP(80,3),false));
+  }
+}
+
+// ── 내 위치 Firestore에 동기화 ──────────────────────────────
+async function syncMyPosition(){
+  if(!currentUser||!multiRoomId||!player) return;
+  try{
+    await updateDoc(doc(db,'multiRooms',multiRoomId,'players',currentUser.uid),{
+      x:Math.round(player.x), y:Math.round(player.y),
+      hp:playerData.hp, maxHp:playerData.maxHp,
+      facing:player.facing, alive:player.alive!==false,
+      kills:multiMyKills, lastSeen:serverTimestamp()
+    });
+  }catch(e){}
+}
+
+// ── 상대 HP 감소 (PvP 히트) ─────────────────────────────────
+async function multiDamageRemote(uid, dmg){
+  if(!multiRoomId) return;
+  try{
+    const snap=await getDoc(doc(db,'multiRooms',multiRoomId,'players',uid));
+    if(!snap.exists()) return;
+    const p=snap.data();
+    const newHp=Math.max(0,(p.hp||0)-dmg);
+    await updateDoc(doc(db,'multiRooms',multiRoomId,'players',uid),{hp:newHp, alive:newHp>0});
+    if(newHp<=0) multiKnockout(uid);
+  }catch(e){}
+}
+
+async function multiKnockout(uid){
+  // PvP: 탈락 처리 / 생존자 1명 체크
+  const alive=Object.entries(multiPlayers).filter(([,p])=>p.alive!==false);
+  if(alive.length<=0){
+    // 내가 마지막 생존 → 승리
+    endMultiBattle('win');
+  }
+}
+
+// ── 멀티 전용 게임 루프 ─────────────────────────────────────
+function multiGameLoop(ts){
+  if(!gameRunning) return;
+  if(lastTime===0){lastTime=ts;animFrame=requestAnimationFrame(multiGameLoop);return;}
+  const dt=Math.min((ts-lastTime)/1000,.05); lastTime=ts;
+  try{
+    multiUpdate(dt);
+    multiRender();
+  }catch(err){console.error('multiGameLoop:',err);}
+  animFrame=requestAnimationFrame(multiGameLoop);
+}
+
+function multiUpdate(dt){
+  if(!player) return;
+  updatePlayer(dt);
+  updateProjectiles(dt);
+  updateParticles(dt);
+  if(GFX.bgDecos && typeof updateBgDecos==="function") updateBgDecos(dt);
+
+  // 사냥 모드: 타이머 + 적 스폰 + 킬 카운트
+  if(multiRoomMode==='hunt'){
+    multiHuntTimer-=dt;
+    if(enemies.length<4) spawnMultiHuntEnemies();
+    if(multiHuntTimer<=0){ endMultiBattle('hunt_end'); return; }
+    // 적 처치 감지
+    const prevCnt=enemies.length;
+    updateEnemies(dt);
+    if(enemies.length<prevCnt) multiMyKills+=prevCnt-enemies.length;
+  } else {
+    updateEnemies(dt);
+    // PvP: 죽으면 5초 후 부활
+    if(playerData.hp<=0 && player.alive!==false){
+      player.alive=false; multiRespawnTimer=5;
+    }
+    if(player.alive===false){
+      multiRespawnTimer-=dt;
+      if(multiRespawnTimer<=0) multiRespawn();
+    }
+    // PvP 투사체 vs 원격 플레이어 히트 판정
+    for(let i=projectiles.length-1;i>=0;i--){
+      const p=projectiles[i];
+      if(!p.fromPlayer) continue;
+      for(const [uid,rp] of Object.entries(multiPlayers)){
+        if(rp.alive===false) continue;
+        const rx=rp.x-camera.x, ry=rp.y;
+        if(p.x>rx&&p.x<rx+80&&p.y>ry&&p.y<ry+80){
+          multiDamageRemote(uid, p.dmg||30);
+          spawnPtcl(p.x,p.y,p.color,6,'burst');
+          projectiles.splice(i,1); break;
+        }
+      }
+    }
+  }
+  updateCamera();
+  updateMultiHud(dt);
+}
+
+function multiRespawn(){
+  playerData.hp=playerData.maxHp;
+  player.x=doors[0].x+doors[0].w+30+Math.random()*120;
+  player.y=floorY-100; player.vy=0; player.alive=true;
+  player.invincible=2; multiRespawnTimer=0;
+  updateHUD();
+}
+
+function updateMultiHud(dt){
+  const sb=document.getElementById('multiScoreboard');
+  if(!sb) return;
+  const uid=currentUser?.uid||'';
+  let html='';
+  // 내 정보
+  const myName=currentUser?.email?.replace('@pkdex.com','')||'나';
+  if(multiRoomMode==='hunt'){
+    html+=`<span style="font-size:.62rem;background:rgba(255,203,5,.2);padding:.15rem .4rem;border-radius:6px;color:var(--accent);">나 🎯${multiMyKills}</span>`;
+    Object.entries(multiPlayers).forEach(([,p])=>{
+      html+=`<span style="font-size:.62rem;background:rgba(255,255,255,.08);padding:.15rem .4rem;border-radius:6px;color:var(--text);">${p.name} 🎯${p.kills||0}</span>`;
+    });
+    // 남은 시간
+    html+=`<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem;">⏱${Math.max(0,Math.ceil(multiHuntTimer))}s</span>`;
+  } else {
+    // PvP: HP 표시
+    const myAlive=player.alive!==false;
+    const pct=Math.max(0,playerData.hp/playerData.maxHp*100);
+    html+=`<span style="font-size:.6rem;background:rgba(46,213,115,.15);padding:.15rem .4rem;border-radius:6px;color:#2ed573;">${myName} ${myAlive?`♥${pct.toFixed(0)}%`:'💀'}</span>`;
+    Object.entries(multiPlayers).forEach(([,p])=>{
+      const rPct=Math.max(0,(p.hp||0)/(p.maxHp||1)*100);
+      html+=`<span style="font-size:.6rem;background:rgba(255,71,87,.15);padding:.15rem .4rem;border-radius:6px;color:#ff4757;">${p.name} ${p.alive!==false?`♥${rPct.toFixed(0)}%`:'💀'}</span>`;
+    });
+    if(player.alive===false&&multiRespawnTimer>0){
+      html+=`<span style="font-size:.6rem;color:var(--muted);">부활까지 ${Math.ceil(multiRespawnTimer)}s</span>`;
+    }
+  }
+  sb.innerHTML=html;
+}
+
+function multiRender(){
+  // 기본 render() 호출
+  render();
+  // 원격 플레이어 렌더 (PvP에서만)
+  if(multiRoomMode==='pvp'){
+    ctx.save(); ctx.translate(-camera.x,0);
+    Object.entries(multiPlayers).forEach(([uid,rp])=>{
+      if(rp.alive===false) return;
+      const img=multiRemoteSprites[uid];
+      const rx=rp.x, ry=rp.y, rw=80, rh=80;
+      ctx.save();
+      ctx.translate(rx+rw/2, ry+rh/2);
+      if(rp.facing>0) ctx.scale(-1,1);
+      if(img?.complete&&img.naturalWidth>0){
+        ctx.drawImage(img,-rw/2,-rh/2,rw,rh);
+      } else {
+        ctx.fillStyle='#aaa'; ctx.fillRect(-rw/2,-rh/2,rw,rh);
+      }
+      ctx.restore();
+      // 이름 + HP바
+      const hPct=Math.max(0,(rp.hp||0)/(rp.maxHp||1));
+      ctx.fillStyle='rgba(255,71,87,.85)';
+      ctx.fillRect(rx, ry-12, rw*hPct, 5);
+      ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1;
+      ctx.strokeRect(rx, ry-12, rw, 5);
+      ctx.fillStyle='#ff4757'; ctx.font="bold 9px 'Galmuri11',monospace";
+      ctx.textAlign='center'; ctx.fillText(rp.name||'', rx+rw/2, ry-15);
+    });
+    ctx.restore();
+  }
+}
+
+// ── 배틀 종료 ────────────────────────────────────────────────
+async function endMultiBattle(reason){
+  gameRunning=false;
+  if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
+  clearInterval(multiSyncInterval); multiSyncInterval=null;
+  document.getElementById('multiHud').style.display='none';
+  // 결과 계산
+  let title='', html='';
+  if(reason==='win'){
+    title='🏆 승리!';
+    html='<p style="color:var(--accent);">마지막 생존자!</p>';
+  } else if(reason==='hunt_end'){
+    title='⏱ 시간 종료!';
+    // 순위 계산
+    const scores=[{name:'나', kills:multiMyKills}];
+    Object.values(multiPlayers).forEach(p=>scores.push({name:p.name,kills:p.kills||0}));
+    scores.sort((a,b)=>b.kills-a.kills);
+    html=scores.map((s,i)=>`<p style="font-size:.8rem;">${i+1}위 ${s.name} — 🎯 ${s.kills}마리</p>`).join('');
+  } else {
+    title='💀 패배...';
+    html='<p style="color:var(--muted);">모든 체력을 잃었습니다</p>';
+  }
+  // 방 상태 업데이트 (방장만)
+  if(multiIsHost&&multiRoomId) await updateDoc(doc(db,'multiRooms',multiRoomId),{status:'ended'}).catch(()=>{});
+  document.getElementById('multiResultTitle').textContent=title;
+  document.getElementById('multiResultList').innerHTML=html;
+  showScreen('multiResultScreen');
+}
+
+// ── 방 나가기 / 정리 ────────────────────────────────────────
+async function leaveRoom(){
+  gameRunning=false;
+  multiCleanup();
+  showScreen('multiLobbyScreen');
+  loadPublicRooms();
+}
+
+function multiCleanup(){
+  multiUnsubs.forEach(u=>u()); multiUnsubs=[];
+  clearInterval(multiSyncInterval); multiSyncInterval=null;
+  if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
+  document.getElementById('multiHud').style.display='none';
+  if(currentUser&&multiRoomId){
+    // 내 플레이어 문서 삭제
+    deleteDoc(doc(db,'multiRooms',multiRoomId,'players',currentUser.uid)).catch(()=>{});
+    updateDoc(doc(db,'multiRooms',multiRoomId),{[`playerCount.${currentUser.uid}`]:deleteField()}).catch(()=>{});
+  }
+  multiRoomId=null; multiRoomCode=null; multiIsHost=false;
+  multiStatus='idle'; multiPlayers={}; multiRemoteSprites={};
+  multiMyKills=0; multiHuntTimer=0; multiRespawnTimer=0;
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// 🕹️  컨트롤 레이아웃 편집 시스템
+// ══════════════════════════════════════════════════════════════
+// Firebase 저장 경로: users/{uid}/ctrlLayout/{deviceId}
+// 기기 ID: 화면 해상도 + userAgent 해시로 고유 식별
+// 설정 항목: js(조이스틱), jump, atk1, atk2 각각의 x,y(뷰포트 비율), btnSize, jsSize
+
+function getDeviceId(){
+  const key=`${screen.width}x${screen.height}_${navigator.userAgent.slice(0,40)}`;
+  let h=0; for(const c of key){ h=(h*31+c.charCodeAt(0))&0x7fffffff; }
+  return 'dev_'+h.toString(36);
+}
+
+const CTRL_DEFAULT={
+  jsX:0.10, jsY:0.88,      // 조이스틱 중심 (뷰포트 비율)
+  jumpX:0.88, jumpY:0.82,  // 점프 버튼 중심
+  atk1X:0.78, atk1Y:0.88, // 공격1 중심
+  atk2X:0.68, atk2Y:0.88, // 공격2 중심
+  btnSize:64, jsSize:110,
+};
+
+let ctrlLayout=null;      // 현재 적용된 레이아웃
+let ctrlEditDraft=null;   // 편집 중인 임시 레이아웃
+let _ctrlEditDragging=null;
+
+function getCtrlStorageKey(){ return 'pkrl_ctrl_'+getDeviceId(); }
+
+function loadCtrlLayoutLocal(){
+  try{ const v=localStorage.getItem(getCtrlStorageKey()); if(v) return JSON.parse(v); }catch(e){}
+  return null;
+}
+function saveCtrlLayoutLocal(layout){
+  try{ localStorage.setItem(getCtrlStorageKey(), JSON.stringify(layout)); }catch(e){}
+}
+
+async function loadCtrlLayoutFirebase(){
+  if(!currentUser) return null;
+  try{
+    const snap=await getDoc(doc(db,'users',currentUser.uid,'ctrlLayout',getDeviceId()));
+    if(snap.exists()) return snap.data();
+  }catch(e){}
+  return null;
+}
+async function saveCtrlLayoutFirebase(layout){
+  if(!currentUser) return;
+  try{ await setDoc(doc(db,'users',currentUser.uid,'ctrlLayout',getDeviceId()), layout); }catch(e){}
+}
+
+async function initCtrlLayout(){
+  // Firebase 우선, 없으면 localStorage, 없으면 기본값
+  let layout=await loadCtrlLayoutFirebase();
+  if(!layout) layout=loadCtrlLayoutLocal();
+  if(!layout) layout={...CTRL_DEFAULT};
+  ctrlLayout={...CTRL_DEFAULT,...layout};
+  applyCtrlLayout(ctrlLayout);
+}
+
+function applyCtrlLayout(layout){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const js=document.getElementById('joystickZone');
+  const jump=document.getElementById('btnJump');
+  const atk1=document.getElementById('btnAtk1');
+  const atk2=document.getElementById('btnAtk2');
+  const bs=layout.btnSize||64, jss=layout.jsSize||110;
+  // CSS 변수 업데이트
+  document.documentElement.style.setProperty('--ctrl-size', bs+'px');
+  document.documentElement.style.setProperty('--js-size', jss+'px');
+  // 조이스틱
+  js.style.cssText=`position:absolute;left:${layout.jsX*vw-jss/2}px;top:${layout.jsY*vh-jss/2}px;width:${jss}px;height:${jss}px;pointer-events:all;`;
+  // 버튼들 — 개별 absolute 위치
+  const rightPanel=document.querySelector('.ctrl-right-panel');
+  rightPanel.style.cssText='position:absolute;pointer-events:all;bottom:unset;right:unset;display:block;';
+  jump.style.cssText=`position:absolute;left:${layout.jumpX*vw-bs/2}px;top:${layout.jumpY*vh-bs/2}px;width:${bs}px;height:${bs}px;font-size:${bs*.33}px;`;
+  atk1.style.cssText=`position:absolute;left:${layout.atk1X*vw-bs*.94/2}px;top:${layout.atk1Y*vh-bs*.94/2}px;width:${bs*.94}px;height:${bs*.94}px;`;
+  atk2.style.cssText=`position:absolute;left:${layout.atk2X*vw-bs*.94/2}px;top:${layout.atk2Y*vh-bs*.94/2}px;width:${bs*.94}px;height:${bs*.94}px;`;
+  // controls 높이 자동 (전체 화면 덮도록)
+  document.getElementById('controls').style.height='100%';
+}
+
+function applyCtrlLayoutDraft(){ if(ctrlEditDraft) applyCtrlLayout(ctrlEditDraft); }
+
+function startCtrlEdit(){
+  if(!ctrlLayout) ctrlLayout={...CTRL_DEFAULT};
+  ctrlEditDraft={...ctrlLayout};
+  // 슬라이더 초기값
+  const bs=document.getElementById('ctrlSizeSlider');
+  const js=document.getElementById('jsSizeSlider');
+  bs.value=ctrlEditDraft.btnSize; document.getElementById('ctrlSizeVal').textContent=ctrlEditDraft.btnSize;
+  js.value=ctrlEditDraft.jsSize; document.getElementById('jsSizeVal').textContent=ctrlEditDraft.jsSize;
+
+  applyCtrlLayoutDraft();
+
+  // 핸들 위치 동기화
+  syncEditHandles();
+
+  document.getElementById('ctrlEditOverlay').classList.add('active');
+  document.getElementById('ctrlEditBar').classList.add('active');
+
+  // 핸들 드래그 등록
+  ['JS','Jump','Atk1','Atk2'].forEach(n=>setupHandleDrag(n));
+}
+
+function syncEditHandles(){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const d=ctrlEditDraft, bs=d.btnSize, jss=d.jsSize;
+  const setH=(id,cx,cy,w,h,label)=>{
+    const el=document.getElementById('editHandle'+id);
+    el.style.cssText=`left:${cx-w/2}px;top:${cy-h/2}px;width:${w}px;height:${h}px;`;
+    el.textContent=label;
+  };
+  setH('JS',   d.jsX*vw,   d.jsY*vh,   jss,  jss,  '조이스틱');
+  setH('Jump', d.jumpX*vw, d.jumpY*vh, bs,   bs,   '점프');
+  setH('Atk1', d.atk1X*vw, d.atk1Y*vh, bs*.94, bs*.94, '공격1');
+  setH('Atk2', d.atk2X*vw, d.atk2Y*vh, bs*.94, bs*.94, '공격2');
+}
+
+function setupHandleDrag(name){
+  const el=document.getElementById('editHandle'+name);
+  const keyMap={JS:['jsX','jsY'],Jump:['jumpX','jumpY'],Atk1:['atk1X','atk1Y'],Atk2:['atk2X','atk2Y']};
+  const [kx,ky]=keyMap[name];
+  let startTouch=null;
+
+  const move=(cx,cy)=>{
+    const vw=window.innerWidth, vh=window.innerHeight;
+    ctrlEditDraft[kx]=Math.max(0.02,Math.min(0.98,cx/vw));
+    ctrlEditDraft[ky]=Math.max(0.05,Math.min(0.98,cy/vh));
+    syncEditHandles();
+    applyCtrlLayoutDraft();
+  };
+
+  el.addEventListener('touchstart',e=>{
+    e.preventDefault(); e.stopPropagation();
+    startTouch=e.touches[0].identifier;
+  },{passive:false});
+  el.addEventListener('touchmove',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const t=[...e.touches].find(t=>t.identifier===startTouch);
+    if(t) move(t.clientX, t.clientY);
+  },{passive:false});
+
+  el.addEventListener('mousedown',e=>{ e.preventDefault(); _ctrlEditDragging={el,kx,ky}; });
+}
+document.addEventListener('mousemove',e=>{
+  if(!_ctrlEditDragging) return;
+  const {kx,ky}=_ctrlEditDragging;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  ctrlEditDraft[kx]=Math.max(0.02,Math.min(0.98,e.clientX/vw));
+  ctrlEditDraft[ky]=Math.max(0.05,Math.min(0.98,e.clientY/vh));
+  syncEditHandles(); applyCtrlLayoutDraft();
+});
+document.addEventListener('mouseup',()=>{ _ctrlEditDragging=null; });
+
+function endCtrlEdit(save){
+  document.getElementById('ctrlEditOverlay').classList.remove('active');
+  document.getElementById('ctrlEditBar').classList.remove('active');
+  if(!save){ applyCtrlLayout(ctrlLayout); } // 취소 시 원래 레이아웃 복원
+}
+
+async function saveCtrlLayout(){
+  ctrlLayout={...ctrlEditDraft};
+  saveCtrlLayoutLocal(ctrlLayout);
+  await saveCtrlLayoutFirebase(ctrlLayout);
+  endCtrlEdit(true);
+  showToast('✅ 컨트롤 설정이 저장되었습니다');
+}
+
+function resetCtrlLayout(){
+  ctrlEditDraft={...CTRL_DEFAULT};
+  document.getElementById('ctrlSizeSlider').value=CTRL_DEFAULT.btnSize;
+  document.getElementById('ctrlSizeVal').textContent=CTRL_DEFAULT.btnSize;
+  document.getElementById('jsSizeSlider').value=CTRL_DEFAULT.jsSize;
+  document.getElementById('jsSizeVal').textContent=CTRL_DEFAULT.jsSize;
+  syncEditHandles(); applyCtrlLayoutDraft();
+}
+
 </script>
 <!-- GRAPHICS SETTINGS MODAL -->
 <div class="screen hidden" id="settingsModal" style="z-index:50;background:rgba(0,0,0,.6);">
@@ -4799,6 +5851,7 @@ document.addEventListener('DOMContentLoaded', ()=>{});
     <p style="font-size:.65rem;color:var(--muted);margin-bottom:.8rem;">
       현재: <span class="gfx-current-label" style="color:var(--accent);"></span>
     </p>
+    <button class="stage-btn" id="btnOpenCtrlEdit" style="width:100%;margin-bottom:.5rem;">🕹 컨트롤 위치 조정</button>
     <button class="stage-btn" id="btnCloseSettings" style="width:100%;">닫기</button>
   </div>
 </div>

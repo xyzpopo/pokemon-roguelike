@@ -550,6 +550,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <div class="title-user" id="titleUser"></div>
     <button class="btn-start" id="btnTitleStart">▶ 시작하기</button>
     <button class="btn-outline" id="btnOpenSettings">⚙ 그래픽 설정</button>
+    <button class="btn-outline" id="btnOpenReplays">🎬 리플레이</button>
     <button class="btn-outline" id="btnTitleLogout"  style="display:none">로그아웃</button>
   </div>
 </div>
@@ -759,7 +760,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   </div>
 </div>
 
+<!-- ── 리플레이 저장 확인 ── -->
+<div class="screen hidden" id="replaySaveModal" style="z-index:60;background:rgba(0,0,0,.6);">
+  <div class="levelup-box" style="max-width:300px;">
+    <h2>🎬 리플레이</h2>
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;">방금 플레이를 리플레이로 저장할까요?</p>
+    <div style="display:flex;gap:.5rem;">
+      <button class="stage-btn" id="btnReplaySaveYes" style="flex:1;">💾 저장</button>
+      <button class="btn-outline" id="btnReplaySaveNo" style="flex:1;">아니요</button>
+    </div>
+  </div>
+</div>
 
+<!-- ── 리플레이 목록 ── -->
+<div class="screen hidden" id="replayListScreen">
+  <div class="levelup-box" style="max-width:380px;width:92%;">
+    <h2>🎬 내 리플레이</h2>
+    <div id="replayListBox" style="max-height:340px;overflow-y:auto;margin:.8rem 0;"></div>
+    <button class="btn-outline" id="btnReplayListBack" style="width:100%;">← 뒤로</button>
+  </div>
+</div>
+
+<!-- ── 리플레이 재생 화면 ── -->
+<div class="screen hidden" id="replayPlayScreen" style="background:#000;">
+  <canvas id="replayCanvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+  <div id="replayControls" style="position:fixed;bottom:0;left:0;right:0;padding:.8rem;background:rgba(0,0,0,.7);display:flex;align-items:center;gap:.6rem;z-index:5;">
+    <button id="btnReplayPlayPause" style="width:36px;height:36px;border-radius:50%;background:var(--accent);border:none;color:#000;font-size:1rem;">⏸</button>
+    <input type="range" id="replaySeekBar" min="0" max="1000" value="0" style="flex:1;accent-color:var(--accent);">
+    <span id="replayTimeLabel" style="font-size:.62rem;color:var(--text);min-width:5em;">0:00</span>
+    <select id="replaySpeedSelect" style="font-size:.6rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="4">4x</option>
+    </select>
+    <button id="btnReplayExit" style="font-size:.65rem;padding:.4rem .7rem;border-radius:6px;background:rgba(255,255,255,.1);color:var(--text);border:1px solid var(--border);">✕</button>
+  </div>
+</div>
+
+<div id="hud" style="display:none">
   <div class="hud-inner">
     <div class="hud-panel">
       <div class="hud-name" id="hudName">-</div>
@@ -1482,25 +1521,34 @@ async function fetchPokemonDetail(pk){
 
 async function confirmSelect(){
   if(!selectedPokemon) return;
-  if(!selectedPokemon.stats) await fetchPokemonDetail(selectedPokemon);
-  gameGen=Math.floor(Math.random()*9)+1;
-  const sh=[...LEGEND_BY_GEN[gameGen]].sort(()=>Math.random()-.5);
-  bosses.mid=sh[0]; bosses.final=sh[1];
-  await Promise.all([loadBossStats(bosses.mid),loadBossStats(bosses.final)]);
-  currentStage=0; playerLevel=1;
-  playerData=buildPlayerData(selectedPokemon,1);
-  // 플레이어 기술 스타일 배정 (타입별, 2가지 스킬 각각)
-  const ptypes=selectedPokemon.types||['노말'];
-  playerData.atkStyle=[
-    assignAttackStyle([ptypes[0]||'노말'],false),
-    assignAttackStyle([ptypes[1]||ptypes[0]||'노말'],false),
-  ];
-  // HUD에 스타일 힌트 표시용
-  window._playerStyleLabel=[
-    ATTACK_STYLES[playerData.atkStyle[0]]?.label||'원거리',
-    ATTACK_STYLES[playerData.atkStyle[1]]?.label||'원거리',
-  ];
-  startLobby();
+  try{
+    if(!selectedPokemon.stats) await fetchPokemonDetail(selectedPokemon);
+    if(!selectedPokemon.stats){
+      showToast('포켓몬 정보를 불러오지 못했습니다. 다시 시도해주세요.');
+      return;
+    }
+    gameGen=Math.floor(Math.random()*9)+1;
+    const sh=[...LEGEND_BY_GEN[gameGen]].sort(()=>Math.random()-.5);
+    bosses.mid=sh[0]; bosses.final=sh[1];
+    await Promise.all([loadBossStats(bosses.mid),loadBossStats(bosses.final)]);
+    currentStage=0; playerLevel=1;
+    playerData=buildPlayerData(selectedPokemon,1);
+    // 플레이어 기술 스타일 배정 (타입별, 2가지 스킬 각각)
+    const ptypes=selectedPokemon.types||['노말'];
+    playerData.atkStyle=[
+      assignAttackStyle([ptypes[0]||'노말'],false),
+      assignAttackStyle([ptypes[1]||ptypes[0]||'노말'],false),
+    ];
+    // HUD에 스타일 힌트 표시용
+    window._playerStyleLabel=[
+      ATTACK_STYLES[playerData.atkStyle[0]]?.label||'원거리',
+      ATTACK_STYLES[playerData.atkStyle[1]]?.label||'원거리',
+    ];
+    startLobby();
+  }catch(err){
+    console.error('confirmSelect error:',err);
+    showToast('시작 중 오류가 발생했습니다: '+(err?.message||err));
+  }
 }
 
 async function loadBossStats(boss){
@@ -2740,7 +2788,7 @@ function makeEnemy(pk,x,y,hp,isBoss){
   const adjHp=Math.round(hp*pcfg.hpMul);
   return {x, y:y-h,
     w, h, vx:0, vy:0, onGround:false, facing:-1,
-    img, types:pk.types||['노말'], hp:adjHp, maxHp:adjHp, isBoss, name:pk.name,
+    img, id:pk.id, types:pk.types||['노말'], hp:adjHp, maxHp:adjHp, isBoss, name:pk.name,
     baseAtk:pk.baseStats?.atk||50,
     atkCooldown:1.0+Math.random()*1.5,
     aiTimer:Math.random()*0.5, jumpTimer:0, animTick:0,
@@ -2762,11 +2810,16 @@ function startLobby(){
   showScreen('gameScreen');
   document.getElementById('hud').style.display='block';
   showControls(true);
-  initStageMap(0);
+  try{
+    initStageMap(0);
+  }catch(err){
+    console.error('initStageMap(0) error:',err);
+    showToast('맵 초기화 오류: '+(err?.message||err));
+  }
   setupControls();
   updateHUD();
   setHint('입구로 들어가면 1스테이지가 시작됩니다!');
-  gameRunning=true; lastTime=0;
+  gameRunning=true; lastTime=0; _gameLoopErrCount=0;
   if(animFrame) cancelAnimationFrame(animFrame);
   animFrame=requestAnimationFrame(gameLoop);
 }
@@ -2832,6 +2885,7 @@ function launchStage(stage){
     nd.atkStyle=prev?.atkStyle||null;
     playerData=nd;
   }
+  if(stage===1) startReplayRecording('single');
   // 이미지 preload 완료 후 스테이지 시작
   setHint('🔄 스테이지 로딩 중...');
   preloadStageImages(stage, ()=>{
@@ -2969,8 +3023,21 @@ function gameLoop(ts){
   const dt=Math.min((ts-lastTime)/1000,.05); lastTime=ts;
   try{
     update(dt); render();
+    _gameLoopErrCount=0;
   }catch(err){
     console.error('gameLoop error:',err);
+    _gameLoopErrCount=(_gameLoopErrCount||0)+1;
+    // 같은 프레임에서 반복적으로 실패하면 화면에 에러를 표시 (검은 화면 방지용 디버그)
+    if(_gameLoopErrCount>=3){
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle='#1a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#ff6b6b'; ctx.font='14px monospace'; ctx.textAlign='left';
+      ctx.fillText('렌더링 오류가 발생했습니다:', 20, 40);
+      ctx.font='11px monospace';
+      const msg=(err&&err.message||String(err)).slice(0,80);
+      ctx.fillText(msg, 20, 64);
+      ctx.fillText((err&&err.stack||'').split('\n')[1]?.trim().slice(0,80)||'', 20, 84);
+    }
   }
   just.jump=false; just.atk1=false; just.atk2=false;
   animFrame=requestAnimationFrame(gameLoop);
@@ -2983,6 +3050,7 @@ function update(dt){
   updateHealItems(dt);
   updateBombs(dt);
   checkDoors(); checkWin(); updateCamera(); updateHudHp();
+  recordReplayFrame(dt);
 }
 
 // ── 플레이어 업데이트 ─────────────────────────────────────────
@@ -5039,6 +5107,7 @@ async function endGame(win){
   document.getElementById('hud').style.display='none';
   showControls(false); setHint('');
   document.onkeydown=null; document.onkeyup=null;
+  stopReplayRecording();
   if(win){
     showScreen('clearScreen');
     document.getElementById('clearImg').src=selectedPokemon.sprite;
@@ -5051,6 +5120,7 @@ async function endGame(win){
     const stageLabel=currentStage===0?'로비':isBonusStage?'보너스 스테이지':(`STAGE ${currentStage}/20`);
     document.getElementById('gameoverMsg').textContent=`${stageLabel}에서 쓰러졌습니다...`;
   }
+  promptSaveReplay(win?'클리어':'게임오버');
 }
 
 function restartGame(){
@@ -5162,6 +5232,14 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('btnTitleStart',   ()=>onTitleStart());
   on('btnTitleLogout',  ()=>doLogout());
   on('btnOpenSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
+  on('btnOpenReplays',  ()=>openReplayList());
+  on('btnReplayListBack', ()=>showScreen('titleScreen'));
+  on('btnReplaySaveYes',  ()=>saveCurrentReplay());
+  on('btnReplaySaveNo',   ()=>dismissReplaySave());
+  on('btnReplayPlayPause',()=>toggleReplayPlayPause());
+  on('btnReplayExit',     ()=>exitReplay());
+  document.getElementById('replaySeekBar')?.addEventListener('input',e=>seekReplay(e.target.value));
+  document.getElementById('replaySpeedSelect')?.addEventListener('change',e=>{ replaySpeed=parseFloat(e.target.value); });
   on('btnInGameSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
   on('btnCloseSettings', ()=>document.getElementById('settingsModal').classList.add('hidden'));
   document.querySelectorAll('.gfx-opt').forEach(el=>{
@@ -5424,6 +5502,7 @@ function beginMultiBattle(mapIdx){
   Object.entries(multiPlayers).forEach(([uid,p])=>{
     multiRemoteSprites[uid]=getCachedImg(p.sprite);
   });
+  startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
   // 게임 루프
   gameRunning=true; lastTime=0;
   if(animFrame) cancelAnimationFrame(animFrame);
@@ -5532,6 +5611,7 @@ function multiUpdate(dt){
   }
   updateCamera();
   updateMultiHud(dt);
+  recordReplayFrame(dt);
 }
 
 function multiRespawn(){
@@ -5610,6 +5690,7 @@ async function endMultiBattle(reason){
   if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
   clearInterval(multiSyncInterval); multiSyncInterval=null;
   document.getElementById('multiHud').style.display='none';
+  stopReplayRecording();
   // 결과 계산
   let title='', html='';
   if(reason==='win'){
@@ -5631,6 +5712,7 @@ async function endMultiBattle(reason){
   document.getElementById('multiResultTitle').textContent=title;
   document.getElementById('multiResultList').innerHTML=html;
   showScreen('multiResultScreen');
+  promptSaveReplay(title);
 }
 
 // ── 방 나가기 / 정리 ────────────────────────────────────────
@@ -5831,8 +5913,306 @@ function resetCtrlLayout(){
   document.getElementById('jsSizeVal').textContent=CTRL_DEFAULT.jsSize;
   syncEditHandles(); applyCtrlLayoutDraft();
 }
+// ══════════════════════════════════════════════════════════════
+// 🎬 리플레이 시스템
+// ══════════════════════════════════════════════════════════════
+// 기록: 100ms(10fps)마다 플레이어/적/투사체/HP 등의 스냅샷을 저장
+// 재생: 스냅샷 사이를 선형보간(interpolation)하여 자연스럽게 표시
+// 저장: Firebase users/{uid}/replays/{replayId}
+// ══════════════════════════════════════════════════════════════
+
+const REPLAY_INTERVAL=0.1; // 100ms = 10fps 기록
+let replayRecording=false;
+let replayFrames=[];      // {t, player:{x,y,facing,hp}, enemies:[{x,y,id,facing,hp}], stage}
+let replayElapsed=0;
+let replayMeta=null;      // {mode, startedAt}
+let _lastEndedReplay=null; // 종료 직후 저장 대기 중인 리플레이 데이터
+
+function startReplayRecording(mode){
+  replayRecording=true;
+  replayFrames=[];
+  replayElapsed=0;
+  replayMeta={mode, startedAt:Date.now()};
+}
+
+function recordReplayFrame(dt){
+  if(!replayRecording||!player) return;
+  replayElapsed+=dt;
+  if(replayElapsed<REPLAY_INTERVAL) return;
+  replayElapsed=0;
+
+  // 용량 제한: 최대 10분(6000프레임) 녹화 후 자동 중단
+  if(replayFrames.length>=3600){ replayRecording=false; return; }
+
+  const frame={
+    t:Math.round((replayFrames.length)*REPLAY_INTERVAL*10)/10,
+    stage:currentStage,
+    cam:Math.round(camera.x),
+    p:{x:Math.round(player.x),y:Math.round(player.y),f:player.facing,
+       hp:Math.round(playerData?.hp||0),mhp:playerData?.maxHp||1,
+       alive:player.alive!==false},
+    e:enemies.slice(0,20).map(en=>({
+      x:Math.round(en.x),y:Math.round(en.y),f:en.facing,
+      id:en.spriteId||en.id||0,boss:!!en.isBoss,
+      hp:Math.round(en.hp),mhp:Math.round(en.maxHp)
+    })),
+  };
+  // 멀티 PvP: 원격 플레이어도 기록
+  if(replayMeta.mode==='multi_pvp'&&typeof multiPlayers==='object'){
+    frame.rp=Object.entries(multiPlayers).map(([uid,rp])=>({
+      uid, name:rp.name, sprite:rp.sprite, x:Math.round(rp.x), y:Math.round(rp.y),
+      f:rp.facing, hp:Math.round(rp.hp||0), mhp:rp.maxHp||1, alive:rp.alive!==false
+    }));
+  }
+  replayFrames.push(frame);
+}
+
+function stopReplayRecording(){
+  if(!replayRecording||replayFrames.length<5){
+    replayRecording=false; _lastEndedReplay=null; return;
+  }
+  replayRecording=false;
+  _lastEndedReplay={
+    mode:replayMeta.mode,
+    startedAt:replayMeta.startedAt,
+    duration:replayFrames.length*REPLAY_INTERVAL,
+    pokemonSprite:playerData?.sprite||'',
+    pokemonName:playerData?.name||'',
+    maxStage:Math.max(...replayFrames.map(f=>f.stage),0),
+    frames:replayFrames,
+  };
+}
+
+function promptSaveReplay(resultLabel){
+  if(!_lastEndedReplay||!currentUser){ return; }
+  document.getElementById('replaySaveModal').classList.remove('hidden');
+}
+
+async function saveCurrentReplay(){
+  if(!_lastEndedReplay||!currentUser) return;
+  const btn=document.getElementById('btnReplaySaveYes');
+  btn.disabled=true; btn.textContent='저장 중...';
+  try{
+    // 프레임 데이터를 JSON 문자열로 압축 저장 (Firestore 문서 1MB 제한 고려)
+    const framesJson=JSON.stringify(_lastEndedReplay.frames);
+    if(framesJson.length>900000){
+      // 너무 크면 프레임을 추려서(다운샘플) 저장
+      const ratio=Math.ceil(framesJson.length/850000);
+      _lastEndedReplay.frames=_lastEndedReplay.frames.filter((_,i)=>i%ratio===0);
+    }
+    await addDoc(collection(db,'users',currentUser.uid,'replays'),{
+      mode:_lastEndedReplay.mode,
+      pokemonSprite:_lastEndedReplay.pokemonSprite,
+      pokemonName:_lastEndedReplay.pokemonName,
+      maxStage:_lastEndedReplay.maxStage,
+      duration:_lastEndedReplay.duration,
+      frames:JSON.stringify(_lastEndedReplay.frames),
+      createdAt:serverTimestamp(),
+    });
+    showToast('💾 리플레이가 저장되었습니다');
+  }catch(e){
+    showToast('저장 실패: '+(e?.message||e));
+  }
+  btn.disabled=false; btn.textContent='💾 저장';
+  document.getElementById('replaySaveModal').classList.add('hidden');
+  _lastEndedReplay=null;
+}
+
+function dismissReplaySave(){
+  document.getElementById('replaySaveModal').classList.add('hidden');
+  _lastEndedReplay=null;
+}
+
+// ── 리플레이 목록 ────────────────────────────────────────────
+async function openReplayList(){
+  if(!currentUser){ showToast('로그인이 필요합니다'); return; }
+  showScreen('replayListScreen');
+  const box=document.getElementById('replayListBox');
+  box.innerHTML='<p style="font-size:.65rem;color:var(--muted);text-align:center;">로딩 중...</p>';
+  try{
+    const q=query(collection(db,'users',currentUser.uid,'replays'),orderBy('createdAt','desc'),limit(30));
+    const snap=await getDocs(q);
+    if(snap.empty){ box.innerHTML='<p style="font-size:.65rem;color:var(--muted);text-align:center;">저장된 리플레이가 없습니다</p>'; return; }
+    box.innerHTML='';
+    snap.forEach(d=>{
+      const r=d.data();
+      const modeLabel=r.mode==='single'?'싱글':r.mode==='multi_pvp'?'PvP':r.mode==='multi_hunt'?'사냥':r.mode;
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;margin-bottom:.4rem;background:rgba(255,255,255,.04);border-radius:8px;cursor:pointer;';
+      div.innerHTML=`<img src="${r.pokemonSprite}" style="width:32px;height:32px;image-rendering:pixelated;">
+        <div style="flex:1;">
+          <div style="font-size:.7rem;">${r.pokemonName||'?'} <span style="color:var(--muted);">· ${modeLabel}</span></div>
+          <div style="font-size:.58rem;color:var(--muted);">스테이지 ${r.maxStage} · ${Math.round(r.duration)}초</div>
+        </div>
+        <button class="replay-del" style="font-size:.6rem;padding:.2rem .4rem;border-radius:6px;background:rgba(255,71,87,.15);color:#ff4757;border:none;">삭제</button>`;
+      div.addEventListener('click',(e)=>{ if(e.target.classList.contains('replay-del')) return; playReplay(d.id, r); });
+      div.querySelector('.replay-del').addEventListener('click',async(e)=>{
+        e.stopPropagation();
+        await deleteDoc(doc(db,'users',currentUser.uid,'replays',d.id));
+        div.remove();
+      });
+      box.appendChild(div);
+    });
+  }catch(e){ box.innerHTML='<p style="font-size:.65rem;color:var(--red);">불러오기 실패</p>'; }
+}
+
+// ── 리플레이 재생 ────────────────────────────────────────────
+let replayPlaybackFrames=[];
+let replayPlaybackIdx=0;
+let replayPlaybackTime=0;
+let replayPlaying=true;
+let replaySpeed=1;
+let replayAnimFrame=null;
+let replayCtx=null;
+let replayLastTs=0;
+let playerSpriteForReplay=null;
+
+function playReplay(id, data){
+  try{
+    replayPlaybackFrames=JSON.parse(data.frames);
+  }catch(e){ showToast('리플레이 데이터 손상'); return; }
+  if(!replayPlaybackFrames.length){ showToast('빈 리플레이입니다'); return; }
+  playerSpriteForReplay=data.pokemonSprite||null;
+
+  showScreen('replayPlayScreen');
+  const canvas=document.getElementById('replayCanvas');
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=Math.round(window.innerWidth*dpr);
+  canvas.height=Math.round(window.innerHeight*dpr);
+  replayCtx=canvas.getContext('2d');
+  replayCtx.setTransform(dpr,0,0,dpr,0,0);
+
+  replayPlaybackIdx=0; replayPlaybackTime=0; replayPlaying=true; replaySpeed=1;
+  document.getElementById('replaySeekBar').max=String(replayPlaybackFrames.length-1);
+  document.getElementById('replaySeekBar').value='0';
+  document.getElementById('replaySpeedSelect').value='1';
+  document.getElementById('btnReplayPlayPause').textContent='⏸';
+  replayLastTs=0;
+  if(replayAnimFrame) cancelAnimationFrame(replayAnimFrame);
+  replayAnimFrame=requestAnimationFrame(replayLoop);
+}
+
+function replayLoop(ts){
+  if(!replayLastTs) replayLastTs=ts;
+  const dt=Math.min((ts-replayLastTs)/1000,.1); replayLastTs=ts;
+
+  if(replayPlaying){
+    replayPlaybackTime+=dt*replaySpeed;
+    const totalDur=(replayPlaybackFrames.length-1)*REPLAY_INTERVAL;
+    if(replayPlaybackTime>=totalDur){ replayPlaybackTime=totalDur; replayPlaying=false; document.getElementById('btnReplayPlayPause').textContent='▶'; }
+    replayPlaybackIdx=Math.min(replayPlaybackFrames.length-2, Math.floor(replayPlaybackTime/REPLAY_INTERVAL));
+    document.getElementById('replaySeekBar').value=String(replayPlaybackIdx);
+  }
+
+  renderReplayFrame();
+  updateReplayTimeLabel();
+  replayAnimFrame=requestAnimationFrame(replayLoop);
+}
+
+function updateReplayTimeLabel(){
+  const cur=Math.floor(replayPlaybackTime);
+  const tot=Math.floor((replayPlaybackFrames.length-1)*REPLAY_INTERVAL);
+  const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  document.getElementById('replayTimeLabel').textContent=`${fmt(cur)} / ${fmt(tot)}`;
+}
+
+function renderReplayFrame(){
+  if(!replayCtx||!replayPlaybackFrames.length) return;
+  const i0=Math.max(0,Math.min(replayPlaybackFrames.length-1,replayPlaybackIdx));
+  const i1=Math.min(replayPlaybackFrames.length-1,i0+1);
+  const f0=replayPlaybackFrames[i0], f1=replayPlaybackFrames[i1];
+  const localT=(replayPlaybackTime - i0*REPLAY_INTERVAL)/REPLAY_INTERVAL;
+  const lerp=(a,b,t)=>a+(b-a)*Math.max(0,Math.min(1,t));
+
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const cx=replayCtx;
+  cx.clearRect(0,0,vw,vh);
+
+  // 배경
+  const theme=getTheme(f0.stage||1);
+  const skyG=cx.createLinearGradient(0,0,0,vh);
+  const [s0,s1]=theme.sky||['#1a3a5a','#3a6a9a'];
+  skyG.addColorStop(0,s0); skyG.addColorStop(1,s1);
+  cx.fillStyle=skyG; cx.fillRect(0,0,vw,vh);
+
+  const camX=lerp(f0.cam,f1.cam,localT);
+  cx.save(); cx.translate(-camX,0);
+
+  // 바닥선 (단순화된 리플레이용 바닥)
+  const floorYr=vh-70;
+  cx.fillStyle='#3a2a1a'; cx.fillRect(camX-50,floorYr,vw+100,80);
+  cx.fillStyle='#4a8a3a'; cx.fillRect(camX-50,floorYr-4,vw+100,8);
+
+  // 적
+  (f0.e||[]).forEach((e0,idx)=>{
+    const e1=(f1.e||[])[idx]||e0;
+    const ex=lerp(e0.x,e1.x,localT), ey=lerp(e0.y,e1.y,localT);
+    const img=getCachedImg(spriteUrl(e0.id));
+    const sz=e0.boss?150:80;
+    cx.save(); cx.translate(ex+sz/2,ey+sz/2);
+    if(e0.f>0) cx.scale(-1,1);
+    if(img.complete&&img.naturalWidth>0) cx.drawImage(img,-sz/2,-sz/2,sz,sz);
+    else { cx.fillStyle='#888'; cx.fillRect(-sz/2,-sz/2,sz,sz); }
+    cx.restore();
+    // HP바
+    const hpPct=Math.max(0,(e0.hp||0)/(e0.mhp||1));
+    cx.fillStyle='rgba(255,71,87,.8)'; cx.fillRect(ex,ey-10,sz*hpPct,4);
+  });
+
+  // 원격 플레이어 (PvP)
+  (f0.rp||[]).forEach((r0,idx)=>{
+    const r1=(f1.rp||[])[idx]||r0;
+    if(r0.alive===false) return;
+    const rx=lerp(r0.x,r1.x,localT), ry=lerp(r0.y,r1.y,localT);
+    const img=getCachedImg(r0.sprite||'');
+    cx.save(); cx.translate(rx+40,ry+40);
+    if(r0.f>0) cx.scale(-1,1);
+    if(img.complete&&img.naturalWidth>0) cx.drawImage(img,-40,-40,80,80);
+    cx.restore();
+    cx.fillStyle='#ff4757'; cx.font="9px 'Galmuri11',monospace"; cx.textAlign='center';
+    cx.fillText(r0.name||'',rx+40,ry-14);
+  });
+
+  // 내 플레이어
+  const px=lerp(f0.p.x,f1.p.x,localT), py=lerp(f0.p.y,f1.p.y,localT);
+  const img=getCachedImg(playerSpriteForReplay||'');
+  cx.save(); cx.translate(px+50,py+50);
+  if(f0.p.f>0) cx.scale(-1,1);
+  if(img&&img.complete&&img.naturalWidth>0) cx.drawImage(img,-50,-50,100,100);
+  else { cx.fillStyle='#4ecdc4'; cx.fillRect(-50,-50,100,100); }
+  cx.restore();
+
+  cx.restore();
+
+  // 내 HUD (좌상단)
+  const hpPct=Math.max(0,f0.p.hp/(f0.p.mhp||1));
+  cx.fillStyle='rgba(0,0,0,.5)'; cx.fillRect(10,10,180,36);
+  cx.fillStyle='rgba(46,213,115,.8)'; cx.fillRect(16,30,160*hpPct,10);
+  cx.strokeStyle='rgba(255,255,255,.3)'; cx.strokeRect(16,30,160,10);
+  cx.fillStyle='#fff'; cx.font="11px 'Galmuri11',monospace"; cx.textAlign='left';
+  cx.fillText(`STAGE ${f0.stage||0}`,16,24);
+}
+
+function toggleReplayPlayPause(){
+  replayPlaying=!replayPlaying;
+  document.getElementById('btnReplayPlayPause').textContent=replayPlaying?'⏸':'▶';
+  replayLastTs=0;
+}
+
+function seekReplay(idx){
+  replayPlaybackIdx=parseInt(idx);
+  replayPlaybackTime=replayPlaybackIdx*REPLAY_INTERVAL;
+  renderReplayFrame();
+  updateReplayTimeLabel();
+}
+
+function exitReplay(){
+  if(replayAnimFrame){ cancelAnimationFrame(replayAnimFrame); replayAnimFrame=null; }
+  showScreen('replayListScreen');
+}
 
 </script>
+
 <!-- GRAPHICS SETTINGS MODAL -->
 <div class="screen hidden" id="settingsModal" style="z-index:50;background:rgba(0,0,0,.6);">
   <div class="levelup-box" style="max-width:340px;">

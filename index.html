@@ -292,8 +292,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 #gameScreen{background:#000;padding:0;}
 /* ⚠️ 환경 주의: dvh는 iOS 15 이하/구형 웹뷰에서 미지원 → 전체 속성이
    무시되어 height가 무너질 수 있다. 100vh를 폴백으로 먼저 선언하고,
-   지원 브라우저에서만 100dvh로 덮어씀(동적 주소창 대응). */
-#gameCanvas{display:block;width:100%;height:100vh;height:100dvh;touch-action:none;}
+   지원 브라우저에서만 100dvh로 덮어씀(동적 주소창 대응).
+   또한 #gameScreen은 .screen에서 display:flex를 물려받는데, canvas가
+   flex item으로 남아있으면 기본 min-width/height:auto 때문에 콘텐츠
+   기준으로 줄어들어(HTML 기본 300×150) 화면이 까맣게 보일 수 있다
+   (실제 발생 사례). position:absolute로 완전히 분리해 flex 레이아웃의
+   영향을 받지 않게 고정한다. */
+#gameCanvas{
+  display:block;position:absolute;inset:0;
+  width:100%;height:100vh;height:100dvh;touch-action:none;
+}
 
 /* ── LEVELUP ── */
 #levelupScreen{background:rgba(0,0,0,.88);}
@@ -3106,8 +3114,14 @@ function startLobby(){
       console.error('initStageMap(0) error:',err);
       showToast('맵 초기화 오류: '+(err?.message||err));
     }
-    setupControls();
-    updateHUD();
+    // ⚠️ 환경 주의: setupControls()/updateHUD()가 예외를 던지면(예:
+    // playerData나 DOM 요소가 예상과 다른 상태) 아래의 gameRunning=true와
+    // requestAnimationFrame(gameLoop) 호출까지 도달하지 못해 컨트롤
+    // 버튼은 보이는데 캔버스만 계속 검게 남는 상태가 된다(실제 발생
+    // 사례). 게임 루프 시작만큼은 항상 보장되도록 각각 try/catch로
+    // 감싸서, 일부 초기화가 실패해도 루프는 반드시 시작되게 한다.
+    try{ setupControls(); }catch(err){ console.error('setupControls error:',err); }
+    try{ updateHUD(); }catch(err){ console.error('updateHUD error:',err); }
     setHint('입구로 들어가면 1스테이지가 시작됩니다!');
     gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
@@ -3180,8 +3194,13 @@ function launchStage(stage){
   // 이미지 preload 완료 후 스테이지 시작
   setHint('🔄 스테이지 로딩 중...');
   preloadStageImages(stage, ()=>{
-    initStageMap(stage);
-    updateHUD();
+    try{
+      initStageMap(stage);
+    }catch(err){
+      console.error('initStageMap error:',err);
+      showToast('스테이지 초기화 오류: '+(err?.message||err));
+    }
+    try{ updateHUD(); }catch(err){ console.error('updateHUD error:',err); }
     const isBoss=stage===10||stage===20;
     const evoLabels=['미진화체','1차 진화체','2차 진화체','3차 진화체'];
     if(isBoss) setHint(stage===10?`⚔️ 중간 보스: ${bosses.mid.name}!`:`👑 최종 보스: ${bosses.final.name}!`);
@@ -3191,7 +3210,7 @@ function launchStage(stage){
       setHint(`STAGE ${stage} — ${getTheme(stage).name} · ${evoLabels[getEvoStage(stage)]} 출현!${leaderHint}`);
     }
     setTimeout(()=>setHint(''),3000);
-    gameRunning=true; lastTime=0;
+    gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
     animFrame=requestAnimationFrame(gameLoop);
   });
@@ -5412,9 +5431,9 @@ function launchBonusStage(){
   showScreen('gameScreen', ()=>{
     document.getElementById('hud').style.display='block';
     showControls(true);
-    setupControls();
+    try{ setupControls(); }catch(err){ console.error('setupControls error:',err); }
 
-    gameRunning=true; lastTime=0;
+    gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
     animFrame=requestAnimationFrame(gameLoop);
   });
@@ -5825,46 +5844,52 @@ async function startMultiBattle(){
 // ── 배틀 시작 (모든 플레이어 공통) ─────────────────────────
 function beginMultiBattle(mapIdx){
   showScreen('gameScreen', ()=>{
-    showControls(true);
-    resizeCanvas();
-    // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
-    currentStage=1;
-    mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
-    window._mapEnemyPos=[];window._mapBombPos=[];
-    const tmaps=getTerraceMaps();
-    const tm=tmaps[mapIdx%tmaps.length];
-    window._terraceMap=tm; window._currentMapName=tm.name;
-    platforms=genPlatforms(1);
-    doors=genDoors(1);
-    projectiles=[];particles=[];camera={x:0,y:0};
-    healItems=[];bombs=[];
-    // 플레이어 스폰
-    player={
-      x:doors[0].x+doors[0].w+20+Math.random()*80, y:floorY-100,
-      w:80, h:80, vx:0, vy:0, onGround:false, facing:-1,
-      animTick:0, invincible:0, _dropTimer:0, _dblJumpUsed:false,
-      img:getCachedImg(playerData.sprite)
-    };
-    playerData.hp=playerData.maxHp;
-    // 멀티 전용 적 스폰 (사냥 모드)
-    enemies=[];
-    if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
-    gamePhase='fight';
-    multiHuntTimer=HUNT_DURATION;
-    multiMyKills=0;
-    multiRespawnTimer=0;
-    updateHUD();
-    // HUD 오버레이
-    document.getElementById('multiHud').style.display='block';
-    // 위치 동기화 시작
-    multiSyncInterval=setInterval(syncMyPosition, MULTI_SYNC_MS);
-    // 원격 플레이어 스프라이트 로드
-    Object.entries(multiPlayers).forEach(([uid,p])=>{
-      multiRemoteSprites[uid]=getCachedImg(p.sprite);
-    });
-    startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
-    // 게임 루프
-    gameRunning=true; lastTime=0;
+    try{
+      showControls(true);
+      resizeCanvas();
+      // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
+      currentStage=1;
+      mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+      window._mapEnemyPos=[];window._mapBombPos=[];
+      const tmaps=getTerraceMaps();
+      const tm=tmaps[mapIdx%tmaps.length];
+      window._terraceMap=tm; window._currentMapName=tm.name;
+      platforms=genPlatforms(1);
+      doors=genDoors(1);
+      projectiles=[];particles=[];camera={x:0,y:0};
+      healItems=[];bombs=[];
+      // 플레이어 스폰
+      player={
+        x:doors[0].x+doors[0].w+20+Math.random()*80, y:floorY-100,
+        w:80, h:80, vx:0, vy:0, onGround:false, facing:-1,
+        animTick:0, invincible:0, _dropTimer:0, _dblJumpUsed:false,
+        img:getCachedImg(playerData.sprite)
+      };
+      playerData.hp=playerData.maxHp;
+      // 멀티 전용 적 스폰 (사냥 모드)
+      enemies=[];
+      if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
+      gamePhase='fight';
+      multiHuntTimer=HUNT_DURATION;
+      multiMyKills=0;
+      multiRespawnTimer=0;
+      updateHUD();
+      // HUD 오버레이
+      document.getElementById('multiHud').style.display='block';
+      // 위치 동기화 시작
+      multiSyncInterval=setInterval(syncMyPosition, MULTI_SYNC_MS);
+      // 원격 플레이어 스프라이트 로드
+      Object.entries(multiPlayers).forEach(([uid,p])=>{
+        multiRemoteSprites[uid]=getCachedImg(p.sprite);
+      });
+      startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
+    }catch(err){
+      console.error('beginMultiBattle setup error:',err);
+      showToast('멀티 배틀 초기화 오류: '+(err?.message||err));
+    }
+    // ⚠️ 환경 주의: 위 초기화 중 일부가 실패해도 게임 루프 시작만큼은
+    // 항상 보장한다 (컨트롤은 보이는데 캔버스만 검게 남는 문제 방지).
+    gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
     animFrame=requestAnimationFrame(multiGameLoop);
   });

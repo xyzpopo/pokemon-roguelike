@@ -99,6 +99,108 @@
 ║  · UI: titleScreen의 '⚙ 그래픽 설정' 버튼 + 인게임 HUD 우상단 ⚙ 버튼       ║
 ║    → #settingsModal, .gfx-opt 클릭 시 setGfxLevel(lv) 호출                  ║
 ║  · setGfxLevel(lv) → GFX 재할당 + localStorage 저장 + updateGfxUI()          ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  ⚠️  모든 환경(브라우저/기기) 호환성 — 새 코드 작성 시 항상 점검할 것        ║
+║  ─────────────────────────────────────────────────────                      ║
+║  이 게임은 단일 HTML로 다양한 브라우저/기기에서 실행된다. 아래 항목들은      ║
+║  실제로 버그를 일으켰거나 일으킬 수 있는 패턴이니, 비슷한 코드를 추가할      ║
+║  때마다 반드시 재확인할 것.                                                 ║
+║                                                                              ║
+║  1) localStorage / sessionStorage                                          ║
+║     - 사파리 프라이빗 모드, 카카오톡/인스타그램 등 인앱 브라우저, 일부      ║
+║       기업/학교 보안 정책 환경에서는 접근 자체가 예외(throw)를 던질 수      ║
+║       있다. 특히 모듈 최상단(즉시 실행되는 코드)에서 try/catch 없이         ║
+║       쓰면 스크립트 전체가 멈춰 "검은 화면"으로 이어진다 (실제 발생 사례:   ║
+║       loadGfxLevel()). 모든 localStorage 호출은 반드시 try/catch로 감쌀 것. ║
+║                                                                              ║
+║  2) CSS 단위: dvh/svh/lvh                                                   ║
+║     - iOS Safari 15 이하, 구형 안드로이드 웹뷰는 dvh를 모른다. 모르는       ║
+║       값이 선언되면 그 속성 전체가 무시되어 height가 무너질 수 있다.        ║
+║       반드시 `height:100vh; height:100dvh;` 처럼 vh를 먼저 선언해           ║
+║       폴백으로 두고, 지원 브라우저에서만 다음 줄이 덮어쓰게 할 것.          ║
+║       calc() 안에서도 동일하게 두 줄로 폴백을 둘 것.                       ║
+║                                                                              ║
+║  3) 터치 + 마우스 이벤트 중복 발화                                          ║
+║     - touchstart에서 preventDefault()를 호출해도, 일부 구형 안드로이드     ║
+║       브라우저/웹뷰는 합성 mousedown을 추가로 쏴서 입력이 두 번 처리될     ║
+║       수 있다. 버튼/조이스틱처럼 touch와 mouse를 모두 듣는 요소는          ║
+║       _touchActive 같은 플래그로 "터치로 이미 처리 중이면 mousedown        ║
+║       무시" 가드를 넣을 것 (setupMobileBtn, jsStart 참고).                  ║
+║                                                                              ║
+║  4) ctx.roundRect / 최신 Canvas API                                        ║
+║     - iOS 15 이하는 roundRect 미지원. 폴리필(파일 상단)이 있으니 새         ║
+║       Canvas API를 쓸 때도 구형 브라우저 지원 여부를 먼저 확인할 것.        ║
+║                                                                              ║
+║  5) Firestore 리스너(onSnapshot) / setInterval 정리                        ║
+║     - 화면 전환, 방 나가기, 탭 닫기 시 구독 해제(unsubscribe)와             ║
+║       clearInterval을 빠뜨리면 메모리 누수 + 중복 콜백 + Firestore에        ║
+║       고아 문서가 남는다. 새 멀티플레이/실시간 기능을 추가할 때             ║
+║       multiCleanup() 패턴(구독 목록 배열에 모아두고 한번에 해제)을 따르고,  ║
+║       pagehide 이벤트로 탭 종료 시 best-effort 정리도 함께 챙길 것.         ║
+║       (beforeunload보다 pagehide가 모바일에서 더 안정적으로 발화한다.)      ║
+║                                                                              ║
+║  6) requestAnimationFrame 루프의 예외 처리                                  ║
+║     - render()/update()가 예외를 던지면 다음 프레임 rAF 예약이 안 되어      ║
+║       루프 전체가 멈춘다 (= 검은 화면, 입력 무반응). gameLoop은 try/catch   ║
+║       로 감싸여 있고 3회 연속 실패 시 화면에 에러 메시지를 표시하니,        ║
+║       콘솔 대신 화면 메시지로 원인을 바로 확인할 수 있다.                   ║
+║                                                                              ║
+║  7) 화면/모달 전환 애니메이션                                               ║
+║     - 전체화면 전환은 showScreen(id) 사용 (자동으로 entering/exiting        ║
+║       애니메이션 처리). 다른 화면 위에 겹쳐 뜨는 모달(설정, 리플레이        ║
+║       저장 확인 등)은 showScreen이 아니라 openModal(id)/closeModal(id)를    ║
+║       사용할 것 — 직접 classList.remove('hidden')으로 토글하면 애니메이션  ║
+║       없이 뚝 끊기듯 나타나/사라진다.                                       ║
+║                                                                              ║
+║  8) 드래그 가능한 UI 요소의 CSS transition                                  ║
+║     - 위치(left/top)에 transition을 걸어두면 평소엔 부드럽지만, 실시간      ║
+║       드래그 중에는 손가락/마우스를 따라가지 못하고 늦게 쫓아가는           ║
+║       "끌리는" 느낌을 준다. 드래그 시작 시 style.transition='none'으로      ║
+║       끄고, 종료 시 ''로 복원할 것 (컨트롤 레이아웃 편집기 참고). 또한      ║
+║       style.cssText로 통째로 덮어쓰면 이렇게 끈 transition도 함께          ║
+║       사라지니, 드래그 중 갱신되는 요소는 개별 속성(style.left=...)으로     ║
+║       설정할 것.                                                            ║
+║                                                                              ║
+║  9) 탭 백그라운드 전환 / 복귀                                               ║
+║     - dt는 항상 0.05초로 클램프되어 있어 오래 비활성 상태였다가 복귀해도    ║
+║       물리 연산이 폭발하지 않는다. 새 시간 기반 로직을 추가할 때도 절대     ║
+║       시간 차(ts-lastTime)를 그대로 곱하지 말고 클램프된 dt를 사용할 것.    ║
+║                                                                              ║
+║  10) 슬라이더/입력값을 화면에 즉시 반영할 때 — (a-b)/n 보간 패턴            ║
+║      - 슬라이더 등으로 바뀐 목표값을 style.cssText로 매번 즉시 통째로      ║
+║        덮어쓰면, 사용자 입장에서는 갱신이 끊기거나 늦게 반영되는           ║
+║        것처럼 느껴진다 (컨트롤 크기 슬라이더에서 실제 발생).               ║
+║      - 해결 패턴: "현재 표시값"과 "목표값"을 분리해서 들고 있다가,         ║
+║        매 프레임(rAF) a = a - (a-b)/n 으로 목표값 쪽으로 조금씩만          ║
+║        이동시켜 부드럽게 수렴시킨다. n(속도)은 보통 5~10 사용              ║
+║        (클수록 천천히 따라옴). 목표와 충분히 가까워지면(예: 0.3 이하       ║
+║        차이) 정확히 맞추고 루프를 멈춰 무한 루프를 방지할 것.              ║
+║        (startCtrlSizeLerp() 참고 — 같은 패턴이 필요하면 재사용/모방할 것)  ║
+║      - 저장되는 실제 데이터(설정값)는 항상 "목표값" 쪽을 사용할 것 —       ║
+║        "현재 표시값"은 화면 연출용 중간값일 뿐 진짜 상태가 아니다.         ║
+║                                                                              ║
+║  11) 📱 모바일 세로(~479px) 편의성 — 새 화면/모달 추가 시 항상 체크         ║
+║      - input/select/textarea는 font-size 16px 미만이면 iOS Safari가        ║
+║        포커스 시 자동으로 화면을 확대(줌인)한다. @media(max-width:479px)   ║
+║        블록에서 input,select,textarea를 16px!important로 강제 통일해       ║
+║        두었으니, 새 입력 요소도 이 규칙 안에 들어오는지 확인할 것           ║
+║        (별도 셀렉터로 또 작게 덮어쓰지 않도록 주의).                       ║
+║      - 터치 타겟은 최소 34~44px 확보. 작은 아이콘 버튼(✕, 삭제 등)도       ║
+║        시각적 크기와 별개로 클릭 가능 영역은 충분히 키울 것.                ║
+║      - 노치/홈 인디케이터 기기 대응: 하단 고정 UI는 @supports              ║
+║        (padding:max(0px)) 블록 안에서 env(safe-area-inset-bottom)을        ║
+║        padding으로 더해줄 것. 새 하단 고정바를 추가하면 이 블록에          ║
+║        함께 등록할 것 (#controls, #replayControls 참고).                   ║
+║      - 가로 폭이 좁아 flex 버튼/입력 줄이 한 줄에 안 들어갈 수 있는        ║
+║        영역(방 만들기 버튼 2개, 모드 선택 등)은 flex-wrap:wrap으로         ║
+║        줄바꿈을 허용해 잘리거나 넘치지 않게 할 것.                         ║
+║      - 좁은 리스트(포켓몬 그리드, 방 목록, 리플레이 목록 등)에는           ║
+║        -webkit-overflow-scrolling:touch를 적용해 iOS에서 스크롤이          ║
+║        끊기지 않게 할 것.                                                  ║
+║      - html,body에 overflow:hidden이 걸려있어 기본적으로 가로 스크롤은     ║
+║        안 생기지만, 새 요소에 고정 px 폭을 줄 때는 항상 90%/max-width      ║
+║        조합으로 좁은 화면(320px급)에서도 넘치지 않는지 확인할 것.          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 -->
 <html lang="ko">
@@ -167,7 +269,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .select-header p{color:var(--muted);font-size:.7rem;margin-top:.2rem;}
 .search-bar{width:100%;max-width:500px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.5rem .85rem;color:var(--text);font-family:'Galmuri11',monospace;font-size:.8rem;outline:none;margin-bottom:.6rem;}
 .search-bar:focus{border-color:var(--accent);}
-.pokemon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:.35rem;width:100%;max-width:700px;max-height:calc(100dvh - 190px);overflow-y:auto;padding:.2rem;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.pokemon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:.35rem;width:100%;max-width:700px;max-height:calc(100vh - 190px);max-height:calc(100dvh - 190px);overflow-y:auto;padding:.2rem;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
 .pkcard{background:var(--card);border:2px solid var(--border);border-radius:8px;padding:.25rem;cursor:pointer;transition:all .15s;text-align:center;position:relative;}
 .pkcard:hover{border-color:var(--accent);transform:translateY(-2px);}
 .pkcard.selected{border-color:var(--accent);background:rgba(255,203,5,.1);}
@@ -188,7 +290,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 /* ── GAME (canvas) ── */
 #gameScreen{background:#000;padding:0;}
-#gameCanvas{display:block;width:100%;height:100dvh;touch-action:none;}
+/* ⚠️ 환경 주의: dvh는 iOS 15 이하/구형 웹뷰에서 미지원 → 전체 속성이
+   무시되어 height가 무너질 수 있다. 100vh를 폴백으로 먼저 선언하고,
+   지원 브라우저에서만 100dvh로 덮어씀(동적 주소창 대응). */
+#gameCanvas{display:block;width:100%;height:100vh;height:100dvh;touch-action:none;}
 
 /* ── LEVELUP ── */
 #levelupScreen{background:rgba(0,0,0,.88);}
@@ -217,10 +322,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   position:fixed;top:0;left:0;right:0;
   pointer-events:none;z-index:20;
   padding:.45rem .7rem;
+  /* ⚠️ 환경 주의: 설정 버튼(#btnInGameSettings)이 position:fixed로
+     우측 상단에 고정 배치되므로, HUD 패널들이 그 영역을 침범하지 않게
+     오른쪽에 버튼 너비만큼 여백을 미리 확보해둔다. 이 여백이 없으면
+     맵 이름이 길어졌을 때 보스 패널/설정 버튼과 겹친다. */
+  padding-right:calc(.7rem + 46px);
 }
 .hud-inner{
-  display:flex;align-items:flex-start;
-  justify-content:space-between;gap:.5rem;
+  display:flex;align-items:flex-start;flex-wrap:wrap;
+  justify-content:space-between;gap:.4rem .5rem;
+  /* 맵 이름이 길어 가운데 패널이 넓어지면, 텍스트를 줄이는 대신
+     우측 패널(보스 정보)이 자동으로 다음 줄로 줄바꿈되도록 한다.
+     이렇게 하면 정보 손실(말줄임) 없이 항상 전체 텍스트가 보이고,
+     설정 버튼과도 절대 겹치지 않는다. */
 }
 .hud-panel{
   background:rgba(0,0,0,.75);
@@ -234,7 +348,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .hud-hp-bar{width:var(--hud-bar-w);height:7px;background:#333;border-radius:4px;overflow:hidden;}
 .hud-hp-fill{height:100%;background:var(--green);border-radius:4px;transition:width .25s;}
 .hud-hp-text{font-size:var(--hud-small);color:var(--text);margin-top:.12rem;}
-.hud-stage-num{font-size:var(--hud-font);color:var(--accent);text-align:center;}
+.hud-stage-num{
+  font-size:var(--hud-font);color:var(--accent);text-align:center;
+  /* 맵 이름이 포함되면 길어질 수 있다(STAGE N [맵이름]). 잘라내지 않고
+     그대로 표시 — 줄바꿈은 .hud-inner의 flex-wrap이 패널 단위로 처리한다. */
+  white-space:nowrap;
+}
 .hud-stage-lv{font-size:var(--hud-small);color:var(--muted);text-align:center;}
 .hud-boss-name{font-size:var(--hud-font);color:var(--red);margin-bottom:.2rem;white-space:nowrap;}
 .hud-boss-hp-bar{width:var(--hud-bar-w);height:7px;background:#333;border-radius:4px;overflow:hidden;}
@@ -248,7 +367,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 #controls{
   position:fixed;bottom:0;left:0;right:0;
   height:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 14px);
-  pointer-events:none;z-index:20;
+  pointer-events:none;z-index:20;touch-action:none;
   display:none; /* JS에서 showControls() 로 제어 */
 }
 /* 조이스틱 영역 */
@@ -330,9 +449,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 /* ── 컨트롤 레이아웃 편집 모드 ── */
 #ctrlEditOverlay{
   position:fixed;inset:0;z-index:100;pointer-events:none;
-  background:rgba(0,0,0,.35);display:none;
+  background:rgba(0,0,0,.35);
+  opacity:0;visibility:hidden;
+  transition:opacity .22s ease,visibility 0s linear .22s;
 }
-#ctrlEditOverlay.active{display:block;pointer-events:all;}
+#ctrlEditOverlay.active{
+  opacity:1;visibility:visible;pointer-events:all;
+  transition:opacity .22s ease,visibility 0s linear 0s;
+}
 .ctrl-edit-handle{
   position:absolute;box-sizing:border-box;
   border:2.5px dashed rgba(255,203,5,.85);
@@ -341,16 +465,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   background:rgba(255,203,5,.12);
   user-select:none;-webkit-user-select:none;
   font-size:.55rem;color:rgba(255,203,5,.9);text-align:center;line-height:1.2;
+  transition:left .12s ease,top .12s ease,background .1s ease;
 }
-.ctrl-edit-handle:active{cursor:grabbing;background:rgba(255,203,5,.28);}
+.ctrl-edit-handle:active{cursor:grabbing;background:rgba(255,203,5,.28);transition:background .1s ease;}
 .ctrl-edit-handle.rect{border-radius:12px;}
 #ctrlEditBar{
   position:fixed;top:0;left:0;right:0;z-index:101;
   background:rgba(10,10,20,.92);padding:.5rem .8rem;
-  display:none;align-items:center;gap:.6rem;flex-wrap:wrap;
+  display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
   border-bottom:1px solid rgba(255,203,5,.3);
+  transform:translateY(-100%);
+  transition:transform .26s cubic-bezier(.22,1,.36,1);
 }
-#ctrlEditBar.active{display:flex;}
+#ctrlEditBar.active{transform:translateY(0);}
 #ctrlEditBar button{
   background:rgba(255,203,5,.15);border:1px solid rgba(255,203,5,.4);
   color:var(--accent);border-radius:8px;padding:.3rem .7rem;
@@ -442,6 +569,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .screen.entering#bonusEntryScreen{animation:scr-zoom-in  .48s cubic-bezier(.22,1,.36,1) both;}
 .screen.entering#bonusClearScreen{animation:scr-flash-in .6s ease both;}
 .screen.entering#gameoverScreen {animation:scr-shake-in  .5s ease both;}
+.screen.entering#multiLobbyScreen{animation:scr-slide-right .38s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#multiRoomScreen {animation:scr-slide-up .34s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#multiResultScreen{animation:scr-flash-in .5s ease both;}
+.screen.entering#replayListScreen{animation:scr-slide-right .38s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#replayPlayScreen{animation:scr-fade-in .3s ease both;}
+.screen.entering#settingsModal   {animation:scr-zoom-in .3s cubic-bezier(.22,1,.36,1) both;}
+.screen.entering#replaySaveModal {animation:scr-zoom-in .3s cubic-bezier(.22,1,.36,1) both;}
 
 /* exit: 화면이 사라질 때 */
 .screen.exiting{
@@ -476,6 +610,51 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   .pkcard img{width:38px;height:38px;}
   .levelup-box{padding:1.2rem 1rem;}
   .gameover-content h1{font-size:1.8rem;}
+
+  /* ⚠️ 환경 주의(모바일 세로 전용): iOS Safari는 input/select/textarea의
+     font-size가 16px 미만이면 포커스 시 화면을 자동으로 확대(줌인)한다.
+     로그인/방코드 입력 등 작은 글씨 입력칸이 많아 이 문제가 흔하므로,
+     모바일 세로에서는 모든 입력 요소를 16px로 강제 통일한다.
+     (시각적 크기는 그대로 두고 싶으면 transform:scale() 대신
+      이 방식 — 폰트 자체를 키우는 것 — 이 줌인 방지에 효과적이다.) */
+  input,select,textarea{font-size:16px!important;}
+
+  /* 터치 타겟 최소 크기 보장 (Apple HIG/Material 권장 44px 기준).
+     작은 아이콘 버튼(닫기 ✕, 삭제 등)은 보기엔 작아도 터치 영역은
+     최소 38px 이상 확보해 오터치를 줄인다. */
+  button, .pkcard, .multi-mode-btn{min-height:34px;}
+  #btnReplayExit, #btnReplayPlayPause{min-width:38px;min-height:38px;}
+
+  /* 좁은 화면에서 모달류 패딩을 줄여 내용이 빡빡해 보이지 않게 함 */
+  .levelup-box{width:94%;}
+  .login-box{padding:1.5rem 1.2rem;}
+
+  /* 멀티/리플레이 화면 좁은 폭 대응: 가로 flex가 줄바꿈되며 버튼이
+     너무 작아지지 않도록 최소 폭 확보 + 줄바꿈 허용 */
+  #multiLobbyScreen .levelup-box > div[style*="display:flex"],
+  #multiRoomScreen #multiModeSelect{flex-wrap:wrap;}
+  #replayControls{flex-wrap:wrap;padding:.6rem;gap:.4rem;}
+  #replaySeekBar{flex-basis:100%;order:-1;}
+
+  /* 점핑패드/멀티 코드 입력 등 가로로 긴 입력+버튼 조합이 화면을
+     넘치지 않도록 최소폭 0 허용 (flex 기본값 보정) */
+  #multiCodeInput{min-width:0;}
+
+  /* 스크롤 가능한 좁은 리스트에 관성 스크롤 적용 (iOS 끊김 방지) */
+  .pokemon-grid, #publicRoomList, #multiPlayerList, #replayListBox{
+    -webkit-overflow-scrolling:touch;
+  }
+}
+
+/* ⚠️ 환경 주의: 노치/홈 인디케이터가 있는 기기(아이폰 등)에서
+   하단 고정 UI(컨트롤, 리플레이 컨트롤바)가 시스템 제스처 영역과
+   겹치지 않도록 safe-area-inset을 더해준다. env()를 지원하지 않는
+   환경에서는 그냥 0으로 평가되어 기존 동작과 동일하다. */
+@supports (padding:max(0px)){
+  #controls{padding-bottom:env(safe-area-inset-bottom,0px);}
+  #replayControls{padding-bottom:calc(.8rem + env(safe-area-inset-bottom,0px));}
+  #ctrlEditBar{padding-top:calc(.5rem + env(safe-area-inset-top,0px));}
+  #stageHint{bottom:calc(var(--ctrl-size) + var(--ctrl-bottom)*2 + 28px + env(safe-area-inset-bottom,0px));}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -503,7 +682,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   .pokeball-deco{display:none;}
   .title-logo{margin-bottom:1rem;}
   /* 포켓몬 선택 그리드 조정 */
-  .pokemon-grid{max-height:calc(100dvh - 150px);}
+  .pokemon-grid{max-height:calc(100vh - 150px);max-height:calc(100dvh - 150px);}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -722,8 +901,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     </div>
     <!-- 모드 선택 -->
     <div id="multiModeSelect" style="display:flex;gap:.4rem;margin-bottom:.7rem;">
-      <button class="multi-mode-btn active" data-mode="pvp" style="flex:1;padding:.4rem;border-radius:8px;border:1px solid var(--accent);background:rgba(255,203,5,.1);color:var(--accent);font-family:'Galmuri11',monospace;font-size:.68rem;cursor:pointer;">⚔️ PvP</button>
-      <button class="multi-mode-btn" data-mode="hunt" style="flex:1;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Galmuri11',monospace;font-size:.68rem;cursor:pointer;">🏆 포켓몬 사냥</button>
+      <button class="multi-mode-btn active" data-mode="pvp">⚔️ PvP</button>
+      <button class="multi-mode-btn" data-mode="hunt">🏆 포켓몬 사냥</button>
     </div>
     <!-- 공격 형식 선택 -->
     <div style="margin-bottom:.7rem;">
@@ -912,15 +1091,21 @@ const GFX_PRESETS=[
   {maxParticles:400,particleMul:1.5, bgDecos:true,  glow:true,  cloudCount:4, starCount:80, shadowEnt:true,  trail:true},
 ];
 function loadGfxLevel(){
-  const v=parseInt(localStorage.getItem('pkrl_gfx')??'2',10);
-  return (v>=0&&v<=4)?v:2;
+  // ⚠️ 환경 주의: 사파리 프라이빗 모드, 일부 인앱 브라우저(카카오톡 등),
+  // 보안 정책이 엄격한 환경에서는 localStorage 접근 자체가 예외를 던질 수 있다.
+  // 이 호출은 모듈 로드 시 최상단에서 즉시 실행되므로, try/catch 없이 두면
+  // 스크립트 전체가 파싱/실행되지 않아 빈 화면(검은 화면)으로 이어진다.
+  try{
+    const v=parseInt(localStorage.getItem('pkrl_gfx')??'2',10);
+    return (v>=0&&v<=4)?v:2;
+  }catch(e){ return 2; }
 }
 let gfxLevel=loadGfxLevel();
 let GFX=GFX_PRESETS[gfxLevel];
 function setGfxLevel(lv){
   gfxLevel=Math.max(0,Math.min(4,lv));
   GFX=GFX_PRESETS[gfxLevel];
-  localStorage.setItem('pkrl_gfx',String(gfxLevel));
+  try{ localStorage.setItem('pkrl_gfx',String(gfxLevel)); }catch(e){}
   updateGfxUI();
 }
 function updateGfxUI(){
@@ -1230,6 +1415,105 @@ const TYPE_ATTACKS={
   페어리:{color:'#f48fb1',glow:'#ad1457',speed:8,size:11,dmgMul:1.0},
   노말:{color:'#e0e0e0',glow:'#9e9e9e',speed:9,size:10,dmgMul:0.9},
 };
+
+// ══════════════════════════════════════════════════════════════
+// ⚔️ 타입 상성 + 급소(크리티컬) 시스템
+// ──────────────────────────────────────────────────────────────
+// · TYPE_CHART[공격타입][방어타입] = 배율 (2=효과굉장함, 0.5=효과별로,
+//   0=효과없음). 정의 안 된 조합은 기본 1(보통)로 취급.
+// · 방어측이 두 타입(dual-type)이면 두 배율을 곱한다 (포켓몬 본가 규칙과 동일).
+// · 급소(크리티컬): 일정 확률로 데미지 1.5배, 이펙트/표시는 카메라 흔들림 +
+//   "급소!" 텍스트로 모든 공격(플레이어/적, 모든 공격 스타일)에 공통 적용.
+// · ⚠️ 새로운 데미지 발생 경로를 추가할 때는 항상 calcDamage()를 거쳐서
+//   타입 상성+급소가 적용되게 할 것 — dmgEnemy/dmgPlayer에 raw 데미지를
+//   직접 넘기지 말고 calcDamage()의 결과를 넘길 것.
+// ══════════════════════════════════════════════════════════════
+const TYPE_CHART={
+  불꽃:{불꽃:0.5,물:0.5,풀:2,얼음:2,벌레:2,바위:0.5,드래곤:0.5,강철:2},
+  물:{불꽃:2,물:0.5,풀:0.5,땅:2,바위:2,드래곤:0.5},
+  풀:{불꽃:0.5,물:2,풀:0.5,독:0.5,땅:2,비행:0.5,벌레:0.5,바위:2,드래곤:0.5,강철:0.5},
+  전기:{물:2,전기:0.5,풀:0.5,땅:0,비행:2,드래곤:0.5},
+  얼음:{불꽃:0.5,물:0.5,풀:2,얼음:0.5,땅:2,비행:2,드래곤:2,강철:0.5},
+  격투:{노말:2,얼음:2,독:0.5,비행:0.5,에스퍼:0.5,벌레:0.5,바위:2,고스트:0,악:2,강철:2,페어리:0.5},
+  독:{풀:2,독:0.5,땅:0.5,바위:0.5,고스트:0.5,강철:0,페어리:2},
+  땅:{불꽃:2,전기:2,풀:0.5,독:2,비행:0,바위:2,강철:2},
+  비행:{전기:0.5,풀:2,격투:2,벌레:2,바위:0.5,강철:0.5},
+  에스퍼:{격투:2,독:2,에스퍼:0.5,악:0,강철:0.5},
+  벌레:{불꽃:0.5,풀:2,격투:0.5,독:0.5,비행:0.5,에스퍼:2,고스트:0.5,악:2,강철:0.5,페어리:0.5},
+  바위:{불꽃:2,얼음:2,격투:0.5,땅:0.5,비행:2,벌레:2,강철:0.5},
+  고스트:{노말:0,에스퍼:2,고스트:2,악:0.5},
+  드래곤:{드래곤:2,강철:0.5,페어리:0},
+  악:{격투:0.5,에스퍼:2,고스트:2,악:0.5,페어리:0.5},
+  강철:{불꽃:0.5,물:0.5,전기:0.5,얼음:2,바위:2,강철:0.5,페어리:2},
+  페어리:{불꽃:0.5,격투:2,독:0.5,드래곤:2,악:2,강철:0.5},
+  노말:{바위:0.5,고스트:0,강철:0.5},
+};
+
+// 공격타입 → 방어 타입 배열(1~2개) 기준 최종 배율 계산 (dual-type은 곱연산)
+function typeEffectiveness(atkType, defTypes){
+  if(!defTypes||defTypes.length===0) return 1;
+  let mul=1;
+  for(const dt of defTypes){
+    const row=TYPE_CHART[atkType];
+    const m=row&&row[dt]!==undefined?row[dt]:1;
+    mul*=m;
+  }
+  return mul;
+}
+
+const CRIT_CHANCE=0.10;   // 급소 확률 10%
+const CRIT_MUL=1.5;       // 급소 데미지 배율
+
+// 최종 데미지 계산: 기본 위력 × 타입 상성 × (급소 시 1.5배)
+// 반환값: {dmg, mul, isCrit} — mul은 타입 상성 배율(연출 색상 결정용)
+function calcDamage(baseDmg, atkType, defTypes){
+  const mul=typeEffectiveness(atkType, defTypes);
+  const isCrit=Math.random()<CRIT_CHANCE;
+  let dmg=Math.max(1,Math.round(baseDmg*mul*(isCrit?CRIT_MUL:1)));
+  return {dmg, mul, isCrit};
+}
+
+// 타입 상성 텍스트(효과는 굉장했다!/효과가 별로인 듯하다... 등) 표시용
+function effectivenessLabel(mul){
+  if(mul<=0) return '효과가 없다...';
+  if(mul<1) return '효과가 별로인 듯하다...';
+  if(mul>1) return '효과가 굉장했다!';
+  return null; // 보통(1배)은 표시 안 함
+}
+
+// 데미지 텍스트(급소/타입상성) 플로팅 표시
+function spawnDamageText(x,y,dmgInfo){
+  const label=dmgInfo.isCrit?'급소!':effectivenessLabel(dmgInfo.mul);
+  if(!label && !dmgInfo.isCrit) return;
+  damageTexts.push({
+    x, y, life:0.9, age:0,
+    crit:dmgInfo.isCrit,
+    text:dmgInfo.isCrit?(label?`급소! ${label}`:'급소!'):label,
+  });
+}
+let damageTexts=[];
+function updateDamageTexts(dt){
+  for(let i=damageTexts.length-1;i>=0;i--){
+    const t=damageTexts[i];
+    t.age+=dt; t.y-=40*dt;
+    if(t.age>=t.life) damageTexts.splice(i,1);
+  }
+}
+function renderDamageTexts(){
+  for(const t of damageTexts){
+    const a=Math.max(0,1-t.age/t.life);
+    ctx.save();
+    ctx.globalAlpha=a;
+    ctx.font=`bold ${t.crit?13:11}px 'Galmuri11',monospace`;
+    ctx.textAlign='center';
+    ctx.fillStyle=t.crit?'#ffd600':'#fff';
+    ctx.strokeStyle='rgba(0,0,0,.8)'; ctx.lineWidth=3;
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.restore();
+  }
+}
+
 const LEGEND_BY_GEN={
   1:[{id:151,name:'뮤'},{id:150,name:'뮤츠'}],
   2:[{id:249,name:'루기아'},{id:250,name:'칠색조'}],
@@ -2562,7 +2846,11 @@ const ATTACK_STYLES={
   melee: { label:'근접',
     fire(e,at,cfg,ed){
       const range=90; const hb={x:e.x+(e.facing>0?e.w:-range),y:e.y+8,w:range,h:e.h-16};
-      if(player&&overlap(hb,player)&&player.invincible<=0){dmgPlayer(Math.floor(ed*1.3));player.invincible=0.5;}
+      if(player&&overlap(hb,player)&&player.invincible<=0){
+        const info=calcDamage(Math.floor(ed*1.3),at,playerData.types);
+        dmgPlayer(info.dmg,at); player.invincible=0.5;
+        spawnDamageText(player.x+player.w/2,player.y,info);
+      }
       spawnPtcl(e.x+e.w/2+e.facing*55,e.y+e.h*.5,cfg.color,10,'burst');
     }, cooldown:()=>0.9+Math.random()*.4 },
 
@@ -2593,7 +2881,9 @@ const ATTACK_STYLES={
       if(player){
         const px=player.x+player.w/2,py=player.y+player.h/2;
         if(Math.hypot(px-(e.x+e.w/2),py-(e.y+e.h/2))<r&&player.invincible<=0){
-          dmgPlayer(Math.floor(ed*1.1));player.invincible=0.6;
+          const info=calcDamage(Math.floor(ed*1.1),at,playerData.types);
+          dmgPlayer(info.dmg,at);player.invincible=0.6;
+          spawnDamageText(px,py-30,info);
         }
       }
     }, cooldown:()=>2.0+Math.random()*.8 },
@@ -2807,21 +3097,22 @@ function makeEnemy(pk,x,y,hp,isBoss){
 
 // ── 로비 시작 ─────────────────────────────────────────────────
 function startLobby(){
-  showScreen('gameScreen');
-  document.getElementById('hud').style.display='block';
-  showControls(true);
-  try{
-    initStageMap(0);
-  }catch(err){
-    console.error('initStageMap(0) error:',err);
-    showToast('맵 초기화 오류: '+(err?.message||err));
-  }
-  setupControls();
-  updateHUD();
-  setHint('입구로 들어가면 1스테이지가 시작됩니다!');
-  gameRunning=true; lastTime=0; _gameLoopErrCount=0;
-  if(animFrame) cancelAnimationFrame(animFrame);
-  animFrame=requestAnimationFrame(gameLoop);
+  showScreen('gameScreen', ()=>{
+    document.getElementById('hud').style.display='block';
+    showControls(true);
+    try{
+      initStageMap(0);
+    }catch(err){
+      console.error('initStageMap(0) error:',err);
+      showToast('맵 초기화 오류: '+(err?.message||err));
+    }
+    setupControls();
+    updateHUD();
+    setHint('입구로 들어가면 1스테이지가 시작됩니다!');
+    gameRunning=true; lastTime=0; _gameLoopErrCount=0;
+    if(animFrame) cancelAnimationFrame(animFrame);
+    animFrame=requestAnimationFrame(gameLoop);
+  });
 }
 
 // ── 스테이지 시작 ─────────────────────────────────────────────
@@ -2935,8 +3226,12 @@ function setupControls(){
   // 조이스틱
   const zone=document.getElementById('joystickZone');
   const knob=document.getElementById('joystickKnob');
+  // ⚠️ 환경 주의: 버튼과 동일하게 touch/mouse 중복 발화 가능 → 가드 필요
+  let _jsTouchActive=false;
   function jsStart(e){
     e.preventDefault();
+    if(e.type==='mousedown'&&_jsTouchActive) return;
+    if(e.type==='touchstart') _jsTouchActive=true;
     const t=e.touches?e.touches[0]:e;
     _jsActive=true; _jsTouchId=e.touches?t.identifier:null;
     const r=zone.getBoundingClientRect();
@@ -2958,6 +3253,7 @@ function setupControls(){
   }
   function jsEnd(e){
     e.preventDefault();
+    if(e.type.startsWith('touch')) _jsTouchActive=false;
     _jsActive=false; _jsVec={x:0,y:0};
     keys.left=false; keys.right=false; keys.down=false;
     knob.style.transform='translate(-50%,-50%)';
@@ -2991,8 +3287,21 @@ function setupControls(){
 
 function setupMobileBtn(id,k){
   const el=document.getElementById(id); if(!el) return;
-  const press=e=>{e.preventDefault();keys[k]=true;if(k==='jump'||k==='atk1'||k==='atk2')just[k]=true;el.classList.add('pressed');};
-  const rel=e=>{e.preventDefault();keys[k]=false;el.classList.remove('pressed');};
+  // ⚠️ 환경 주의: 일부 구형 안드로이드 브라우저/인앱 웹뷰는 touchstart에서
+  // preventDefault()를 호출해도 합성 mousedown 이벤트를 추가로 발생시켜
+  // 입력이 두 번 처리될 수 있다. _touchActive 플래그로 중복 입력을 막는다.
+  let _touchActive=false;
+  const press=e=>{
+    e.preventDefault();
+    if(e.type==='mousedown'&&_touchActive) return; // 터치로 이미 처리 중이면 무시
+    if(e.type==='touchstart') _touchActive=true;
+    keys[k]=true;if(k==='jump'||k==='atk1'||k==='atk2')just[k]=true;el.classList.add('pressed');
+  };
+  const rel=e=>{
+    e.preventDefault();
+    if(e.type.startsWith('touch')) _touchActive=false;
+    keys[k]=false;el.classList.remove('pressed');
+  };
   el.addEventListener('touchstart',press,{passive:false});
   el.addEventListener('touchend',rel,{passive:false});
   el.addEventListener('touchcancel',rel,{passive:false});
@@ -3049,6 +3358,7 @@ function update(dt){
   updateProjectiles(dt); updateParticles(dt);
   updateHealItems(dt);
   updateBombs(dt);
+  updateDamageTexts(dt);
   checkDoors(); checkWin(); updateCamera(); updateHudHp();
   recordReplayFrame(dt);
 }
@@ -3140,8 +3450,12 @@ function updatePlayer(dt){
   if(gamePhase==='fight'&&player.invincible<=0){
     for(const e of enemies){
       if(overlap(player,e)){
-        const d=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.14));
-        dmgPlayer(d); player.invincible=0.85; break;
+        const base=Math.max(1,Math.floor(calcStat(e.baseAtk,playerData.level)*.14));
+        const atkType=e.types?.[0]||'노말';
+        const info=calcDamage(base,atkType,playerData.types);
+        dmgPlayer(info.dmg,atkType); player.invincible=0.85;
+        spawnDamageText(player.x+player.w/2,player.y,info);
+        break;
       }
     }
   }
@@ -3158,7 +3472,11 @@ function fireAtk(ti){
     case 'melee':{
       const range=100;
       const hb={x:player.x+(player.facing>0?player.w:-range),y:player.y+8,w:range,h:player.h-16};
-      for(const e of enemies) if(overlap(hb,e)) dmgEnemy(e,dmg,type);
+      for(const e of enemies) if(overlap(hb,e)){
+        const info=calcDamage(dmg,type,e.types);
+        dmgEnemy(e,info.dmg,type);
+        spawnDamageText(e.x+e.w/2,e.y,info);
+      }
       spawnPtcl(player.x+player.w/2+player.facing*60,player.y+player.h*.5,cfg.color,12,'burst');
       break;}
     case 'spread':
@@ -3179,8 +3497,11 @@ function fireAtk(ti){
       spawnPtcl(player.x+player.w/2,player.y+player.h*.5,cfg.color,16,'burst');
       const r=110;
       for(const e of enemies){
-        if(Math.hypot((e.x+e.w/2)-(player.x+player.w/2),(e.y+e.h/2)-(player.y+player.h/2))<r)
-          dmgEnemy(e,Math.floor(dmg*1.1),type);
+        if(Math.hypot((e.x+e.w/2)-(player.x+player.w/2),(e.y+e.h/2)-(player.y+player.h/2))<r){
+          const info=calcDamage(Math.floor(dmg*1.1),type,e.types);
+          dmgEnemy(e,info.dmg,type);
+          spawnDamageText(e.x+e.w/2,e.y,info);
+        }
       }
       break;}
     case 'snipe':
@@ -3499,9 +3820,19 @@ function updateProjectiles(dt){
     p.age+=dt;
     let hit=false;
     if(p.fromPlayer){
-      for(const e of enemies) if(ptInRect(p.x,p.y,e)){dmgEnemy(e,p.dmg,p.type);spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;break;}
+      for(const e of enemies) if(ptInRect(p.x,p.y,e)){
+        const info=calcDamage(p.dmg,p.type,e.types);
+        dmgEnemy(e,info.dmg,p.type);
+        spawnDamageText(e.x+e.w/2,e.y,info);
+        spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;break;
+      }
     } else {
-      if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){dmgPlayer(p.dmg);player.invincible=.4;spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;}
+      if(player&&player.invincible<=0&&ptInRect(p.x,p.y,player)){
+        const info=calcDamage(p.dmg,p.type,playerData.types);
+        dmgPlayer(info.dmg,p.type);player.invincible=.4;
+        spawnDamageText(player.x+player.w/2,player.y,info);
+        spawnPtcl(p.x,p.y,p.color,6,'burst');hit=true;
+      }
     }
     const _pw=canvas.clientWidth||window.innerWidth;
     let wallHit=false;
@@ -3540,10 +3871,11 @@ function spawnPtcl(x,y,color,cnt,type='burst'){
 }
 
 // ── 데미지 ────────────────────────────────────────────────────
-function dmgPlayer(d){
+// d: 이미 계산된 최종 데미지(타입상성+급소 반영 완료), atkType: 연출용(이펙트 색상)
+function dmgPlayer(d,atkType){
   if(!player) return;
   player.hp=Math.max(0,player.hp-d); playerData.hp=player.hp;
-  spawnPtcl(player.x+player.w/2,player.y+player.h/2,'#ff4757',6);
+  spawnPtcl(player.x+player.w/2,player.y+player.h/2,TYPE_ATTACKS[atkType]?.color||'#ff4757',6);
   updateHudHp(); if(player.hp<=0) endGame(false);
 }
 
@@ -3651,10 +3983,11 @@ function stageClearTransition(){
 }
 
 function nextStage(){
-  showScreen('gameScreen');
-  document.getElementById('hud').style.display='block';
-  showControls(true);
-  launchStage(currentStage);
+  showScreen('gameScreen', ()=>{
+    document.getElementById('hud').style.display='block';
+    showControls(true);
+    launchStage(currentStage);
+  });
 }
 
 // ── 승리 체크 ─────────────────────────────────────────────────
@@ -3825,6 +4158,9 @@ function render(){
 
   // 플레이어
   renderPlayer();
+
+  // 데미지 텍스트(급소/타입상성) — 카메라 변환 적용된 월드 좌표 기준
+  renderDamageTexts();
 
   ctx.restore();
 
@@ -5073,14 +5409,15 @@ function launchBonusStage(){
   setHint('👑 보너스 스테이지 — 우두머리 10마리를 쓰러뜨려라!');
   setTimeout(()=>setHint(''),4000);
 
-  showScreen('gameScreen');
-  document.getElementById('hud').style.display='block';
-  showControls(true);
-  setupControls();
+  showScreen('gameScreen', ()=>{
+    document.getElementById('hud').style.display='block';
+    showControls(true);
+    setupControls();
 
-  gameRunning=true; lastTime=0;
-  if(animFrame) cancelAnimationFrame(animFrame);
-  animFrame=requestAnimationFrame(gameLoop);
+    gameRunning=true; lastTime=0;
+    if(animFrame) cancelAnimationFrame(animFrame);
+    animFrame=requestAnimationFrame(gameLoop);
+  });
 }
 
 // 보너스 스테이지 클리어
@@ -5149,7 +5486,25 @@ function backToTitle(){
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────
-function showScreen(id){
+// 오버레이형 모달(다른 화면 위에 겹쳐 뜨는 settingsModal, replaySaveModal 등)
+// showScreen()과 달리 기존 화면을 가리지 않고 부드럽게 열고 닫는다.
+function openModal(id){
+  const el=document.getElementById(id);
+  el.classList.remove('hidden','exiting');
+  el.classList.add('entering');
+  el.addEventListener('animationend',()=>el.classList.remove('entering'),{once:true});
+}
+function closeModal(id){
+  const el=document.getElementById(id);
+  el.classList.add('exiting');
+  el.classList.remove('entering');
+  const done=()=>{ el.classList.add('hidden'); el.classList.remove('exiting'); };
+  el.addEventListener('animationend',done,{once:true});
+  // 폴백: 애니메이션이 어떤 이유로든 발화하지 않는 환경 대비 타이머 백업
+  setTimeout(done,260);
+}
+
+function showScreen(id, onShown){
   const next=document.getElementById(id);
   const current=[...document.querySelectorAll('.screen:not(.hidden)')].filter(s=>s.id!==id);
 
@@ -5162,6 +5517,7 @@ function showScreen(id){
     next.classList.remove('hidden','exiting');
     next.classList.add('entering');
     next.addEventListener('animationend',()=>next.classList.remove('entering'),{once:true});
+    if(onShown) onShown();
     return;
   }
 
@@ -5180,6 +5536,14 @@ function showScreen(id){
         next.classList.remove('hidden','exiting');
         next.classList.add('entering');
         next.addEventListener('animationend',()=>next.classList.remove('entering'),{once:true});
+        // ⚠️ 환경 주의: showScreen()은 exit 애니메이션이 끝난 뒤에야
+        // next 화면의 hidden을 해제하는 비동기 동작이다. 호출 직후
+        // 곧바로 캔버스 크기를 재는 코드(resizeCanvas 등)를 실행하면
+        // 화면이 아직 display:none인 시점에 측정해 레이아웃이 틀어지거나,
+        // 게임 루프가 화면이 보이기도 전에 몇 프레임을 낭비해 첫 화면이
+        // 검게 보이는 원인이 될 수 있다. 화면 전환 직후 초기화가 필요한
+        // 코드는 반드시 onShown 콜백 안에서 실행할 것.
+        if(onShown) onShown();
       }
     };
     // exit 애니메이션(.22s)이 끝나면 전환
@@ -5231,7 +5595,7 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener('click',fn); };
   on('btnTitleStart',   ()=>onTitleStart());
   on('btnTitleLogout',  ()=>doLogout());
-  on('btnOpenSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
+  on('btnOpenSettings', ()=>{ updateGfxUI(); openModal('settingsModal'); });
   on('btnOpenReplays',  ()=>openReplayList());
   on('btnReplayListBack', ()=>showScreen('titleScreen'));
   on('btnReplaySaveYes',  ()=>saveCurrentReplay());
@@ -5240,8 +5604,8 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('btnReplayExit',     ()=>exitReplay());
   document.getElementById('replaySeekBar')?.addEventListener('input',e=>seekReplay(e.target.value));
   document.getElementById('replaySpeedSelect')?.addEventListener('change',e=>{ replaySpeed=parseFloat(e.target.value); });
-  on('btnInGameSettings', ()=>{ updateGfxUI(); document.getElementById('settingsModal').classList.remove('hidden'); });
-  on('btnCloseSettings', ()=>document.getElementById('settingsModal').classList.add('hidden'));
+  on('btnInGameSettings', ()=>{ updateGfxUI(); openModal('settingsModal'); });
+  on('btnCloseSettings', ()=>closeModal('settingsModal'));
   document.querySelectorAll('.gfx-opt').forEach(el=>{
     el.addEventListener('click',()=>setGfxLevel(parseInt(el.dataset.gfx,10)));
   });
@@ -5262,7 +5626,7 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('killTabNormal',   ()=>switchKillTab('normal'));
   // 검색창
   on('btnOpenCtrlEdit', ()=>{
-    document.getElementById('settingsModal').classList.add('hidden');
+    closeModal('settingsModal');
     startCtrlEdit();
   });
   on('btnCtrlEditSave',   ()=>saveCtrlLayout());
@@ -5271,12 +5635,12 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   document.getElementById('ctrlSizeSlider').addEventListener('input', e=>{
     ctrlEditDraft.btnSize=parseInt(e.target.value);
     document.getElementById('ctrlSizeVal').textContent=ctrlEditDraft.btnSize;
-    applyCtrlLayoutDraft();
+    startCtrlSizeLerp();
   });
   document.getElementById('jsSizeSlider').addEventListener('input', e=>{
     ctrlEditDraft.jsSize=parseInt(e.target.value);
     document.getElementById('jsSizeVal').textContent=ctrlEditDraft.jsSize;
-    applyCtrlLayoutDraft();
+    startCtrlSizeLerp();
   });
   on('btnTitleMulti',       ()=>openMultiLobby());
   on('btnMultiLobbyBack',   ()=>showScreen('titleScreen'));
@@ -5288,12 +5652,8 @@ document.addEventListener('DOMContentLoaded', ()=>{});
   on('btnMultiResultBack',  ()=>{ multiCleanup(); showScreen('titleScreen'); });
   document.querySelectorAll('.multi-mode-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      document.querySelectorAll('.multi-mode-btn').forEach(b=>{
-        b.classList.remove('active');
-        b.style.borderColor='var(--border)'; b.style.background='transparent'; b.style.color='var(--muted)';
-      });
+      document.querySelectorAll('.multi-mode-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      btn.style.borderColor='var(--accent)'; btn.style.background='rgba(255,203,5,.1)'; btn.style.color='var(--accent)';
       multiRoomMode=btn.dataset.mode;
       if(multiRoomId) updateDoc(doc(db,'multiRooms',multiRoomId),{mode:multiRoomMode}).catch(()=>{});
     });
@@ -5464,49 +5824,50 @@ async function startMultiBattle(){
 
 // ── 배틀 시작 (모든 플레이어 공통) ─────────────────────────
 function beginMultiBattle(mapIdx){
-  showScreen('gameScreen');
-  showControls(true);
-  resizeCanvas();
-  // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
-  currentStage=1;
-  mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
-  window._mapEnemyPos=[];window._mapBombPos=[];
-  const tmaps=getTerraceMaps();
-  const tm=tmaps[mapIdx%tmaps.length];
-  window._terraceMap=tm; window._currentMapName=tm.name;
-  platforms=genPlatforms(1);
-  doors=genDoors(1);
-  projectiles=[];particles=[];camera={x:0,y:0};
-  healItems=[];bombs=[];
-  // 플레이어 스폰
-  player={
-    x:doors[0].x+doors[0].w+20+Math.random()*80, y:floorY-100,
-    w:80, h:80, vx:0, vy:0, onGround:false, facing:-1,
-    animTick:0, invincible:0, _dropTimer:0, _dblJumpUsed:false,
-    img:getCachedImg(playerData.sprite)
-  };
-  playerData.hp=playerData.maxHp;
-  // 멀티 전용 적 스폰 (사냥 모드)
-  enemies=[];
-  if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
-  gamePhase='fight';
-  multiHuntTimer=HUNT_DURATION;
-  multiMyKills=0;
-  multiRespawnTimer=0;
-  updateHUD();
-  // HUD 오버레이
-  document.getElementById('multiHud').style.display='block';
-  // 위치 동기화 시작
-  multiSyncInterval=setInterval(syncMyPosition, MULTI_SYNC_MS);
-  // 원격 플레이어 스프라이트 로드
-  Object.entries(multiPlayers).forEach(([uid,p])=>{
-    multiRemoteSprites[uid]=getCachedImg(p.sprite);
+  showScreen('gameScreen', ()=>{
+    showControls(true);
+    resizeCanvas();
+    // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
+    currentStage=1;
+    mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+    window._mapEnemyPos=[];window._mapBombPos=[];
+    const tmaps=getTerraceMaps();
+    const tm=tmaps[mapIdx%tmaps.length];
+    window._terraceMap=tm; window._currentMapName=tm.name;
+    platforms=genPlatforms(1);
+    doors=genDoors(1);
+    projectiles=[];particles=[];camera={x:0,y:0};
+    healItems=[];bombs=[];
+    // 플레이어 스폰
+    player={
+      x:doors[0].x+doors[0].w+20+Math.random()*80, y:floorY-100,
+      w:80, h:80, vx:0, vy:0, onGround:false, facing:-1,
+      animTick:0, invincible:0, _dropTimer:0, _dblJumpUsed:false,
+      img:getCachedImg(playerData.sprite)
+    };
+    playerData.hp=playerData.maxHp;
+    // 멀티 전용 적 스폰 (사냥 모드)
+    enemies=[];
+    if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
+    gamePhase='fight';
+    multiHuntTimer=HUNT_DURATION;
+    multiMyKills=0;
+    multiRespawnTimer=0;
+    updateHUD();
+    // HUD 오버레이
+    document.getElementById('multiHud').style.display='block';
+    // 위치 동기화 시작
+    multiSyncInterval=setInterval(syncMyPosition, MULTI_SYNC_MS);
+    // 원격 플레이어 스프라이트 로드
+    Object.entries(multiPlayers).forEach(([uid,p])=>{
+      multiRemoteSprites[uid]=getCachedImg(p.sprite);
+    });
+    startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
+    // 게임 루프
+    gameRunning=true; lastTime=0;
+    if(animFrame) cancelAnimationFrame(animFrame);
+    animFrame=requestAnimationFrame(multiGameLoop);
   });
-  startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
-  // 게임 루프
-  gameRunning=true; lastTime=0;
-  if(animFrame) cancelAnimationFrame(animFrame);
-  animFrame=requestAnimationFrame(multiGameLoop);
 }
 
 // ── 사냥 모드 적 스폰 ───────────────────────────────────────
@@ -5573,6 +5934,7 @@ function multiUpdate(dt){
   updatePlayer(dt);
   updateProjectiles(dt);
   updateParticles(dt);
+  updateDamageTexts(dt);
   if(GFX.bgDecos && typeof updateBgDecos==="function") updateBgDecos(dt);
 
   // 사냥 모드: 타이머 + 적 스폰 + 킬 카운트
@@ -5602,7 +5964,9 @@ function multiUpdate(dt){
         if(rp.alive===false) continue;
         const rx=rp.x-camera.x, ry=rp.y;
         if(p.x>rx&&p.x<rx+80&&p.y>ry&&p.y<ry+80){
-          multiDamageRemote(uid, p.dmg||30);
+          const info=calcDamage(p.dmg||30,p.type,rp.types||['노말']);
+          multiDamageRemote(uid, info.dmg);
+          spawnDamageText(rx+40,ry,info);
           spawnPtcl(p.x,p.y,p.color,6,'burst');
           projectiles.splice(i,1); break;
         }
@@ -5738,6 +6102,17 @@ function multiCleanup(){
   multiMyKills=0; multiHuntTimer=0; multiRespawnTimer=0;
 }
 
+// ⚠️ 환경 주의: 탭 닫기/새로고침/앱 전환 시 multiCleanup()이 호출되지
+// 않으면 Firestore에 내 플레이어 문서가 고아 상태로 남아 다른 플레이어
+// 화면에 계속 표시될 수 있다. pagehide는 beforeunload보다 모바일
+// Safari/크롬에서 더 안정적으로 발화하므로 이를 사용해 best-effort 정리.
+window.addEventListener('pagehide', ()=>{
+  if(multiRoomId) multiCleanup();
+});
+// 탭이 백그라운드로 전환될 때(visibilitychange)는 정리하지 않음 —
+// 잠깐 다른 앱을 봤다가 돌아오는 정상적인 경우까지 방을 나가버리면
+// 사용자 경험이 나빠지므로, 완전한 페이지 종료(pagehide)에서만 정리한다.
+
 
 // ══════════════════════════════════════════════════════════════
 // 🕹️  컨트롤 레이아웃 편집 시스템
@@ -5747,9 +6122,15 @@ function multiCleanup(){
 // 설정 항목: js(조이스틱), jump, atk1, atk2 각각의 x,y(뷰포트 비율), btnSize, jsSize
 
 function getDeviceId(){
-  const key=`${screen.width}x${screen.height}_${navigator.userAgent.slice(0,40)}`;
-  let h=0; for(const c of key){ h=(h*31+c.charCodeAt(0))&0x7fffffff; }
-  return 'dev_'+h.toString(36);
+  // ⚠️ 환경 주의: 일부 인앱 브라우저/웹뷰는 screen 또는 navigator.userAgent
+  // 접근을 제한하거나 빈 값을 반환할 수 있다. 항상 폴백 값을 준비할 것.
+  try{
+    const sw=screen?.width||0, sh=screen?.height||0;
+    const ua=(navigator?.userAgent||'unknown').slice(0,40);
+    const key=`${sw}x${sh}_${ua}`;
+    let h=0; for(const c of key){ h=(h*31+c.charCodeAt(0))&0x7fffffff; }
+    return 'dev_'+h.toString(36);
+  }catch(e){ return 'dev_fallback'; }
 }
 
 const CTRL_DEFAULT={
@@ -5797,6 +6178,12 @@ async function initCtrlLayout(){
 }
 
 function applyCtrlLayout(layout){
+  // ⚠️ 환경 주의(모바일 세로/노치 기기): 아래 좌표는 window.innerWidth/
+  // innerHeight 기준 절대값이라 safe-area-inset(노치, 홈 인디케이터)을
+  // 고려하지 않는다. 사용자가 컨트롤 편집 모드에서 직접 드래그로 위치를
+  // 정하므로 보통 자연스럽게 안전 영역 안쪽에 놓이지만, 화면 맨 끝
+  // (jsY/jumpY 등이 0.95 이상)에 저장된 경우 노치 기기에서 일부가
+  // 시스템 제스처 영역에 살짝 가려질 수 있다.
   const vw=window.innerWidth, vh=window.innerHeight;
   const js=document.getElementById('joystickZone');
   const jump=document.getElementById('btnJump');
@@ -5814,15 +6201,57 @@ function applyCtrlLayout(layout){
   jump.style.cssText=`position:absolute;left:${layout.jumpX*vw-bs/2}px;top:${layout.jumpY*vh-bs/2}px;width:${bs}px;height:${bs}px;font-size:${bs*.33}px;`;
   atk1.style.cssText=`position:absolute;left:${layout.atk1X*vw-bs*.94/2}px;top:${layout.atk1Y*vh-bs*.94/2}px;width:${bs*.94}px;height:${bs*.94}px;`;
   atk2.style.cssText=`position:absolute;left:${layout.atk2X*vw-bs*.94/2}px;top:${layout.atk2Y*vh-bs*.94/2}px;width:${bs*.94}px;height:${bs*.94}px;`;
-  // controls 높이 자동 (전체 화면 덮도록)
+  // controls 높이를 화면 전체로 확장 (자유 배치를 위함).
+  // ⚠️ 환경 주의: #controls는 position:fixed이므로 height:100%는
+  // viewport 기준으로 계산된다. 부모 요소(body/html)에 명시적
+  // height가 없는 환경(일부 구형 브라우저)에서는 100%가 0으로
+  // 계산될 수 있으므로, fixed 요소에서만 이 패턴을 사용할 것.
   document.getElementById('controls').style.height='100%';
 }
 
 function applyCtrlLayoutDraft(){ if(ctrlEditDraft) applyCtrlLayout(ctrlEditDraft); }
 
+// ══════════════════════════════════════════════════════════════
+// 🎚️ 컨트롤 크기 슬라이더 — 부드러운 보간 적용
+// ──────────────────────────────────────────────────────────────
+// 슬라이더를 움직일 때마다 applyCtrlLayout()으로 크기를 "즉시" 덮어쓰면
+// style.cssText 전체 교체 + 빈번한 reflow가 겹쳐 갱신이 끊기거나 늦게
+// 반영되는 것처럼 느껴진다. 대신 "현재 표시 크기"를 별도로 들고 있다가
+// 매 프레임 목표 크기 쪽으로 (a-b)/n 만큼만 이동시켜 부드럽게 수렴시킨다.
+//   a = 현재 크기, b = 목표 크기, n = 속도(클수록 느리게 따라옴, 보통 5~10)
+//   다음 프레임 a = a - (a-b)/n
+// 이렇게 하면 슬라이더를 빠르게 움직여도 크기가 뚝뚝 끊기지 않고
+// 자연스럽게 따라붙는다.
+// ══════════════════════════════════════════════════════════════
+let _ctrlDisplaySize=null;   // {btnSize, jsSize} — 현재 화면에 보이는(보간 중인) 크기
+const CTRL_SIZE_LERP_N=8;    // 보간 속도 (5~10 권장, 클수록 느림)
+let _ctrlSizeRaf=null;
+
+function startCtrlSizeLerp(){
+  if(_ctrlSizeRaf) return; // 이미 보간 루프가 돌고 있으면 중복 시작 방지
+  const step=()=>{
+    if(!ctrlEditDraft||!_ctrlDisplaySize){ _ctrlSizeRaf=null; return; }
+    const a1=_ctrlDisplaySize.btnSize, b1=ctrlEditDraft.btnSize;
+    const a2=_ctrlDisplaySize.jsSize,  b2=ctrlEditDraft.jsSize;
+    _ctrlDisplaySize.btnSize=a1-(a1-b1)/CTRL_SIZE_LERP_N;
+    _ctrlDisplaySize.jsSize =a2-(a2-b2)/CTRL_SIZE_LERP_N;
+    // 목표에 충분히 가까워지면 정확히 맞추고 보간 종료 (무한 수렴 방지)
+    const close=Math.abs(_ctrlDisplaySize.btnSize-b1)<0.3 && Math.abs(_ctrlDisplaySize.jsSize-b2)<0.3;
+    if(close){
+      _ctrlDisplaySize.btnSize=b1; _ctrlDisplaySize.jsSize=b2;
+    }
+    applyCtrlLayout({...ctrlEditDraft, btnSize:_ctrlDisplaySize.btnSize, jsSize:_ctrlDisplaySize.jsSize});
+    syncEditHandles();
+    if(!close) _ctrlSizeRaf=requestAnimationFrame(step);
+    else _ctrlSizeRaf=null;
+  };
+  _ctrlSizeRaf=requestAnimationFrame(step);
+}
+
 function startCtrlEdit(){
   if(!ctrlLayout) ctrlLayout={...CTRL_DEFAULT};
   ctrlEditDraft={...ctrlLayout};
+  _ctrlDisplaySize={btnSize:ctrlEditDraft.btnSize, jsSize:ctrlEditDraft.jsSize}; // 보간 시작점 = 현재 값
   // 슬라이더 초기값
   const bs=document.getElementById('ctrlSizeSlider');
   const js=document.getElementById('jsSizeSlider');
@@ -5844,9 +6273,15 @@ function startCtrlEdit(){
 function syncEditHandles(){
   const vw=window.innerWidth, vh=window.innerHeight;
   const d=ctrlEditDraft, bs=d.btnSize, jss=d.jsSize;
+  // ⚠️ cssText로 통째로 덮어쓰면 드래그 중 dragStart()가 설정한
+  // style.transition='none'까지 함께 사라져서 끌림 현상이 재발한다.
+  // 개별 속성으로 설정해 transition은 그대로 유지되도록 한다.
   const setH=(id,cx,cy,w,h,label)=>{
     const el=document.getElementById('editHandle'+id);
-    el.style.cssText=`left:${cx-w/2}px;top:${cy-h/2}px;width:${w}px;height:${h}px;`;
+    el.style.left=(cx-w/2)+'px';
+    el.style.top=(cy-h/2)+'px';
+    el.style.width=w+'px';
+    el.style.height=h+'px';
     el.textContent=label;
   };
   setH('JS',   d.jsX*vw,   d.jsY*vh,   jss,  jss,  '조이스틱');
@@ -5869,17 +6304,26 @@ function setupHandleDrag(name){
     applyCtrlLayoutDraft();
   };
 
+  // 드래그 중에는 CSS의 left/top transition을 잠시 끈다.
+  // (켜둔 채로 두면 transition이 실제 손가락/마우스 위치를 따라가지 못하고
+  //  뒤늦게 쫓아가는 "끌리는" 느낌을 줘서 조작감이 나빠진다.)
+  const dragStart=()=>{ el.style.transition='none'; };
+  const dragEnd=()=>{ el.style.transition=''; }; // 클래스의 기본 transition으로 복원
+
   el.addEventListener('touchstart',e=>{
     e.preventDefault(); e.stopPropagation();
     startTouch=e.touches[0].identifier;
+    dragStart();
   },{passive:false});
   el.addEventListener('touchmove',e=>{
     e.preventDefault(); e.stopPropagation();
     const t=[...e.touches].find(t=>t.identifier===startTouch);
     if(t) move(t.clientX, t.clientY);
   },{passive:false});
+  el.addEventListener('touchend',dragEnd);
+  el.addEventListener('touchcancel',dragEnd);
 
-  el.addEventListener('mousedown',e=>{ e.preventDefault(); _ctrlEditDragging={el,kx,ky}; });
+  el.addEventListener('mousedown',e=>{ e.preventDefault(); _ctrlEditDragging={el,kx,ky}; dragStart(); });
 }
 document.addEventListener('mousemove',e=>{
   if(!_ctrlEditDragging) return;
@@ -5889,11 +6333,15 @@ document.addEventListener('mousemove',e=>{
   ctrlEditDraft[ky]=Math.max(0.05,Math.min(0.98,e.clientY/vh));
   syncEditHandles(); applyCtrlLayoutDraft();
 });
-document.addEventListener('mouseup',()=>{ _ctrlEditDragging=null; });
+document.addEventListener('mouseup',()=>{
+  if(_ctrlEditDragging) _ctrlEditDragging.el.style.transition='';
+  _ctrlEditDragging=null;
+});
 
 function endCtrlEdit(save){
   document.getElementById('ctrlEditOverlay').classList.remove('active');
   document.getElementById('ctrlEditBar').classList.remove('active');
+  if(_ctrlSizeRaf){ cancelAnimationFrame(_ctrlSizeRaf); _ctrlSizeRaf=null; }
   if(!save){ applyCtrlLayout(ctrlLayout); } // 취소 시 원래 레이아웃 복원
 }
 
@@ -5911,7 +6359,7 @@ function resetCtrlLayout(){
   document.getElementById('ctrlSizeVal').textContent=CTRL_DEFAULT.btnSize;
   document.getElementById('jsSizeSlider').value=CTRL_DEFAULT.jsSize;
   document.getElementById('jsSizeVal').textContent=CTRL_DEFAULT.jsSize;
-  syncEditHandles(); applyCtrlLayoutDraft();
+  syncEditHandles(); startCtrlSizeLerp();
 }
 // ══════════════════════════════════════════════════════════════
 // 🎬 리플레이 시스템
@@ -5985,7 +6433,7 @@ function stopReplayRecording(){
 
 function promptSaveReplay(resultLabel){
   if(!_lastEndedReplay||!currentUser){ return; }
-  document.getElementById('replaySaveModal').classList.remove('hidden');
+  openModal('replaySaveModal');
 }
 
 async function saveCurrentReplay(){
@@ -6014,12 +6462,12 @@ async function saveCurrentReplay(){
     showToast('저장 실패: '+(e?.message||e));
   }
   btn.disabled=false; btn.textContent='💾 저장';
-  document.getElementById('replaySaveModal').classList.add('hidden');
+  closeModal('replaySaveModal');
   _lastEndedReplay=null;
 }
 
 function dismissReplaySave(){
-  document.getElementById('replaySaveModal').classList.add('hidden');
+  closeModal('replaySaveModal');
   _lastEndedReplay=null;
 }
 
@@ -6032,7 +6480,7 @@ async function openReplayList(){
   try{
     const q=query(collection(db,'users',currentUser.uid,'replays'),orderBy('createdAt','desc'),limit(30));
     const snap=await getDocs(q);
-    if(snap.empty){ box.innerHTML='<p style="font-size:.65rem;color:var(--muted);text-align:center;">저장된 리플레이가 없습니다</p>'; return; }
+    if(snap.empty){ showReplayEmptyState(box); return; }
     box.innerHTML='';
     snap.forEach(d=>{
       const r=d.data();
@@ -6044,16 +6492,28 @@ async function openReplayList(){
           <div style="font-size:.7rem;">${r.pokemonName||'?'} <span style="color:var(--muted);">· ${modeLabel}</span></div>
           <div style="font-size:.58rem;color:var(--muted);">스테이지 ${r.maxStage} · ${Math.round(r.duration)}초</div>
         </div>
-        <button class="replay-del" style="font-size:.6rem;padding:.2rem .4rem;border-radius:6px;background:rgba(255,71,87,.15);color:#ff4757;border:none;">삭제</button>`;
+        <button class="replay-del" style="font-size:.6rem;padding:.4rem .6rem;border-radius:6px;background:rgba(255,71,87,.15);color:#ff4757;border:none;min-height:34px;">삭제</button>`;
       div.addEventListener('click',(e)=>{ if(e.target.classList.contains('replay-del')) return; playReplay(d.id, r); });
       div.querySelector('.replay-del').addEventListener('click',async(e)=>{
         e.stopPropagation();
+        if(!confirm('이 리플레이를 삭제할까요?')) return;
         await deleteDoc(doc(db,'users',currentUser.uid,'replays',d.id));
         div.remove();
+        // 마지막 한 개를 지워서 목록이 비면 빈 상태 안내를 다시 표시
+        if(!box.querySelector('div')) showReplayEmptyState(box);
       });
       box.appendChild(div);
     });
   }catch(e){ box.innerHTML='<p style="font-size:.65rem;color:var(--red);">불러오기 실패</p>'; }
+}
+
+function showReplayEmptyState(box){
+  box.innerHTML=`
+    <div style="text-align:center;padding:1.5rem .5rem;">
+      <div style="font-size:1.8rem;margin-bottom:.5rem;">🎬</div>
+      <p style="font-size:.72rem;color:var(--text);margin-bottom:.3rem;">리플레이가 없습니다</p>
+      <p style="font-size:.65rem;color:var(--muted);">함께 즐기며 채워보세요!</p>
+    </div>`;
 }
 
 // ── 리플레이 재생 ────────────────────────────────────────────
@@ -6246,6 +6706,15 @@ function exitReplay(){
 .gfx-opt .gfx-desc{font-size:.62rem;color:var(--muted);}
 .gfx-opt.active{border-color:var(--accent);background:rgba(255,203,5,.08);color:var(--accent);}
 .gfx-opt.active .gfx-desc{color:var(--accent);opacity:.8;}
+
+.multi-mode-btn{
+  flex:1;padding:.4rem;border-radius:8px;cursor:pointer;
+  font-family:'Galmuri11',monospace;font-size:.68rem;
+  border:1px solid var(--border);background:transparent;color:var(--muted);
+  transition:border-color .18s ease,background .18s ease,color .18s ease,transform .12s ease;
+}
+.multi-mode-btn:active{transform:scale(.96);}
+.multi-mode-btn.active{border-color:var(--accent);background:rgba(255,203,5,.1);color:var(--accent);}
 </style>
 </body>
 </html>

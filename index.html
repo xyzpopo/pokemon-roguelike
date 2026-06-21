@@ -885,37 +885,37 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 <!-- ── 멀티 로비 ── -->
 <div class="screen hidden" id="multiLobbyScreen">
-  <div class="levelup-box" style="max-width:360px;width:92%;">
-    <h2>⚔️ 멀티 배틀</h2>
-    <div style="display:flex;gap:.5rem;margin-bottom:.8rem;">
-      <button class="stage-btn" id="btnCreatePublic" style="flex:1;font-size:.7rem;padding:.5rem;">🌐 공개방 만들기</button>
-      <button class="stage-btn" id="btnCreatePrivate" style="flex:1;font-size:.7rem;padding:.5rem;background:var(--accent2);color:#fff;">🔒 비밀방 만들기</button>
+  <div class="levelup-box" style="max-width:520px;width:94%;padding:1.8rem 1.6rem;">
+    <h2 style="font-size:1.1rem;margin-bottom:1rem;">⚔️ 멀티 배틀</h2>
+    <div style="display:flex;gap:.7rem;margin-bottom:1rem;">
+      <button class="stage-btn" id="btnCreatePublic" style="flex:1;font-size:.78rem;padding:.7rem;">🌐 공개방 만들기</button>
+      <button class="stage-btn" id="btnCreatePrivate" style="flex:1;font-size:.78rem;padding:.7rem;background:var(--accent2);color:#fff;">🔒 비밀방 만들기</button>
     </div>
-    <div style="display:flex;gap:.4rem;margin-bottom:.8rem;">
-      <input id="multiCodeInput" placeholder="방 코드 입력" style="flex:1;padding:.45rem .6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.72rem;">
-      <button class="stage-btn" id="btnJoinCode" style="padding:.45rem .8rem;font-size:.7rem;">입장</button>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+      <input id="multiCodeInput" placeholder="방 코드 입력" style="flex:1;padding:.6rem .8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.78rem;">
+      <button class="stage-btn" id="btnJoinCode" style="padding:.6rem 1rem;font-size:.78rem;">입장</button>
     </div>
-    <div id="publicRoomList" style="max-height:180px;overflow-y:auto;margin-bottom:.8rem;"></div>
-    <button class="btn-outline" id="btnMultiLobbyBack" style="width:100%;font-size:.72rem;padding:.45rem;">← 뒤로</button>
+    <div id="publicRoomList" style="max-height:320px;overflow-y:auto;margin-bottom:1rem;"></div>
+    <button class="btn-outline" id="btnMultiLobbyBack" style="width:100%;font-size:.78rem;padding:.6rem;">← 뒤로</button>
   </div>
 </div>
 
 <!-- ── 멀티 방 대기실 ── -->
 <div class="screen hidden" id="multiRoomScreen">
-  <div class="levelup-box" style="max-width:380px;width:92%;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
-      <h2 style="margin:0">🎮 대기실</h2>
-      <span id="multiRoomCode" style="font-size:.65rem;color:var(--accent);letter-spacing:.1em;"></span>
+  <div class="levelup-box" style="max-width:520px;width:94%;padding:1.8rem 1.6rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h2 style="margin:0;font-size:1.1rem;">🎮 대기실</h2>
+      <span id="multiRoomCode" style="font-size:.72rem;color:var(--accent);letter-spacing:.1em;"></span>
     </div>
     <!-- 모드 선택 -->
-    <div id="multiModeSelect" style="display:flex;gap:.4rem;margin-bottom:.7rem;">
+    <div id="multiModeSelect" style="display:flex;gap:.5rem;margin-bottom:1rem;">
       <button class="multi-mode-btn active" data-mode="pvp">⚔️ PvP</button>
       <button class="multi-mode-btn" data-mode="hunt">🏆 포켓몬 사냥</button>
     </div>
     <!-- 공격 형식 선택 -->
-    <div style="margin-bottom:.7rem;">
-      <p style="font-size:.62rem;color:var(--muted);margin-bottom:.3rem;">공격 형식 선택</p>
-      <select id="multiAtkStyle" style="width:100%;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.7rem;">
+    <div style="margin-bottom:1rem;">
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:.4rem;">공격 형식 선택</p>
+      <select id="multiAtkStyle" style="width:100%;padding:.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Galmuri11',monospace;font-size:.78rem;">
         <option value="ranged">원거리 (분사형)</option>
         <option value="melee">근접</option>
         <option value="spread">확산 (스프레드)</option>
@@ -926,12 +926,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
       </select>
     </div>
     <!-- 참가자 목록 -->
-    <div id="multiPlayerList" style="margin-bottom:.7rem;max-height:140px;overflow-y:auto;"></div>
+    <div id="multiPlayerList" style="margin-bottom:1rem;max-height:260px;overflow-y:auto;"></div>
     <!-- 버튼 -->
-    <button class="stage-btn" id="btnMultiStart" style="width:100%;margin-bottom:.4rem;display:none;">▶ 게임 시작</button>
-    <button class="btn-outline" id="btnMultiRoomBack" style="width:100%;font-size:.7rem;padding:.4rem;">← 나가기</button>
+    <button class="stage-btn" id="btnMultiStart" style="width:100%;margin-bottom:.5rem;display:none;font-size:.85rem;padding:.7rem;">▶ 게임 시작</button>
+    <button class="btn-outline" id="btnMultiRoomBack" style="width:100%;font-size:.78rem;padding:.6rem;">← 나가기</button>
   </div>
 </div>
+
 
 <!-- ── 멀티 배틀 HUD 오버레이 ── -->
 <div id="multiHud" style="display:none;position:fixed;top:0;left:0;right:0;z-index:22;pointer-events:none;">
@@ -2605,14 +2606,37 @@ function genPlatforms(stage){
   const W=mapWidth, H=floorY;
 
   if(stage===0){
-    // 로비: 고정 레이아웃
+    // 로비: 넓어진 맵 전체에 발판을 절차적으로 배치 — 뛰어놀 공간 확장
+    // (입구 x≈60, 멀티문 x≈mapWidth-160 양 끝은 비워두고 그 사이를 채움)
     window._terraceData=null; window._terraceMap=null;
-    return [
-      {x:200,y:H-150,w:130,h:16},{x:440,y:H-230,w:140,h:16},
-      {x:680,y:H-170,w:110,h:16},{x:900,y:H-270,w:130,h:16},
-      {x:1130,y:H-190,w:150,h:16},{x:1380,y:H-290,w:120,h:16},
-      {x:1620,y:H-155,w:140,h:16},{x:1870,y:H-240,w:110,h:16},
-    ];
+    const plats=[];
+    const usableStart=320, usableEnd=W-320;
+    const span=usableEnd-usableStart;
+    const colCount=Math.max(8,Math.floor(span/280)); // 발판 밀도: 약 280px 간격
+    const rnd=seededRand(13579); // 매번 같은 배치(재현 가능)
+    for(let i=0;i<colCount;i++){
+      const cx=usableStart+(span*(i+0.5))/colCount + (rnd()-0.5)*120;
+      // 높이는 80~280px 사이를 파도치듯 배치 (사인 곡선 + 약간의 랜덤)
+      const baseH=80+Math.abs(Math.sin(i*0.9))*180;
+      const h=baseH+(rnd()-0.5)*40;
+      const w=100+rnd()*70;
+      plats.push({x:Math.round(cx-w/2), y:Math.round(H-h), w:Math.round(w), h:16});
+    }
+    // 가끔 2층으로 쌓인 높은 발판 추가 (점프 챌린지용)
+    for(let i=2;i<colCount-2;i+=3){
+      if(rnd()<0.5){
+        const base=plats[i];
+        plats.push({x:base.x+10, y:base.y-130-Math.round(rnd()*40), w:Math.max(70,base.w-30), h:16});
+      }
+    }
+    // 일부 발판 위에 점프패드 배치 (로비 전용 — 매번 새로 초기화해 이전
+    // 스테이지의 점프패드가 남아있는 버그도 함께 방지)
+    jumpPads=[];
+    for(let i=1;i<colCount-1;i+=4){
+      const base=plats[i];
+      if(base) jumpPads.push({x:base.x+base.w/2-22, y:base.y-14, w:44, h:14, power:1.6, animTick:0});
+    }
+    return plats;
   }
 
   // 보스 스테이지(10,20)는 기존 평탄 아레나 유지
@@ -2740,7 +2764,10 @@ function genDoors(stage){
 // ── 스테이지 초기화 ───────────────────────────────────────────
 function initStageMap(stage){
   resizeCanvas();
-  mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+  // 로비(stage 0)는 더 넓게 — 뛰어놀 공간을 확보 (일반 스테이지는 기존 그대로)
+  mapWidth = stage===0
+    ? Math.max((canvas.clientWidth||window.innerWidth)*5.5,4400)
+    : Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
   window._mapEnemyPos=[];
   window._mapBombPos=[];
   platforms=genPlatforms(stage);  // 이 안에서 _mapEnemyPos, _mapBombPos, jumpPads 세팅됨
@@ -3135,6 +3162,7 @@ function startLobby(){
     gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
     animFrame=requestAnimationFrame(gameLoop);
+    enterLobbyPresence(); // 로비 진입 — 다른 유저에게 내 위치 공유 시작
   });
 }
 
@@ -3188,7 +3216,7 @@ function preloadStageImages(stage, cb){
   });
 }
 
-function launchStage(stage){
+function launchStage(stage, onDone){
   currentStage=stage;
   playerLevel=Math.max(1,stage);
   if(!playerData||playerData.level!==playerLevel){
@@ -3222,6 +3250,7 @@ function launchStage(stage){
     gameRunning=true; lastTime=0; _gameLoopErrCount=0;
     if(animFrame) cancelAnimationFrame(animFrame);
     animFrame=requestAnimationFrame(gameLoop);
+    if(onDone) onDone(); // 게임 루프가 실제로 시작된 뒤에 호출 (예: fadeIn)
   });
 }
 
@@ -3963,11 +3992,19 @@ function transitionToStage(stage){
   if(transitioning) return; transitioning=true;
   gameRunning=false; cancelAnimationFrame(animFrame);
   setHint('');
+  if(currentStage===0&&lobbyPresenceActive) leaveLobbyPresence(); // 로비를 떠나면 presence 해제
   // 페이드 효과
   fadeOut(()=>{
     transitioning=false;
-    launchStage(stage);
-    fadeIn();
+    // ⚠️ 버그 수정: launchStage()는 preloadStageImages()로 이미지를
+    // 비동기로 먼저 불러온 뒤에야 게임 루프(gameLoop)를 시작한다.
+    // 예전에는 launchStage(stage) 호출 직후 곧바로 fadeIn()을 실행해서,
+    // 이미지 로딩이 끝나기도 전에(=캔버스에 아직 아무것도 안 그려진
+    // 상태에서) 화면 가리개가 걷혀 검은 화면이 그대로 노출되는 문제가
+    // 있었다 (실제 발생 사례: "로그라이크 입장 시 검은화면"). 이제
+    // launchStage가 실제로 게임 루프를 시작한 "이후"에 fadeIn을
+    // 호출하도록 완료 콜백으로 넘긴다.
+    launchStage(stage, fadeIn);
   });
 }
 
@@ -4183,6 +4220,9 @@ function render(){
 
   // 적
   for(const e of enemies) renderEnemy(e);
+
+  // 로비: 실시간으로 함께 있는 다른 유저들
+  if(currentStage===0) renderLobbyOtherPlayers();
 
   // 플레이어
   renderPlayer();
@@ -5318,6 +5358,13 @@ function renderLobbyOverlay(){
   ctx.fillStyle='rgba(255,255,255,.65)'; ctx.font="11px 'Galmuri11',monospace";
   ctx.fillText('타입: '+playerData.types.join(' / '), _lw/2, _lh*.10+40);
 
+  // 실시간 접속자 수 (presence 기반)
+  const onlineCount=Object.keys(lobbyOtherPlayers).length+1; // 나 포함
+  ctx.fillStyle='rgba(0,0,0,.5)';
+  ctx.beginPath(); ctx.roundRect(_lw/2-55,_lh*.10+64,110,24,[8]); ctx.fill();
+  ctx.fillStyle='#9ccc65'; ctx.font="10px 'Galmuri11',monospace";
+  ctx.fillText(`👥 ${onlineCount}명 접속 중`, _lw/2, _lh*.10+80);
+
   // 왼쪽 안내 (로그라이크 입구)
   const pulse=0.6+0.3*Math.sin(t);
   ctx.globalAlpha=pulse;
@@ -5472,6 +5519,7 @@ async function endGame(win){
   document.getElementById('hud').style.display='none';
   showControls(false); setHint('');
   document.onkeydown=null; document.onkeyup=null;
+  if(lobbyPresenceActive) leaveLobbyPresence(); // 안전망: 혹시 로비 presence가 켜진 채로 게임이 끝나면 정리
   stopReplayRecording();
   if(win){
     showScreen('clearScreen');
@@ -5724,6 +5772,17 @@ const MULTI_SYNC_MS=80;       // 위치 동기화 간격 (ms) → ~12fps
 // ── 공개방 목록 ─────────────────────────────────────────────
 async function openMultiLobby(){
   if(!currentUser){ showToast('로그인이 필요합니다'); return; }
+  // ⚠️ 버그 수정: 로비의 게임 루프를 멈추지 않으면 플레이어가 멀티 입구
+  // 문 위에 계속 서 있는 채로 checkDoors()가 매 프레임 실행되다가
+  // _hintShown 플래그가 2초마다 풀려서 openMultiLobby()가 반복 호출됨.
+  // 그 결과 방을 만들어 대기실(multiRoomScreen)로 넘어가도 곧바로
+  // showScreen('multiLobbyScreen')이 다시 실행되어 화면이 로비로
+  // 되돌아가는 것처럼 보였다 (실제 발생 사례). 멀티 로비 진입 시
+  // 로비 게임 루프를 확실히 정지시켜 더 이상 checkDoors가 돌지 않게 한다.
+  gameRunning=false;
+  if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
+  gamePhase='menu'; // 'lobby'가 아니게 만들어 문 충돌 로직이 더 이상 반응하지 않도록
+  if(lobbyPresenceActive) leaveLobbyPresence(); // 멀티로비로 가면 일반 로비 presence는 더 이상 필요 없음
   showScreen('multiLobbyScreen');
   loadPublicRooms();
 }
@@ -5741,8 +5800,8 @@ async function loadPublicRooms(){
     snap.forEach(d=>{
       const r=d.data(); const cnt=Object.keys(r.playerCount||{}).length||1;
       const div=document.createElement('div');
-      div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:.4rem .6rem;margin-bottom:.3rem;background:rgba(255,255,255,.04);border-radius:8px;cursor:pointer;';
-      div.innerHTML=`<span style="font-size:.7rem;">${r.hostName||'방'}</span><span style="font-size:.62rem;color:var(--muted);">${r.mode==='pvp'?'⚔️PvP':'🏆사냥'} · ${cnt}명</span><button style="font-size:.6rem;padding:.2rem .5rem;border-radius:6px;background:var(--accent);color:#000;border:none;font-family:'Galmuri11',monospace;cursor:pointer;">입장</button>`;
+      div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem;margin-bottom:.45rem;background:rgba(255,255,255,.04);border-radius:10px;cursor:pointer;';
+      div.innerHTML=`<span style="font-size:.8rem;">${r.hostName||'방'}</span><span style="font-size:.7rem;color:var(--muted);">${r.mode==='pvp'?'⚔️PvP':'🏆사냥'} · ${cnt}명</span><button style="font-size:.7rem;padding:.4rem .8rem;border-radius:8px;background:var(--accent);color:#000;border:none;font-family:'Galmuri11',monospace;cursor:pointer;">입장</button>`;
       div.querySelector('button').addEventListener('click',()=>joinRoomById(d.id));
       el.appendChild(div);
     });
@@ -5763,7 +5822,10 @@ async function createRoom(isPrivate){
     });
     multiRoomId=ref.id; multiRoomCode=code; multiIsHost=true; multiRoomMode='pvp';
     await joinRoomById(ref.id, true);
-  }catch(e){ showToast('방 생성 실패: '+e.message); }
+  }catch(e){
+    console.error('createRoom error:',e);
+    showToast('방 생성 실패: '+(e?.message||e));
+  }
 }
 
 // ── 코드로 입장 ─────────────────────────────────────────────
@@ -5781,20 +5843,30 @@ async function joinRoomByCode(){
 // ── 방 ID로 입장 ────────────────────────────────────────────
 async function joinRoomById(roomId, isCreator=false){
   if(!currentUser||!playerData) return;
+  console.log('[multi] joinRoomById start', roomId, 'isCreator:', isCreator);
   multiRoomId=roomId;
   // 내 플레이어 데이터 등록
   const uid=currentUser.uid;
   const pName=currentUser.email?.replace('@pkdex.com','')||'트레이너';
   const atkStyle=document.getElementById('multiAtkStyle')?.value||'ranged';
-  await setDoc(doc(db,'multiRooms',roomId,'players',uid),{
-    name:pName, sprite:playerData.sprite,
-    types:playerData.types||['normal'],
-    atkStyle, x:300, y:500, hp:playerData.maxHp, maxHp:playerData.maxHp,
-    facing:-1, alive:true, kills:0, lastSeen:serverTimestamp()
-  });
-  // playerCount 업데이트
-  await updateDoc(doc(db,'multiRooms',roomId),{[`playerCount.${uid}`]:true});
+  try{
+    await setDoc(doc(db,'multiRooms',roomId,'players',uid),{
+      name:pName, sprite:playerData.sprite,
+      types:playerData.types||['normal'],
+      atkStyle, x:300, y:500, hp:playerData.maxHp, maxHp:playerData.maxHp,
+      facing:-1, alive:true, kills:0, lastSeen:serverTimestamp()
+    });
+    console.log('[multi] player doc written');
+    // playerCount 업데이트
+    await updateDoc(doc(db,'multiRooms',roomId),{[`playerCount.${uid}`]:true});
+    console.log('[multi] playerCount updated');
+  }catch(err){
+    console.error('[multi] joinRoomById Firestore write failed:',err);
+    showToast('방 입장 실패: '+(err?.message||err));
+    return; // 쓰기 실패 시 화면 전환하지 않고 멀티 로비에 머무름
+  }
 
+  console.log('[multi] calling showScreen(multiRoomScreen)');
   showScreen('multiRoomScreen');
   // 방 코드 표시
   const codeEl=document.getElementById('multiRoomCode');
@@ -5816,6 +5888,9 @@ async function joinRoomById(roomId, isCreator=false){
     multiPlayers={};
     snap.forEach(d=>{ if(d.id!==uid) multiPlayers[d.id]=d.data(); });
     renderMultiPlayerList(uid, snap);
+  }, err=>{
+    console.error('[multi] players onSnapshot error:',err);
+    showToast('참가자 목록 동기화 오류: '+(err?.message||err));
   });
   // 방 상태 구독 (시작 신호 수신)
   const roomUnsub=onSnapshot(doc(db,'multiRooms',roomId), snap=>{
@@ -5826,8 +5901,12 @@ async function joinRoomById(roomId, isCreator=false){
       multiStatus='playing';
       beginMultiBattle(d.mapIdx||0);
     }
+  }, err=>{
+    console.error('[multi] room onSnapshot error:',err);
+    showToast('방 상태 동기화 오류: '+(err?.message||err));
   });
   multiUnsubs.push(playerUnsub, roomUnsub);
+  console.log('[multi] joinRoomById complete, listeners active');
 }
 
 function renderMultiPlayerList(myUid, snap){
@@ -5837,8 +5916,8 @@ function renderMultiPlayerList(myUid, snap){
     const p=d.data();
     const isMe=d.id===myUid;
     const div=document.createElement('div');
-    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:.3rem;';
-    div.innerHTML=`<img src="${p.sprite}" style="width:28px;height:28px;image-rendering:pixelated;"><span style="font-size:.7rem;flex:1;">${p.name}${isMe?' (나)':''}</span><span style="font-size:.6rem;color:var(--muted);">${ATTACK_STYLES[p.atkStyle]?.label||p.atkStyle}</span>`;
+    div.style.cssText='display:flex;align-items:center;gap:.7rem;padding:.55rem .7rem;background:rgba(255,255,255,.04);border-radius:10px;margin-bottom:.4rem;';
+    div.innerHTML=`<img src="${p.sprite}" style="width:36px;height:36px;image-rendering:pixelated;"><span style="font-size:.8rem;flex:1;">${p.name}${isMe?' (나)':''}</span><span style="font-size:.68rem;color:var(--muted);">${ATTACK_STYLES[p.atkStyle]?.label||p.atkStyle}</span>`;
     el.appendChild(div);
   });
 }
@@ -6142,10 +6221,100 @@ function multiCleanup(){
 // Safari/크롬에서 더 안정적으로 발화하므로 이를 사용해 best-effort 정리.
 window.addEventListener('pagehide', ()=>{
   if(multiRoomId) multiCleanup();
+  if(lobbyPresenceActive) leaveLobbyPresence();
 });
 // 탭이 백그라운드로 전환될 때(visibilitychange)는 정리하지 않음 —
 // 잠깐 다른 앱을 봤다가 돌아오는 정상적인 경우까지 방을 나가버리면
 // 사용자 경험이 나빠지므로, 완전한 페이지 종료(pagehide)에서만 정리한다.
+
+// ══════════════════════════════════════════════════════════════
+// 👥 로비 실시간 사용자 표시 (presence)
+// ──────────────────────────────────────────────────────────────
+// Firestore presence/{uid} 컬렉션을 이용해 "지금 로비에 있는 다른
+// 유저"의 위치를 실시간으로 공유한다. 멀티배틀(multiRooms)과 같은
+// 동기화 패턴(주기적 write + onSnapshot 구독)을 쓰지만, 로비는
+// 별도의 방(room) 개념 없이 전역 presence 컬렉션 하나만 쓴다.
+//   presence/{uid}: { name, sprite, x, y, facing, stage:0, lastSeen }
+// stage:0(로비)인 문서만 화면에 그려서, 다른 스테이지/멀티배틀 중인
+// 유저는 표시되지 않게 한다. lastSeen이 30초 이상 오래된 문서는
+// (창을 그냥 닫아 정리가 안 된 경우) 클라이언트에서 걸러서 무시한다.
+// ══════════════════════════════════════════════════════════════
+let lobbyPresenceActive=false;
+let lobbyPresenceInterval=null;
+let lobbyPresenceUnsub=null;
+let lobbyOtherPlayers={};        // uid → presence 데이터
+let lobbyOtherSprites={};        // uid → Image
+const LOBBY_PRESENCE_SYNC_MS=300; // 너무 잦은 쓰기를 피하기 위해 0.3초 간격
+const LOBBY_PRESENCE_STALE_MS=30000; // 30초 이상 안 갱신되면 화면에서 무시
+
+async function enterLobbyPresence(){
+  if(!currentUser||!playerData) return;
+  lobbyPresenceActive=true;
+  await syncLobbyPresence(); // 즉시 1회 등록
+  if(lobbyPresenceInterval) clearInterval(lobbyPresenceInterval);
+  lobbyPresenceInterval=setInterval(syncLobbyPresence, LOBBY_PRESENCE_SYNC_MS);
+
+  if(lobbyPresenceUnsub) lobbyPresenceUnsub();
+  lobbyPresenceUnsub=onSnapshot(collection(db,'presence'), snap=>{
+    const next={};
+    snap.forEach(d=>{
+      if(d.id===currentUser.uid) return; // 자기 자신 제외
+      const p=d.data();
+      if(p.stage!==0) return; // 로비에 있는 유저만 표시
+      next[d.id]=p;
+      if(!lobbyOtherSprites[d.id]&&p.sprite) lobbyOtherSprites[d.id]=getCachedImg(p.sprite);
+    });
+    lobbyOtherPlayers=next;
+  }, err=>{
+    console.error('[lobby] presence onSnapshot error:',err);
+  });
+}
+
+async function syncLobbyPresence(){
+  if(!currentUser||!player||currentStage!==0) return;
+  try{
+    await setDoc(doc(db,'presence',currentUser.uid),{
+      name:currentUser.email?.replace('@pkdex.com','')||'트레이너',
+      sprite:playerData.sprite,
+      x:Math.round(player.x), y:Math.round(player.y), facing:player.facing,
+      stage:0, lastSeen:serverTimestamp()
+    });
+  }catch(e){ console.error('[lobby] presence write failed:',e); }
+}
+
+async function leaveLobbyPresence(){
+  lobbyPresenceActive=false;
+  if(lobbyPresenceInterval){ clearInterval(lobbyPresenceInterval); lobbyPresenceInterval=null; }
+  if(lobbyPresenceUnsub){ lobbyPresenceUnsub(); lobbyPresenceUnsub=null; }
+  lobbyOtherPlayers={}; lobbyOtherSprites={};
+  if(currentUser){
+    try{ await deleteDoc(doc(db,'presence',currentUser.uid)); }catch(e){}
+  }
+}
+
+// 로비 화면에 다른 유저들을 그린다 — render() 안에서 카메라 변환이
+// 적용된 상태(ctx.translate(-camera.x,0)) 동안 호출되어야 한다.
+function renderLobbyOtherPlayers(){
+  if(currentStage!==0) return;
+  const now=Date.now();
+  for(const [uid,p] of Object.entries(lobbyOtherPlayers)){
+    const img=lobbyOtherSprites[uid];
+    ctx.save();
+    ctx.translate(p.x+40,p.y+40);
+    if(p.facing>0) ctx.scale(-1,1);
+    if(img&&img.complete&&img.naturalWidth>0) ctx.drawImage(img,-40,-40,80,80);
+    else { ctx.fillStyle='rgba(150,150,150,.6)'; ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+    // 이름표
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    const nameW=Math.max(40,(p.name||'').length*7+12);
+    ctx.beginPath(); ctx.roundRect(p.x+40-nameW/2,p.y-2,nameW,16,[6]); ctx.fill();
+    ctx.fillStyle='#9ccc65'; ctx.font="10px 'Galmuri11',monospace"; ctx.textAlign='center';
+    ctx.fillText(p.name||'?', p.x+40, p.y+10);
+    ctx.restore();
+  }
+}
 
 
 // ══════════════════════════════════════════════════════════════

@@ -1867,6 +1867,15 @@ function buildPlayerData(pk,lv){
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d');
 let gameRunning=false,animFrame=null,lastTime=0;
+// ⚠️ 환경 주의: 모듈 스크립트는 항상 strict mode라, 선언 없이 변수에
+// 대입하면 즉시 ReferenceError가 발생한다. 이 변수가 선언 누락된 채로
+// gameRunning=true 직후에 대입되어, 그 예외가 showScreen()의 onShown
+// 콜백 체인 안에서 잡히지 않고 전파되면서 requestAnimationFrame(gameLoop)
+// 호출 자체가 실행되지 못해 "컨트롤 버튼은 보이는데 캔버스는 계속
+// 검은 화면"인 상태가 됐던 실제 사례. 새 전역 상태 변수를 추가할 때는
+// 반드시 let/const로 먼저 선언할 것 — 특히 try/catch 바깥에서 쓰이는
+// 변수는 누락 시 검은 화면처럼 진단하기 어려운 형태로 나타난다.
+let _gameLoopErrCount=0;
 const keys={left:false,right:false,jump:false,atk1:false,atk2:false,down:false};
 const just={jump:false,atk1:false,atk2:false};
 let player=null,enemies=[],projectiles=[],particles=[],camera={x:0,y:0};

@@ -908,9 +908,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
       <span id="multiRoomCode" style="font-size:.72rem;color:var(--accent);letter-spacing:.1em;"></span>
     </div>
     <!-- 모드 선택 -->
-    <div id="multiModeSelect" style="display:flex;gap:.5rem;margin-bottom:1rem;">
+    <div id="multiModeSelect" style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
       <button class="multi-mode-btn active" data-mode="pvp">⚔️ PvP</button>
       <button class="multi-mode-btn" data-mode="hunt">🏆 포켓몬 사냥</button>
+      <button class="multi-mode-btn" data-mode="with">🤝 함께 클리어</button>
     </div>
     <!-- 공격 형식 선택 -->
     <div style="margin-bottom:1rem;">
@@ -5761,11 +5762,13 @@ let multiRoomId=null, multiRoomCode=null, multiRoomMode='pvp';
 let multiIsHost=false, multiStatus='idle';
 let multiPlayers={};          // uid → 원격 플레이어 데이터
 let multiRemoteSprites={};    // uid → Image 객체
+let multiRemoteDisplay={};    // uid → {x,y,facing} 렌더링 전용 보간 좌표 (충돌판정은 원본 좌표 사용)
 let multiUnsubs=[];           // onSnapshot 구독 해제 함수 목록
 let multiSyncInterval=null;   // 위치 sync 인터벌
 let multiRespawnTimer=0;      // 부활 카운트다운 (PvP)
 let multiHuntTimer=0;         // 사냥 남은 시간
 let multiMyKills=0;           // 사냥 내 킬수
+let multiWithStage=1;         // with 모드: 현재 함께 진행 중인 스테이지
 const HUNT_DURATION=120;      // 사냥 모드 2분
 const MULTI_SYNC_MS=80;       // 위치 동기화 간격 (ms) → ~12fps
 
@@ -5801,7 +5804,7 @@ async function loadPublicRooms(){
       const r=d.data(); const cnt=Object.keys(r.playerCount||{}).length||1;
       const div=document.createElement('div');
       div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem;margin-bottom:.45rem;background:rgba(255,255,255,.04);border-radius:10px;cursor:pointer;';
-      div.innerHTML=`<span style="font-size:.8rem;">${r.hostName||'방'}</span><span style="font-size:.7rem;color:var(--muted);">${r.mode==='pvp'?'⚔️PvP':'🏆사냥'} · ${cnt}명</span><button style="font-size:.7rem;padding:.4rem .8rem;border-radius:8px;background:var(--accent);color:#000;border:none;font-family:'Galmuri11',monospace;cursor:pointer;">입장</button>`;
+      div.innerHTML=`<span style="font-size:.8rem;">${r.hostName||'방'}</span><span style="font-size:.7rem;color:var(--muted);">${r.mode==='pvp'?'⚔️PvP':r.mode==='with'?'🤝함께클리어':'🏆사냥'} · ${cnt}명</span><button style="font-size:.7rem;padding:.4rem .8rem;border-radius:8px;background:var(--accent);color:#000;border:none;font-family:'Galmuri11',monospace;cursor:pointer;">입장</button>`;
       div.querySelector('button').addEventListener('click',()=>joinRoomById(d.id));
       el.appendChild(div);
     });
@@ -5886,7 +5889,21 @@ async function joinRoomById(roomId, isCreator=false){
   // 참가자 목록 실시간 구독
   const playerUnsub=onSnapshot(collection(db,'multiRooms',roomId,'players'), snap=>{
     multiPlayers={};
-    snap.forEach(d=>{ if(d.id!==uid) multiPlayers[d.id]=d.data(); });
+    const now=Date.now();
+    snap.forEach(d=>{
+      if(d.id===uid) return;
+      const p=d.data();
+      // stale 체크: lastSeen이 15초 이상 지난 플레이어는 접속 끊긴 것으로 판단
+      const lastSeenMs=p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+      if(lastSeenMs&&now-lastSeenMs>15000) return;
+      multiPlayers[d.id]=p;
+      if(!multiRemoteDisplay[d.id]) multiRemoteDisplay[d.id]={x:p.x||300,y:p.y||500,facing:p.facing||-1};
+      if(!multiRemoteSprites[d.id]&&p.sprite) multiRemoteSprites[d.id]=getCachedImg(p.sprite);
+    });
+    // 나간 플레이어 보간 좌표 정리
+    for(const id of Object.keys(multiRemoteDisplay)){
+      if(!multiPlayers[id]) delete multiRemoteDisplay[id];
+    }
     renderMultiPlayerList(uid, snap);
   }, err=>{
     console.error('[multi] players onSnapshot error:',err);
@@ -5936,14 +5953,24 @@ function beginMultiBattle(mapIdx){
       showControls(true);
       resizeCanvas();
       // 싱글플레이와 동일하게 맵 초기화, 단 playerData 재사용
-      currentStage=1;
-      mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
-      window._mapEnemyPos=[];window._mapBombPos=[];
-      const tmaps=getTerraceMaps();
-      const tm=tmaps[mapIdx%tmaps.length];
-      window._terraceMap=tm; window._currentMapName=tm.name;
-      platforms=genPlatforms(1);
-      doors=genDoors(1);
+      // with 모드는 스테이지 1부터 함께 진행 (mapIdx는 PvP/사냥용 랜덤 맵)
+      if(multiRoomMode==='with'){
+        multiWithStage=1;
+        currentStage=multiWithStage;
+        mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+        window._mapEnemyPos=[];window._mapBombPos=[];
+        platforms=genPlatforms(multiWithStage);
+        doors=genDoors(multiWithStage);
+      } else {
+        currentStage=1;
+        mapWidth=Math.max((canvas.clientWidth||window.innerWidth)*2.8,2200);
+        window._mapEnemyPos=[];window._mapBombPos=[];
+        const tmaps=getTerraceMaps();
+        const tm=tmaps[mapIdx%tmaps.length];
+        window._terraceMap=tm; window._currentMapName=tm.name;
+        platforms=genPlatforms(1);
+        doors=genDoors(1);
+      }
       projectiles=[];particles=[];camera={x:0,y:0};
       healItems=[];bombs=[];
       // 플레이어 스폰
@@ -5954,9 +5981,11 @@ function beginMultiBattle(mapIdx){
         img:getCachedImg(playerData.sprite)
       };
       playerData.hp=playerData.maxHp;
-      // 멀티 전용 적 스폰 (사냥 모드)
-      enemies=[];
+      // 멀티 전용 적 스폰
+      enemies=[]; stageEnemyCount=0;
       if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
+      else if(multiRoomMode==='with') spawnMultiWithEnemies(multiWithStage);
+      stageEnemyCount=enemies.length;
       gamePhase='fight';
       multiHuntTimer=HUNT_DURATION;
       multiMyKills=0;
@@ -5970,7 +5999,7 @@ function beginMultiBattle(mapIdx){
       Object.entries(multiPlayers).forEach(([uid,p])=>{
         multiRemoteSprites[uid]=getCachedImg(p.sprite);
       });
-      startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':'multi_pvp');
+      startReplayRecording(multiRoomMode==='hunt'?'multi_hunt':multiRoomMode==='with'?'multi_with':'multi_pvp');
     }catch(err){
       console.error('beginMultiBattle setup error:',err);
       showToast('멀티 배틀 초기화 오류: '+(err?.message||err));
@@ -5992,6 +6021,41 @@ function spawnMultiHuntEnemies(){
     const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
       baseStats:{hp:80,atk:40,def:25,spe:40}};
     enemies.push(makeEnemy(rp,x,floorY,calcHP(80,3),false));
+  }
+}
+
+// ── with 모드(함께 클리어) 적 스폰 ───────────────────────────
+// 적 수 = (1인 기준 해당 스테이지 적 수) × (참가자 수) × 0.9, 반올림
+// 1인 기준 공식은 싱글플레이 initStageMap()의 cnt 공식과 동일하게 맞춤
+// (Math.floor(8+stage*0.7+Math.random()*4))을 기준으로, 여기서는
+// Math.random() 변동분을 빼고 평균값(8+stage*0.7+2)을 기준치로 사용해
+// 인원수에 따라 일관되게 배율 적용한다.
+function spawnMultiWithEnemies(stage){
+  const playerCount=Object.keys(multiPlayers).length+1; // 나 포함
+  const soloBase=Math.floor(8+stage*0.7+2); // 싱글플레이 평균 적 수
+  const cnt=Math.round(soloBase*playerCount*0.9);
+  const evoStage=getEvoStage(stage);
+  const evoScale=1+evoStage*0.38;
+  const spawnPositions=window._mapEnemyPos||[];
+
+  for(let i=0;i<cnt;i++){
+    const id=pickEnemyId(gameGen, evoStage);
+    let ex, ey=floorY;
+    if(i<spawnPositions.length){
+      ex=spawnPositions[i].x;
+      ey=spawnPositions[i].y||floorY;
+    } else {
+      // 스폰 위치가 부족하면(인원이 많아 적이 늘어난 만큼) 맵 전체에 균등 분포
+      ex=300+(Math.random()*(mapWidth-600));
+    }
+    const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
+      baseStats:{hp:(55+Math.random()*45)*evoScale,atk:(45+Math.random()*40)*evoScale,def:32*evoScale,spe:42}};
+    const en=makeEnemy(rp,ex,ey,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.55)),false);
+    en.attackStyle=assignAttackStyle(rp.types,false);
+    en.attackStyles=[en.attackStyle];
+    const rangedStyles=['ranged','snipe','wave','spread','lob'];
+    en.preferDist=rangedStyles.includes(en.attackStyle)?(200+Math.random()*80):0;
+    enemies.push(en);
   }
 }
 
@@ -6050,15 +6114,29 @@ function multiUpdate(dt){
   updateDamageTexts(dt);
   if(GFX.bgDecos && typeof updateBgDecos==="function") updateBgDecos(dt);
 
-  // 사냥 모드: 타이머 + 적 스폰 + 킬 카운트
   if(multiRoomMode==='hunt'){
+    // 사냥 모드: 타이머 + 적 스폰 + 킬 카운트
     multiHuntTimer-=dt;
     if(enemies.length<4) spawnMultiHuntEnemies();
     if(multiHuntTimer<=0){ endMultiBattle('hunt_end'); return; }
-    // 적 처치 감지
     const prevCnt=enemies.length;
     updateEnemies(dt);
     if(enemies.length<prevCnt) multiMyKills+=prevCnt-enemies.length;
+  } else if(multiRoomMode==='with'){
+    // with 모드(함께 클리어): 죽으면 5초 후 부활(다른 플레이어에게 데미지는 없음),
+    // 모든 적을 처치하면 다음 스테이지로 함께 진행
+    updateEnemies(dt);
+    if(playerData.hp<=0 && player.alive!==false){
+      player.alive=false; multiRespawnTimer=5;
+    }
+    if(player.alive===false){
+      multiRespawnTimer-=dt;
+      if(multiRespawnTimer<=0) multiRespawn();
+    }
+    if(enemies.length===0&&stageEnemyCount>0){
+      multiAdvanceWithStage();
+      return;
+    }
   } else {
     updateEnemies(dt);
     // PvP: 죽으면 5초 후 부활
@@ -6091,6 +6169,29 @@ function multiUpdate(dt){
   recordReplayFrame(dt);
 }
 
+// with 모드: 모든 적 처치 시 다음 스테이지로 함께 이동
+// (협동이므로 별도 동기화 없이 각자 클라이언트에서 동시에 같은 조건으로
+//  넘어감 — 적 수/스폰은 모두 같은 seed/공식을 쓰므로 동일하게 계산됨)
+function multiAdvanceWithStage(){
+  multiWithStage++;
+  if(multiWithStage>20){ endMultiBattle('with_clear'); return; }
+  currentStage=multiWithStage;
+  window._mapEnemyPos=[]; window._mapBombPos=[];
+  platforms=genPlatforms(multiWithStage);
+  doors=genDoors(multiWithStage);
+  projectiles=[]; particles=[]; camera={x:0,y:0};
+  healItems=[]; bombs=[];
+  player.x=doors[0].x+doors[0].w+20+Math.random()*80;
+  player.y=floorY-100; player.vy=0; player.alive=true;
+  playerData.hp=playerData.maxHp;
+  enemies=[]; stageEnemyCount=0;
+  spawnMultiWithEnemies(multiWithStage);
+  stageEnemyCount=enemies.length;
+  updateHUD();
+  setHint(`STAGE ${multiWithStage} 함께 진행 중!`);
+  setTimeout(()=>setHint(''),2500);
+}
+
 function multiRespawn(){
   playerData.hp=playerData.maxHp;
   player.x=doors[0].x+doors[0].w+30+Math.random()*120;
@@ -6104,8 +6205,10 @@ function updateMultiHud(dt){
   if(!sb) return;
   const uid=currentUser?.uid||'';
   let html='';
-  // 내 정보
   const myName=currentUser?.email?.replace('@pkdex.com','')||'나';
+  // 실시간 접속자 수 (나 + stale 체크 통과한 원격 플레이어 수)
+  const total=Object.keys(multiPlayers).length+1;
+  html+=`<span style="font-size:.62rem;background:rgba(255,255,255,.08);padding:.15rem .5rem;border-radius:6px;color:var(--muted);">👥 ${total}명</span>`;
   if(multiRoomMode==='hunt'){
     html+=`<span style="font-size:.62rem;background:rgba(255,203,5,.2);padding:.15rem .4rem;border-radius:6px;color:var(--accent);">나 🎯${multiMyKills}</span>`;
     Object.entries(multiPlayers).forEach(([,p])=>{
@@ -6113,6 +6216,19 @@ function updateMultiHud(dt){
     });
     // 남은 시간
     html+=`<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem;">⏱${Math.max(0,Math.ceil(multiHuntTimer))}s</span>`;
+  } else if(multiRoomMode==='with'){
+    // with 모드: 함께 진행 중인 스테이지 + 남은 적 수 + 각자 HP
+    html+=`<span style="font-size:.62rem;background:rgba(156,204,101,.2);padding:.15rem .4rem;border-radius:6px;color:#9ccc65;">STAGE ${multiWithStage} · 남은 적 ${enemies.length}마리</span>`;
+    const myAlive=player.alive!==false;
+    const pct=Math.max(0,playerData.hp/playerData.maxHp*100);
+    html+=`<span style="font-size:.6rem;background:rgba(46,213,115,.15);padding:.15rem .4rem;border-radius:6px;color:#2ed573;">${myName} ${myAlive?`♥${pct.toFixed(0)}%`:'💀'}</span>`;
+    Object.entries(multiPlayers).forEach(([,p])=>{
+      const rPct=Math.max(0,(p.hp||0)/(p.maxHp||1)*100);
+      html+=`<span style="font-size:.6rem;background:rgba(255,255,255,.08);padding:.15rem .4rem;border-radius:6px;color:var(--text);">${p.name} ${p.alive!==false?`♥${rPct.toFixed(0)}%`:'💀'}</span>`;
+    });
+    if(player.alive===false&&multiRespawnTimer>0){
+      html+=`<span style="font-size:.6rem;color:var(--muted);">부활까지 ${Math.ceil(multiRespawnTimer)}s</span>`;
+    }
   } else {
     // PvP: HP 표시
     const myAlive=player.alive!==false;
@@ -6132,30 +6248,43 @@ function updateMultiHud(dt){
 function multiRender(){
   // 기본 render() 호출
   render();
-  // 원격 플레이어 렌더 (PvP에서만)
-  if(multiRoomMode==='pvp'){
+  // 원격 플레이어 렌더 (PvP/with 모드 — 사냥은 각자 독립 공간이라 렌더 안 함)
+  if(multiRoomMode==='pvp'||multiRoomMode==='with'){
+    const isWith=multiRoomMode==='with';
+    const barColor=isWith?'rgba(46,213,115,.85)':'rgba(255,71,87,.85)';
+    const nameColor=isWith?'#2ed573':'#ff4757';
     ctx.save(); ctx.translate(-camera.x,0);
     Object.entries(multiPlayers).forEach(([uid,rp])=>{
       if(rp.alive===false) return;
+      // ── 보간 갱신 ─────────────────────────────────────────
+      // 충돌판정은 원본(rp.x/rp.y)을 유지하고, 렌더링 전용 좌표만
+      // (a-b)/n 방식으로 매 프레임 목표 위치 쪽으로 부드럽게 이동시킨다.
+      // n=POS_LERP_N(5) → 약 80ms 동기화 간격에서 자연스럽게 따라붙음
+      let d=multiRemoteDisplay[uid];
+      if(!d){ d=multiRemoteDisplay[uid]={x:rp.x||300,y:rp.y||500,facing:rp.facing||-1}; }
+      d.x=d.x-(d.x-rp.x)/POS_LERP_N;
+      d.y=d.y-(d.y-rp.y)/POS_LERP_N;
+      d.facing=rp.facing;
+      // ──────────────────────────────────────────────────────
       const img=multiRemoteSprites[uid];
-      const rx=rp.x, ry=rp.y, rw=80, rh=80;
+      const rw=80, rh=80;
       ctx.save();
-      ctx.translate(rx+rw/2, ry+rh/2);
-      if(rp.facing>0) ctx.scale(-1,1);
+      ctx.translate(d.x+rw/2, d.y+rh/2);
+      if(d.facing>0) ctx.scale(-1,1);
       if(img?.complete&&img.naturalWidth>0){
         ctx.drawImage(img,-rw/2,-rh/2,rw,rh);
       } else {
         ctx.fillStyle='#aaa'; ctx.fillRect(-rw/2,-rh/2,rw,rh);
       }
       ctx.restore();
-      // 이름 + HP바
+      // 이름 + HP바 (보간 좌표 기준)
       const hPct=Math.max(0,(rp.hp||0)/(rp.maxHp||1));
-      ctx.fillStyle='rgba(255,71,87,.85)';
-      ctx.fillRect(rx, ry-12, rw*hPct, 5);
+      ctx.fillStyle=barColor;
+      ctx.fillRect(d.x, d.y-12, rw*hPct, 5);
       ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1;
-      ctx.strokeRect(rx, ry-12, rw, 5);
-      ctx.fillStyle='#ff4757'; ctx.font="bold 9px 'Galmuri11',monospace";
-      ctx.textAlign='center'; ctx.fillText(rp.name||'', rx+rw/2, ry-15);
+      ctx.strokeRect(d.x, d.y-12, rw, 5);
+      ctx.fillStyle=nameColor; ctx.font="bold 9px 'Galmuri11',monospace";
+      ctx.textAlign='center'; ctx.fillText(rp.name||'', d.x+rw/2, d.y-15);
     });
     ctx.restore();
   }
@@ -6180,6 +6309,9 @@ async function endMultiBattle(reason){
     Object.values(multiPlayers).forEach(p=>scores.push({name:p.name,kills:p.kills||0}));
     scores.sort((a,b)=>b.kills-a.kills);
     html=scores.map((s,i)=>`<p style="font-size:.8rem;">${i+1}위 ${s.name} — 🎯 ${s.kills}마리</p>`).join('');
+  } else if(reason==='with_clear'){
+    title='🤝 함께 클리어!';
+    html='<p style="color:#2ed573;">20 스테이지를 모두 함께 돌파했습니다!</p>';
   } else {
     title='💀 패배...';
     html='<p style="color:var(--muted);">모든 체력을 잃었습니다</p>';
@@ -6211,7 +6343,7 @@ function multiCleanup(){
     updateDoc(doc(db,'multiRooms',multiRoomId),{[`playerCount.${currentUser.uid}`]:deleteField()}).catch(()=>{});
   }
   multiRoomId=null; multiRoomCode=null; multiIsHost=false;
-  multiStatus='idle'; multiPlayers={}; multiRemoteSprites={};
+  multiStatus='idle'; multiPlayers={}; multiRemoteSprites={}; multiRemoteDisplay={};
   multiMyKills=0; multiHuntTimer=0; multiRespawnTimer=0;
 }
 
@@ -6242,10 +6374,12 @@ window.addEventListener('pagehide', ()=>{
 let lobbyPresenceActive=false;
 let lobbyPresenceInterval=null;
 let lobbyPresenceUnsub=null;
-let lobbyOtherPlayers={};        // uid → presence 데이터
+let lobbyOtherPlayers={};        // uid → presence 데이터 (Firestore 원본, 목표값)
 let lobbyOtherSprites={};        // uid → Image
+let lobbyOtherDisplay={};        // uid → {x,y,facing} 현재 화면 표시 좌표 (보간 중간값)
 const LOBBY_PRESENCE_SYNC_MS=300; // 너무 잦은 쓰기를 피하기 위해 0.3초 간격
-const LOBBY_PRESENCE_STALE_MS=30000; // 30초 이상 안 갱신되면 화면에서 무시
+const LOBBY_PRESENCE_STALE_MS=15000; // 15초 이상 안 갱신되면 접속 끊긴 것으로 보고 화면에서 제거
+const POS_LERP_N=5; // 위치 보간 속도 — (a-b)/n, 작을수록 빠르게 따라붙음
 
 async function enterLobbyPresence(){
   if(!currentUser||!playerData) return;
@@ -6257,14 +6391,26 @@ async function enterLobbyPresence(){
   if(lobbyPresenceUnsub) lobbyPresenceUnsub();
   lobbyPresenceUnsub=onSnapshot(collection(db,'presence'), snap=>{
     const next={};
+    const now=Date.now();
     snap.forEach(d=>{
       if(d.id===currentUser.uid) return; // 자기 자신 제외
       const p=d.data();
       if(p.stage!==0) return; // 로비에 있는 유저만 표시
+      // ⚠️ 접속 끊김 감지: lastSeen이 너무 오래됐으면(탭을 그냥 닫는 등
+      // pagehide 정리가 안 된 경우) 화면에서 무시 — "유령 캐릭터" 방지
+      const lastSeenMs=p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+      if(lastSeenMs&&now-lastSeenMs>LOBBY_PRESENCE_STALE_MS) return;
       next[d.id]=p;
       if(!lobbyOtherSprites[d.id]&&p.sprite) lobbyOtherSprites[d.id]=getCachedImg(p.sprite);
+      // 새로 등장한 유저는 보간 시작점을 목표 위치로 즉시 맞춰서
+      // 화면 구석(0,0)에서 슝 날아오는 것처럼 보이지 않게 한다.
+      if(!lobbyOtherDisplay[d.id]) lobbyOtherDisplay[d.id]={x:p.x,y:p.y,facing:p.facing};
     });
     lobbyOtherPlayers=next;
+    // 더 이상 안 보이는(나간) 유저는 표시 좌표도 정리
+    for(const uid of Object.keys(lobbyOtherDisplay)){
+      if(!next[uid]) delete lobbyOtherDisplay[uid];
+    }
   }, err=>{
     console.error('[lobby] presence onSnapshot error:',err);
   });
@@ -6286,7 +6432,7 @@ async function leaveLobbyPresence(){
   lobbyPresenceActive=false;
   if(lobbyPresenceInterval){ clearInterval(lobbyPresenceInterval); lobbyPresenceInterval=null; }
   if(lobbyPresenceUnsub){ lobbyPresenceUnsub(); lobbyPresenceUnsub=null; }
-  lobbyOtherPlayers={}; lobbyOtherSprites={};
+  lobbyOtherPlayers={}; lobbyOtherSprites={}; lobbyOtherDisplay={};
   if(currentUser){
     try{ await deleteDoc(doc(db,'presence',currentUser.uid)); }catch(e){}
   }
@@ -6294,24 +6440,33 @@ async function leaveLobbyPresence(){
 
 // 로비 화면에 다른 유저들을 그린다 — render() 안에서 카메라 변환이
 // 적용된 상태(ctx.translate(-camera.x,0)) 동안 호출되어야 한다.
+// 위치는 (a-b)/n 보간으로 부드럽게 목표 좌표를 따라가도록 한다 —
+// Firestore 스냅샷은 0.3초 간격으로만 도착하므로, 받은 좌표를 그대로
+// 그리면 매 스냅샷마다 순간이동하듯 뚝뚝 끊겨 보인다.
 function renderLobbyOtherPlayers(){
   if(currentStage!==0) return;
-  const now=Date.now();
-  for(const [uid,p] of Object.entries(lobbyOtherPlayers)){
+  for(const [uid,target] of Object.entries(lobbyOtherPlayers)){
+    let d=lobbyOtherDisplay[uid];
+    if(!d){ d=lobbyOtherDisplay[uid]={x:target.x,y:target.y,facing:target.facing}; }
+    // a = a - (a-b)/n : 현재 표시 좌표를 목표 좌표 쪽으로 부드럽게 이동
+    d.x=d.x-(d.x-target.x)/POS_LERP_N;
+    d.y=d.y-(d.y-target.y)/POS_LERP_N;
+    d.facing=target.facing; // 방향 전환은 보간하지 않고 즉시 반영(스프라이트 반전이라 보간 의미 없음)
+
     const img=lobbyOtherSprites[uid];
     ctx.save();
-    ctx.translate(p.x+40,p.y+40);
-    if(p.facing>0) ctx.scale(-1,1);
+    ctx.translate(d.x+40,d.y+40);
+    if(d.facing>0) ctx.scale(-1,1);
     if(img&&img.complete&&img.naturalWidth>0) ctx.drawImage(img,-40,-40,80,80);
     else { ctx.fillStyle='rgba(150,150,150,.6)'; ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.fill(); }
     ctx.restore();
     // 이름표
     ctx.save();
     ctx.fillStyle='rgba(0,0,0,.5)';
-    const nameW=Math.max(40,(p.name||'').length*7+12);
-    ctx.beginPath(); ctx.roundRect(p.x+40-nameW/2,p.y-2,nameW,16,[6]); ctx.fill();
+    const nameW=Math.max(40,(target.name||'').length*7+12);
+    ctx.beginPath(); ctx.roundRect(d.x+40-nameW/2,d.y-2,nameW,16,[6]); ctx.fill();
     ctx.fillStyle='#9ccc65'; ctx.font="10px 'Galmuri11',monospace"; ctx.textAlign='center';
-    ctx.fillText(p.name||'?', p.x+40, p.y+10);
+    ctx.fillText(target.name||'?', d.x+40, d.y+10);
     ctx.restore();
   }
 }
@@ -6687,7 +6842,7 @@ async function openReplayList(){
     box.innerHTML='';
     snap.forEach(d=>{
       const r=d.data();
-      const modeLabel=r.mode==='single'?'싱글':r.mode==='multi_pvp'?'PvP':r.mode==='multi_hunt'?'사냥':r.mode;
+      const modeLabel=r.mode==='single'?'싱글':r.mode==='multi_pvp'?'PvP':r.mode==='multi_hunt'?'사냥':r.mode==='multi_with'?'함께클리어':r.mode;
       const div=document.createElement('div');
       div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;margin-bottom:.4rem;background:rgba(255,255,255,.04);border-radius:8px;cursor:pointer;';
       div.innerHTML=`<img src="${r.pokemonSprite}" style="width:32px;height:32px;image-rendering:pixelated;">

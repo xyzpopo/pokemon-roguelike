@@ -3209,12 +3209,28 @@ function preloadStageImages(stage, cb){
   if(srcs.length===0){ cb(); return; }
 
   let loaded=0;
-  const done=()=>{ if(++loaded>=srcs.length) cb(); };
+  let called=false;
+  const done=()=>{
+    if(called) return;
+    if(++loaded>=srcs.length){ called=true; cb(); }
+  };
+  // 타임아웃 폴백: 네트워크 지연 등으로 이미지가 영원히 안 와도
+  // 최대 5초 후엔 반드시 콜백을 호출해 검은 화면에 갇히지 않도록 한다
+  const timeout=setTimeout(()=>{ if(!called){ called=true; cb(); } }, 5000);
   srcs.forEach(src=>{
     const img=getCachedImg(src);
     if(img.complete&&img.naturalWidth>0){ done(); }
-    else{ img.onload=done; img.onerror=done; }
+    else{
+      // ⚠️ 버그 수정: img.onload=done으로 덮어쓰면 동일 이미지 객체에 대해
+      // 여러 번 preloadStageImages가 호출될 때(스테이지 전환 중 빠른 재진입 등)
+      // 이전 onload 핸들러가 사라져서 이전 cb()가 영원히 호출 안 되는 문제 발생
+      // → addEventListener로 중복 등록해도 각각 독립적으로 호출되도록 수정
+      img.addEventListener('load', done, {once:true});
+      img.addEventListener('error', done, {once:true});
+    }
   });
+  // 이미 모두 캐시된 경우 setTimeout 없이 즉시 완료됐을 수 있으니 클리어
+  if(called) clearTimeout(timeout);
 }
 
 function launchStage(stage, onDone){
@@ -4140,6 +4156,9 @@ function groundYBelow(ex, ew, footY){
 
 // ── 렌더 ─────────────────────────────────────────────────────
 function render(){
+  // floorY가 아직 0(초기화 전)이면 render를 건너뜀 — createLinearGradient(0,0,0,0)이
+  // 일부 브라우저에서 에러를 던지거나 무효 gradient를 만들어 검은 화면의 원인이 됨
+  if(!floorY||floorY<=0) return;
   const _vw=canvas.clientWidth||window.innerWidth, _vh=canvas.clientHeight||window.innerHeight;
   const dpr=window.devicePixelRatio||1;
   // 물리 픽셀 전체를 확실히 지움 (transform 무관하게)
@@ -5845,7 +5864,8 @@ async function joinRoomByCode(){
 
 // ── 방 ID로 입장 ────────────────────────────────────────────
 async function joinRoomById(roomId, isCreator=false){
-  if(!currentUser||!playerData) return;
+  if(!currentUser){ showToast('로그인이 필요합니다'); return; }
+  if(!playerData){ showToast('먼저 포켓몬을 선택해주세요 (로비로 이동 후 재시도)'); return; }
   console.log('[multi] joinRoomById start', roomId, 'isCreator:', isCreator);
   multiRoomId=roomId;
   // 내 플레이어 데이터 등록
@@ -5860,17 +5880,22 @@ async function joinRoomById(roomId, isCreator=false){
       facing:-1, alive:true, kills:0, lastSeen:serverTimestamp()
     });
     console.log('[multi] player doc written');
-    // playerCount 업데이트
     await updateDoc(doc(db,'multiRooms',roomId),{[`playerCount.${uid}`]:true});
     console.log('[multi] playerCount updated');
   }catch(err){
     console.error('[multi] joinRoomById Firestore write failed:',err);
     showToast('방 입장 실패: '+(err?.message||err));
-    return; // 쓰기 실패 시 화면 전환하지 않고 멀티 로비에 머무름
+    multiRoomId=null; // 실패 시 stale 상태 방지
+    return;
   }
 
   console.log('[multi] calling showScreen(multiRoomScreen)');
-  showScreen('multiRoomScreen');
+  // multiRoomScreen이 완전히 표시된 이후에만 게임 시작 신호를 처리한다.
+  // showScreen은 비동기(exit 애니메이션 후 onShown)라서, 화면 전환이
+  // 끝나기 전에 roomUnsub이 status==='playing'을 받으면 beginMultiBattle이
+  // 전환 애니메이션 도중 호출되어 두 showScreen이 충돌하는 문제를 방지한다.
+  let readyToStart=false;
+  showScreen('multiRoomScreen', ()=>{ readyToStart=true; });
   // 방 코드 표시
   const codeEl=document.getElementById('multiRoomCode');
   if(!isCreator){
@@ -5909,14 +5934,24 @@ async function joinRoomById(roomId, isCreator=false){
     console.error('[multi] players onSnapshot error:',err);
     showToast('참가자 목록 동기화 오류: '+(err?.message||err));
   });
-  // 방 상태 구독 (시작 신호 수신)
+  // 방 상태 구독 (시작 신호 수신) — readyToStart 플래그를 클로저로 참조
   const roomUnsub=onSnapshot(doc(db,'multiRooms',roomId), snap=>{
     if(!snap.exists()) return;
     const d=snap.data();
     multiRoomMode=d.mode||'pvp';
     if(d.status==='playing'&&multiStatus==='idle'){
-      multiStatus='playing';
-      beginMultiBattle(d.mapIdx||0);
+      if(!readyToStart){
+        // 대기실 화면이 아직 전환 중 — 짧게 대기 후 재시도
+        setTimeout(()=>{
+          if(d.status==='playing'&&multiStatus==='idle'){
+            multiStatus='playing';
+            beginMultiBattle(d.mapIdx||0);
+          }
+        }, 300);
+      } else {
+        multiStatus='playing';
+        beginMultiBattle(d.mapIdx||0);
+      }
     }
   }, err=>{
     console.error('[multi] room onSnapshot error:',err);
@@ -5981,6 +6016,7 @@ function beginMultiBattle(mapIdx){
         img:getCachedImg(playerData.sprite)
       };
       playerData.hp=playerData.maxHp;
+      if(!playerData.level) playerData.level=1; // 멀티배틀 진입 시 level 보장
       // 멀티 전용 적 스폰
       enemies=[]; stageEnemyCount=0;
       if(multiRoomMode==='hunt') spawnMultiHuntEnemies();
@@ -6050,7 +6086,8 @@ function spawnMultiWithEnemies(stage){
     }
     const rp={id,name:`#${id}`,types:[rndType()],sprite:spriteUrl(id),
       baseStats:{hp:(55+Math.random()*45)*evoScale,atk:(45+Math.random()*40)*evoScale,def:32*evoScale,spe:42}};
-    const en=makeEnemy(rp,ex,ey,calcHP(rp.baseStats.hp,Math.ceil(playerData.level*.55)),false);
+    const withLv=Math.max(1,playerData?.level||multiWithStage||1);
+    const en=makeEnemy(rp,ex,ey,calcHP(rp.baseStats.hp,Math.ceil(withLv*.55)),false);
     en.attackStyle=assignAttackStyle(rp.types,false);
     en.attackStyles=[en.attackStyle];
     const rangedStyles=['ranged','snipe','wave','spread','lob'];
